@@ -1,0 +1,8 @@
+// Export all home feature components
+export { HeroSection } from "./components/HeroSection"
+export { ServicesSection } from "./components/ServicesSection"
+export { PackagesSection } from "./components/PackagesSection"
+export { HealthGuideSection } from "./components/HealthGuideSection"
+export { ClinicsSection } from "./components/ClinicsSection"
+export { HowItWorksSection } from "./components/HowItWorksSection"
+export { CTASection } from "./components/CTASection"

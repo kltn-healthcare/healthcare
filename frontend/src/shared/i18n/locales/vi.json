@@ -1,0 +1,136 @@
+{
+    "common": {
+        "loading": "Đang tải...",
+        "error": "Đã xảy ra lỗi",
+        "retry": "Thử lại",
+        "cancel": "Hủy",
+        "confirm": "Xác nhận",
+        "save": "Lưu",
+        "delete": "Xóa",
+        "edit": "Chỉnh sửa",
+        "search": "Tìm kiếm",
+        "filter": "Lọc",
+        "viewAll": "Xem tất cả",
+        "seeMore": "Xem thêm",
+        "back": "Quay lại",
+        "next": "Tiếp theo",
+        "previous": "Trước đó"
+    },
+    "nav": {
+        "home": "Trang chủ",
+        "clinics": "Phòng khám",
+        "booking": "Đặt lịch",
+        "healthGuide": "Cẩm nang sức khỏe",
+        "about": "Về chúng tôi",
+        "login": "Đăng nhập",
+        "register": "Đăng ký",
+        "account": "Tài khoản",
+        "logout": "Đăng xuất"
+    },
+    "home": {
+        "hero": {
+            "title": "Đặt lịch khám bệnh dễ dàng",
+            "subtitle": "Tìm kiếm và đặt lịch khám tại các phòng khám uy tín",
+            "searchPlaceholder": "Tìm phòng khám, bác sĩ, chuyên khoa..."
+        },
+        "services": {
+            "title": "Dịch vụ của chúng tôi",
+            "subtitle": "Đa dạng dịch vụ y tế chất lượng cao"
+        },
+        "packages": {
+            "title": "Gói khám sức khỏe",
+            "subtitle": "Lựa chọn gói khám phù hợp với nhu cầu của bạn"
+        },
+        "clinics": {
+            "title": "Phòng khám nổi bật",
+            "subtitle": "Các phòng khám được đánh giá cao"
+        },
+        "healthGuide": {
+            "title": "Cẩm nang sức khỏe",
+            "subtitle": "Kiến thức y tế hữu ích cho bạn"
+        },
+        "howItWorks": {
+            "title": "Cách thức hoạt động",
+            "step1": "Tìm phòng khám",
+            "step2": "Chọn dịch vụ",
+            "step3": "Đặt lịch hẹn"
+        },
+        "cta": {
+            "title": "Sẵn sàng đặt lịch khám?",
+            "subtitle": "Bắt đầu ngay hôm nay",
+            "button": "Đặt lịch ngay"
+        }
+    },
+    "clinic": {
+        "rating": "Đánh giá",
+        "reviews": "đánh giá",
+        "open": "Đang mở cửa",
+        "closed": "Đã đóng cửa",
+        "address": "Địa chỉ",
+        "phone": "Điện thoại",
+        "specialties": "Chuyên khoa",
+        "bookNow": "Đặt lịch ngay"
+    },
+    "booking": {
+        "title": "Đặt lịch khám",
+        "selectDate": "Chọn ngày",
+        "selectTime": "Chọn giờ",
+        "selectPackage": "Chọn gói khám",
+        "patientInfo": "Thông tin bệnh nhân",
+        "name": "Họ và tên",
+        "email": "Email",
+        "phone": "Số điện thoại",
+        "dateOfBirth": "Ngày sinh",
+        "gender": "Giới tính",
+        "male": "Nam",
+        "female": "Nữ",
+        "other": "Khác",
+        "notes": "Ghi chú",
+        "submit": "Xác nhận đặt lịch",
+        "success": "Đặt lịch thành công!",
+        "status": {
+            "pending": "Chờ xác nhận",
+            "confirmed": "Đã xác nhận",
+            "completed": "Hoàn thành",
+            "cancelled": "Đã hủy"
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Đăng nhập",
+            "email": "Email",
+            "password": "Mật khẩu",
+            "remember": "Ghi nhớ đăng nhập",
+            "forgot": "Quên mật khẩu?",
+            "submit": "Đăng nhập",
+            "noAccount": "Chưa có tài khoản?",
+            "register": "Đăng ký ngay"
+        },
+        "register": {
+            "title": "Đăng ký",
+            "name": "Họ và tên",
+            "email": "Email",
+            "phone": "Số điện thoại",
+            "password": "Mật khẩu",
+            "confirmPassword": "Xác nhận mật khẩu",
+            "submit": "Đăng ký",
+            "hasAccount": "Đã có tài khoản?",
+            "login": "Đăng nhập"
+        }
+    },
+    "validation": {
+        "required": "Trường này là bắt buộc",
+        "email": "Email không hợp lệ",
+        "phone": "Số điện thoại không hợp lệ",
+        "minLength": "Tối thiểu {{min}} ký tự",
+        "maxLength": "Tối đa {{max}} ký tự",
+        "passwordMismatch": "Mật khẩu không khớp"
+    },
+    "error": {
+        "notFound": "Không tìm thấy trang",
+        "serverError": "Lỗi máy chủ",
+        "networkError": "Lỗi kết nối mạng",
+        "unauthorized": "Bạn cần đăng nhập",
+        "forbidden": "Bạn không có quyền truy cập"
+    }
+}

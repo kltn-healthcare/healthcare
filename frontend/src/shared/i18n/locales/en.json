@@ -1,0 +1,136 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "An error occurred",
+        "retry": "Retry",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "search": "Search",
+        "filter": "Filter",
+        "viewAll": "View all",
+        "seeMore": "See more",
+        "back": "Back",
+        "next": "Next",
+        "previous": "Previous"
+    },
+    "nav": {
+        "home": "Home",
+        "clinics": "Clinics",
+        "booking": "Booking",
+        "healthGuide": "Health Guide",
+        "about": "About Us",
+        "login": "Login",
+        "register": "Register",
+        "account": "Account",
+        "logout": "Logout"
+    },
+    "home": {
+        "hero": {
+            "title": "Book Medical Appointments Easily",
+            "subtitle": "Find and book appointments at trusted clinics",
+            "searchPlaceholder": "Search clinics, doctors, specialties..."
+        },
+        "services": {
+            "title": "Our Services",
+            "subtitle": "Diverse high-quality medical services"
+        },
+        "packages": {
+            "title": "Health Checkup Packages",
+            "subtitle": "Choose the package that suits your needs"
+        },
+        "clinics": {
+            "title": "Featured Clinics",
+            "subtitle": "Highly rated clinics"
+        },
+        "healthGuide": {
+            "title": "Health Guide",
+            "subtitle": "Useful medical knowledge for you"
+        },
+        "howItWorks": {
+            "title": "How It Works",
+            "step1": "Find a Clinic",
+            "step2": "Choose a Service",
+            "step3": "Book an Appointment"
+        },
+        "cta": {
+            "title": "Ready to Book?",
+            "subtitle": "Get started today",
+            "button": "Book Now"
+        }
+    },
+    "clinic": {
+        "rating": "Rating",
+        "reviews": "reviews",
+        "open": "Open",
+        "closed": "Closed",
+        "address": "Address",
+        "phone": "Phone",
+        "specialties": "Specialties",
+        "bookNow": "Book Now"
+    },
+    "booking": {
+        "title": "Book Appointment",
+        "selectDate": "Select Date",
+        "selectTime": "Select Time",
+        "selectPackage": "Select Package",
+        "patientInfo": "Patient Information",
+        "name": "Full Name",
+        "email": "Email",
+        "phone": "Phone Number",
+        "dateOfBirth": "Date of Birth",
+        "gender": "Gender",
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "notes": "Notes",
+        "submit": "Confirm Booking",
+        "success": "Booking successful!",
+        "status": {
+            "pending": "Pending",
+            "confirmed": "Confirmed",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Login",
+            "email": "Email",
+            "password": "Password",
+            "remember": "Remember me",
+            "forgot": "Forgot password?",
+            "submit": "Login",
+            "noAccount": "Don't have an account?",
+            "register": "Register now"
+        },
+        "register": {
+            "title": "Register",
+            "name": "Full Name",
+            "email": "Email",
+            "phone": "Phone Number",
+            "password": "Password",
+            "confirmPassword": "Confirm Password",
+            "submit": "Register",
+            "hasAccount": "Already have an account?",
+            "login": "Login"
+        }
+    },
+    "validation": {
+        "required": "This field is required",
+        "email": "Invalid email address",
+        "phone": "Invalid phone number",
+        "minLength": "Minimum {{min}} characters",
+        "maxLength": "Maximum {{max}} characters",
+        "passwordMismatch": "Passwords do not match"
+    },
+    "error": {
+        "notFound": "Page not found",
+        "serverError": "Server error",
+        "networkError": "Network error",
+        "unauthorized": "Please login to continue",
+        "forbidden": "Access denied"
+    }
+}
