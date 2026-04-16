@@ -1,7 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/interfaces/jwt-user.interface';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -14,5 +15,9 @@ export class UsersController {
   me(@CurrentUser() user: JwtUser) {
     return this.usersService.getById(user.id);
   }
-}
 
+  @Patch('me')
+  updateProfile(@CurrentUser() user: JwtUser, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(user.id, dto);
+  }
+}

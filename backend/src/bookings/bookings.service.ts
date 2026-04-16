@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(userId: string, dto: CreateBookingDto) {
     const clinic = await this.prisma.clinic.findUnique({
@@ -16,6 +18,13 @@ export class BookingsService {
       throw new BadRequestException({
         code: 'INVALID_CLINIC',
         message: 'Invalid clinicId',
+      });
+    }
+
+    if (!clinic.isOpen) {
+      throw new BadRequestException({
+        code: 'CLINIC_CLOSED',
+        message: 'Selected clinic is currently closed',
       });
     }
 
@@ -40,26 +49,11 @@ export class BookingsService {
       });
     }
 
+    this.assertNotPastBookingDateTime(bookingDate, dto.bookingTime);
+
     // Slot is considered locked when another patient already has a pending/confirmed booking.
     if (dto.doctorId) {
-      const existingBooking = await this.prisma.booking.findFirst({
-        where: {
-          doctorId: dto.doctorId,
-          bookingDate,
-          bookingTime: dto.bookingTime,
-          status: {
-            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-          },
-        },
-        select: { id: true },
-      });
-
-      if (existingBooking) {
-        throw new BadRequestException({
-          code: 'BOOKING_SLOT_UNAVAILABLE',
-          message: 'This booking slot is not available',
-        });
-      }
+      await this.ensureDoctorSlotAvailable(dto.doctorId, bookingDate, dto.bookingTime);
     }
 
     const patientDob = dto.patientDob ? new Date(dto.patientDob) : undefined;
@@ -115,5 +109,216 @@ export class BookingsService {
       },
     });
     return { items };
+  }
+
+  async getMyBookingById(userId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        userId,
+      },
+      select: {
+        id: true,
+        status: true,
+        bookingDate: true,
+        bookingTime: true,
+        patientName: true,
+        patientEmail: true,
+        patientPhone: true,
+        patientDob: true,
+        patientGender: true,
+        notes: true,
+        cancellationReason: true,
+        cancelledAt: true,
+        clinic: { select: { id: true, name: true, address: true } },
+        doctor: { select: { id: true, name: true } },
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException({
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    return booking;
+  }
+
+  async cancelByPatient(userId: string, bookingId: string, dto: CancelBookingDto) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        userId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException({
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    if (
+      booking.status !== BookingStatus.PENDING &&
+      booking.status !== BookingStatus.CONFIRMED
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_CANNOT_BE_CANCELLED',
+        message: 'Only pending or confirmed bookings can be cancelled',
+      });
+    }
+
+    return this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BookingStatus.CANCELLED,
+        cancellationReason: dto.reason?.trim() || 'Cancelled by patient',
+        cancelledAt: new Date(),
+      },
+      select: {
+        id: true,
+        status: true,
+        cancellationReason: true,
+        cancelledAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async rescheduleByPatient(
+    userId: string,
+    bookingId: string,
+    dto: RescheduleBookingDto,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        userId,
+      },
+      select: {
+        id: true,
+        status: true,
+        doctorId: true,
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException({
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    if (
+      booking.status !== BookingStatus.PENDING &&
+      booking.status !== BookingStatus.CONFIRMED
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_CANNOT_BE_RESCHEDULED',
+        message: 'Only pending or confirmed bookings can be rescheduled',
+      });
+    }
+
+    const nextBookingDate = new Date(dto.bookingDate);
+    if (Number.isNaN(nextBookingDate.getTime())) {
+      throw new BadRequestException({
+        code: 'INVALID_BOOKING_DATE',
+        message: 'Invalid bookingDate',
+      });
+    }
+
+    this.assertNotPastBookingDateTime(nextBookingDate, dto.bookingTime);
+
+    if (booking.doctorId) {
+      await this.ensureDoctorSlotAvailable(
+        booking.doctorId,
+        nextBookingDate,
+        dto.bookingTime,
+        booking.id,
+      );
+    }
+
+    return this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        bookingDate: nextBookingDate,
+        bookingTime: dto.bookingTime,
+        status: BookingStatus.PENDING,
+        cancellationReason: null,
+        cancelledAt: null,
+      },
+      select: {
+        id: true,
+        status: true,
+        bookingDate: true,
+        bookingTime: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  private async ensureDoctorSlotAvailable(
+    doctorId: string,
+    bookingDate: Date,
+    bookingTime: string,
+    excludeBookingId?: string,
+  ) {
+    const existingBooking = await this.prisma.booking.findFirst({
+      where: {
+        doctorId,
+        bookingDate,
+        bookingTime,
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+        },
+        ...(excludeBookingId ? { NOT: { id: excludeBookingId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (existingBooking) {
+      throw new BadRequestException({
+        code: 'BOOKING_SLOT_UNAVAILABLE',
+        message: 'This booking slot is not available',
+      });
+    }
+  }
+
+  private assertNotPastBookingDateTime(bookingDate: Date, bookingTime: string) {
+    const [hoursRaw, minutesRaw] = bookingTime.split(':');
+    const hours = Number(hoursRaw);
+    const minutes = Number(minutesRaw);
+
+    if (
+      !Number.isInteger(hours) ||
+      !Number.isInteger(minutes) ||
+      hours < 0 ||
+      hours > 23 ||
+      minutes < 0 ||
+      minutes > 59
+    ) {
+      throw new BadRequestException({
+        code: 'INVALID_BOOKING_TIME',
+        message: 'Invalid bookingTime, expected HH:mm',
+      });
+    }
+
+    const dateTime = new Date(bookingDate);
+    dateTime.setHours(hours, minutes, 0, 0);
+
+    if (dateTime.getTime() < Date.now()) {
+      throw new BadRequestException({
+        code: 'BOOKING_IN_THE_PAST',
+        message: 'Booking date/time cannot be in the past',
+      });
+    }
   }
 }

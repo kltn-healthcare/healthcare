@@ -99,6 +99,20 @@ export class DoctorAdminService {
             });
         }
 
+        const transitionMap: Record<BookingStatus, BookingStatus[]> = {
+            [BookingStatus.PENDING]: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
+            [BookingStatus.CONFIRMED]: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
+            [BookingStatus.COMPLETED]: [],
+            [BookingStatus.CANCELLED]: [],
+        };
+
+        if (!transitionMap[booking.status].includes(dto.status)) {
+            throw new BadRequestException({
+                code: 'BOOKING_STATUS_TRANSITION_NOT_ALLOWED',
+                message: `Cannot change booking status from ${booking.status} to ${dto.status}`,
+            });
+        }
+
         return this.prisma.booking.update({
             where: { id: booking.id },
             data: {

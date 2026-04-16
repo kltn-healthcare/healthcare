@@ -21,3 +21,13 @@ export async function getMyBookings() {
   return res.data as { items: any[] }
 }
 
+export async function cancelBooking(id: string, reason?: string) {
+  const res = await apiClient.patch(`/v1/bookings/${id}/cancel`, { reason })
+  return res.data
+}
+
+export async function rescheduleBooking(id: string, data: { bookingDate: string; bookingTime: string }) {
+  const res = await apiClient.patch(`/v1/bookings/${id}/reschedule`, data)
+  return res.data
+}
+

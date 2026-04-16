@@ -42,6 +42,7 @@ model User {
 
   doctorProfile Doctor?
   bookings      Booking[]
+  reviews       Review[]
 
   @@map("users")
   @@index([role])
@@ -68,6 +69,7 @@ model Clinic {
 
   doctors  Doctor[]
   bookings Booking[]
+  reviews  Review[]
 
   @@map("clinics")
   @@index([isOpen, rating])
@@ -105,6 +107,7 @@ model Doctor {
   clinic    Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
   bookings  Booking[]
+  reviews   Review[]
 
   @@map("doctors")
   @@index([clinicId, specialtyId])
@@ -137,6 +140,8 @@ model Booking {
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   doctor Doctor? @relation(fields: [doctorId], references: [id], onDelete: SetNull)
 
+  review Review?
+
   @@map("bookings")
   @@index([userId, createdAt])
   @@index([clinicId, bookingDate])
@@ -158,5 +163,29 @@ model Article {
   @@map("articles")
   @@index([publishedAt])
   @@index([category])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  doctorId  String?  @map("doctor_id")
+  clinicId  String?  @map("clinic_id")
+  bookingId String?  @unique @map("booking_id")
+
+  rating    Int      @db.SmallInt
+  comment   String?  @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor  Doctor?  @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  clinic  Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@map("reviews")
+  @@index([doctorId, createdAt])
+  @@index([clinicId, createdAt])
+  @@index([userId])
 }
 
