@@ -1,32 +1,34 @@
-# Giai đoạn 1: Cài đặt dependencies
+# Stage 1: Install dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
+RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
-# Giai đoạn 2: Build code
+# Stage 2: Build app
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN corepack enable && pnpm build
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
 
-# Giai đoạn 3: Chạy ứng dụng (Image cuối cùng)
+# Stage 3: Run app
 FROM node:20-alpine AS runner
 WORKDIR /app
+RUN corepack enable
 
 ENV NODE_ENV=production
-# Next.js thu thập dữ liệu ẩn danh, tắt đi cho nhẹ
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Copy các file cần thiết từ bản build
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-EXPOSE 3000
 ENV PORT=3000
 
-# Chạy trực tiếp bằng node để ổn định nhất trên K8s
-CMD ["node", "server.js"]
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./next.config.mjs
+
+EXPOSE 3000
+CMD ["pnpm", "start"]
