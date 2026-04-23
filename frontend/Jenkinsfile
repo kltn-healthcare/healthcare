@@ -22,6 +22,10 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
+    parameters {
+        string(name: 'RELEASE_TAG', defaultValue: '', description: 'Release tag to deploy to production (leave empty for staging)')
+    }
+
     stages {
 
         // ── 0. System snapshot (useful for debugging runner capacity) ─────────────
@@ -32,6 +36,7 @@ pipeline {
                     echo "=== RAM ===" && free -mh
                     echo "=== Disk ===" && df -h
                     echo "=== Docker ===" && docker version --format "Client: {{.Client.Version}}  Server: {{.Server.Version}}"
+                    echo "params.RELEASE_TAG=${params.RELEASE_TAG}"
                 '''
             }
         }
@@ -44,117 +49,94 @@ pipeline {
             }
         }
 
+        // ── 2. Security & Analysis (Parallel) ────────────────────────────
+        stage('Step 2: Security & Analysis') {
+            parallel {
+
+                        stage('SonarQube Scan') {
+                            steps {
+                                script {
+                                    def scannerHome = tool SONAR_SCANNER
+                                    withSonarQubeEnv(SONAR_SERVER) {
+                                        sh """
+                                            ${scannerHome}/bin/sonar-scanner \
+                                                -Dsonar.projectKey=${env.JOB_BASE_NAME} \
+                                                -Dsonar.sources=.
+                                        """
+                                    }
+                                }
+                            }
+                        }
+
+                        stage('Hadolint – Dockerfile Lint') {
+                            steps {
+                                script {
+                                    // [ALLOW FAILURE] exit-code 0 so pipeline continues.
+                                    // TODO: Set --failure-threshold error (or remove || true) once
+                                    //       all Dockerfile warnings have been resolved.
+                                    sh '''
+                                        docker run --rm -i hadolint/hadolint:v2.14.0 hadolint \
+                                            --failure-threshold style \
+                                            - < ./frontend/Dockerfile || true
+                                    '''
+                                }
+                            }
+                        }
+
+                        stage('Trivy – Source Scan') {
+                            steps {
+                                script {
+                                    // [ALLOW FAILURE] --exit-code 0 keeps the build green while
+                                    // the team works through existing HIGH/CRITICAL findings.
+                                    // TODO: Change --exit-code to 1 to enforce hard-fail once
+                                    //       dependency vulnerabilities are remediated.
+                                    sh """
+                                        docker run --rm \
+                                            -v /var/run/docker.sock:/var/run/docker.sock \
+                                            -v \${HOME}/.cache/trivy:/root/.cache/trivy \
+                                            aquasec/trivy:0.69.3 fs \
+                                                --scanners vuln,secret \
+                                                --severity HIGH,CRITICAL \
+                                                --exit-code 0 \
+                                                --no-progress \
+                                                .
+                                    """
+                                }
+                            }
+                        }
+                    }
+        }
+
+        // ── 3. Quality Gate (SonarQube webhook) ─────────────────────────────
+        stage('Step 3: Quality Gate') {
+            steps {
+                // [ALLOW FAILURE] abortPipeline:false keeps the build green while
+                // the team tunes SonarQube quality profiles.
+                // TODO: Set abortPipeline:true once the project consistently passes.
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
         // ==========================================
-        // PHẦN A: LUỒNG CI & STAGING (Chỉ chạy khi push code)
+        // PART A: CI & STAGING (Runs when no release tag is provided)
         // ==========================================
         stage('App CI and Staging Deployment') {
             when {
-                not { buildingTag() }
+                expression { return !params.RELEASE_TAG?.trim() }
             }
             stages {
-                // ── 2. Security & Analysis (Parallel) ────────────────────────────
-                // stage('Step 2: Security & Analysis') {
-                //     parallel {
-
-                //         stage('SonarQube Scan') {
-                //             steps {
-                //                 script {
-                //                     def scannerHome = tool SONAR_SCANNER
-                //                     withSonarQubeEnv(SONAR_SERVER) {
-                //                         sh """
-                //                             ${scannerHome}/bin/sonar-scanner \
-                //                                 -Dsonar.projectKey=${env.JOB_BASE_NAME} \
-                //                                 -Dsonar.sources=.
-                //                         """
-                //                     }
-                //                 }
-                //             }
-                //         }
-
-                //         stage('Hadolint – Dockerfile Lint') {
-                //             steps {
-                //                 script {
-                //                     // [ALLOW FAILURE] exit-code 0 so pipeline continues.
-                //                     // TODO: Set --failure-threshold error (or remove || true) once
-                //                     //       all Dockerfile warnings have been resolved.
-                //                     sh '''
-                //                         docker run --rm -i hadolint/hadolint:v2.14.0 hadolint \
-                //                             --failure-threshold style \
-                //                             - < ./frontend/Dockerfile || true
-                //                     '''
-                //                 }
-                //             }
-                //         }
-
-                //         stage('Trivy – Source Scan') {
-                //             steps {
-                //                 script {
-                //                     // [ALLOW FAILURE] --exit-code 0 keeps the build green while
-                //                     // the team works through existing HIGH/CRITICAL findings.
-                //                     // TODO: Change --exit-code to 1 to enforce hard-fail once
-                //                     //       dependency vulnerabilities are remediated.
-                //                     sh """
-                //                         docker run --rm \
-                //                             -v /var/run/docker.sock:/var/run/docker.sock \
-                //                             -v \${HOME}/.cache/trivy:/root/.cache/trivy \
-                //                             aquasec/trivy:0.69.3 fs \
-                //                                 --scanners vuln,secret \
-                //                                 --severity HIGH,CRITICAL \
-                //                                 --exit-code 0 \
-                //                                 --no-progress \
-                //                                 .
-                //                     """
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
-
-                // // ── 3. Quality Gate (SonarQube webhook) ─────────────────────────────
-                // stage('Step 3: Quality Gate') {
-                //     steps {
-                //         // [ALLOW FAILURE] abortPipeline:false keeps the build green while
-                //         // the team tunes SonarQube quality profiles.
-                //         // TODO: Set abortPipeline:true once the project consistently passes.
-                //         timeout(time: 5, unit: 'MINUTES') {
-                //             waitForQualityGate abortPipeline: false
-                //         }
-                //     }
-                // }
-
-                // ── 4. Build Docker Image ─────────────────────────────────────────
-                stage('Step 4: Build Image') {
+                stage('Step 4: Build Image (Staging)') {
                     steps {
                         script {
-                            echo "Building image: ${IMAGE_TAG}"
+                            echo "Building Staging image: ${IMAGE_TAG}"
                             sh "docker build -t ${IMAGE_TAG} ./frontend"
                         }
                     }
                 }
 
-                // // ── 5. Trivy – Image Scan ─────────────────────────────────────────
-                // stage('Step 5: Trivy – Image Scan') {
-                //     steps {
-                //         script {
-                //             // [ALLOW FAILURE] --exit-code 0 lets the pipeline proceed to push
-                //             // while the team remediates image-level vulnerabilities.
-                //             // TODO: Change --exit-code to 1 to block pushes on HIGH/CRITICAL.
-                //             sh """
-                //                 docker run --rm \
-                //                     -v /var/run/docker.sock:/var/run/docker.sock \
-                //                     -v \${HOME}/.cache/trivy:/root/.cache/trivy \
-                //                     aquasec/trivy:0.69.3 image \
-                //                         --severity HIGH,CRITICAL \
-                //                         --exit-code 0 \
-                //                         --no-progress \
-                //                         ${IMAGE_TAG}
-                //             """
-                //         }
-                //     }
-                // }
-
-                // ── 6. Push to Gitea Registry ─────────────────────────────────────
-                stage('Step 6: Push to Gitea Registry') {
+                stage('Step 6: Push to Gitea Registry (Staging)') {
                     steps {
                         script {
                             withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
@@ -169,59 +151,28 @@ pipeline {
                     }
                 }
 
-                // ── 7. Update Staging Manifests (Trigger Phase 2) ─────────────────
-                stage('Step 7: Update Staging Manifests') {
+                stage('Step 7: Update Staging Manifests (Push to main)') {
                     steps {
-                        // Create an isolated workspace to avoid mixing with the app's source code
                         dir('manifests-workspace') {
-                            // Inject Git credentials (Jenkins masks credential values in logs)
                             withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
                                 sh '''
                                     set -e
                                     GIT_REPO_URL="http://thanhdc:${TOKEN}@gitea.kltn.internal/kltn/healthcare-manifests.git"
-
-                                    # 1. Clone the manifests repository
-                                    # Use token-based auth so non-interactive clone/push works in CI
                                     git clone "${GIT_REPO_URL}" .
                                     
-                                    # 2. Create and checkout a temporary branch for this specific build
-                                    TEMP_BRANCH="update-staging-frontend-${BUILD_NUMBER}"
-                                    git checkout -b ${TEMP_BRANCH}
+                                    # Ensure we are on main
+                                    git checkout main
                                     
-                                    # 3. Navigate to the frontend staging overlay directory
                                     cd apps/overlays/staging/frontend
-
-                                    # 4. Update the image tag using 'sed' (Stream Editor)
-                                    # This searches for 'newTag: <anything>' and replaces it with 'newTag: <BUILD_NUMBER>'
                                     sed -i "s#newName:.*#newName: $GITEA_REGISTRY/$GITEA_OWNER/$IMAGE_NAME#g" kustomization.yaml
                                     sed -i 's/newTag:.*/newTag: "'"${BUILD_NUMBER}"'"/g' kustomization.yaml
 
-                                    # 5. Commit and push the changes
-                                    # Using '-c' to set user.name and user.email inline for this specific commit
                                     git add kustomization.yaml
                                     git -c user.name="thanhdc" -c user.email="chithanh040804@gmail.com" commit -m "ci(staging): update frontend tag to ${BUILD_NUMBER}"
                                     
-                                    # Push the temporary branch back to Gitea to trigger Phase 2
-                                    git push origin ${TEMP_BRANCH}
-
-                                    # 6. Automatically create a Pull Request via Gitea API
-                                    # We send a POST request to the /pulls endpoint
-                                    echo "Creating Pull Request for ${TEMP_BRANCH}..."
-                                    GIT_TOKEN="${TOKEN}"
-                                    PR_PAYLOAD=$(printf '{"base":"main","head":"%s","title":"ci(staging): update frontend to build #%s","body":"This PR was automatically generated by Jenkins Pipeline to update the staging image tag to build #%s."}' "${TEMP_BRANCH}" "${BUILD_NUMBER}" "${BUILD_NUMBER}")
-
-                                    PR_RESPONSE=$(curl --silent --show-error --fail-with-body -X POST "http://gitea.kltn.internal/api/v1/repos/kltn/healthcare-manifests/pulls" \
-                                        -H "accept: application/json" \
-                                        -H "Authorization: token ${GIT_TOKEN}" \
-                                        -H "Content-Type: application/json" \
-                                        --data "${PR_PAYLOAD}")
-
-                                    PR_URL=$(echo "${PR_RESPONSE}" | grep -oE '"html_url":"[^"]+"' | head -n 1 | cut -d '"' -f 4 || true)
-                                    if [ -n "${PR_URL}" ]; then
-                                        echo "✅ Success: Temp branch pushed and Pull Request created: ${PR_URL}"
-                                    else
-                                        echo "✅ Success: Temp branch pushed and Pull Request created."
-                                    fi
+                                    # Push directly to main in the CD repo
+                                    git push origin main
+                                    echo "✅ Success: Staging configuration pushed to main."
                                 '''
                             }
                         }
@@ -231,23 +182,36 @@ pipeline {
         }
 
         // ==========================================
-        // PHẦN B: LUỒNG PRODUCTION (Chỉ chạy khi tạo Release)
+        // PART B: PRODUCTION (Runs when a release tag is provided)
         // ==========================================
         stage('Production Governance') {
             when {
-                buildingTag()
+                expression { return params.RELEASE_TAG?.trim() }
             }
             stages {
+                stage('Push Git Tag to App Repo') {
+                    steps {
+                        script {
+                            echo "🚀 Starting production release for: ${params.RELEASE_TAG}"
+                            withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
+                                sh """
+                                    git config user.name "Jenkins CI"
+                                    git config user.email "jenkins@kltn.internal"
+                                    git tag ${params.RELEASE_TAG}
+                                    git push http://thanhdc:${TOKEN}@gitea.kltn.internal/kltn/${IMAGE_NAME}.git ${params.RELEASE_TAG}
+                                """
+                            }
+                        }
+                    }
+                }
+
                 stage('Build Production Image') {
                     steps {
                         script {
-                            def releaseTag = env.TAG_NAME ?: env.GIT_TAG
-                            if (!releaseTag) {
-                                error('Release tag not found. Ensure this build is triggered by a Git tag.')
-                            }
+                            def releaseTag = params.RELEASE_TAG
                             def prodImageTag = "${GITEA_REGISTRY}/${GITEA_OWNER}/${IMAGE_NAME}:${releaseTag}"
 
-                            echo "🚀 Detected Release Tag: ${releaseTag}. Preparing Production deployment..."
+                            echo "🚀 Building production image: ${prodImageTag}"
                             sh "docker build -t ${prodImageTag} ./frontend"
 
                             withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
@@ -266,13 +230,13 @@ pipeline {
                     steps {
                         dir('manifests-workspace') {
                             withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
-                                sh '''
+                                sh """
                                     set -e
-                                    if [ -z "${TAG_NAME}" ] && [ -z "${GIT_TAG}" ]; then
-                                        echo "Release tag not found in TAG_NAME or GIT_TAG" >&2
+                                    RELEASE_TAG="${params.RELEASE_TAG}"
+                                    if [ -z "${params.RELEASE_TAG}" ]; then
+                                        echo "Error: Release tag not provided." >&2
                                         exit 1
                                     fi
-                                    RELEASE_TAG="${TAG_NAME:-${GIT_TAG}}"
 
                                     GIT_REPO_URL="http://thanhdc:${TOKEN}@gitea.kltn.internal/kltn/healthcare-manifests.git"
                                     git clone "${GIT_REPO_URL}" .
@@ -289,7 +253,7 @@ pipeline {
                                     git push origin ${TEMP_BRANCH}
 
                                     echo "Creating Production Pull Request for ${TEMP_BRANCH}..."
-                                    PR_PAYLOAD=$(printf '{"base":"main","head":"%s","title":"🚀 Deploy to Production: Frontend %s","body":"This PR was generated automatically by Gitea Release %s. Please review carefully before merging."}' "${TEMP_BRANCH}" "${RELEASE_TAG}" "${RELEASE_TAG}")
+                                    PR_PAYLOAD=$(printf '{"base":"main","head":"%s","title":"🚀 Deploy to Production: Frontend %s","body":"This PR was generated automatically by Jenkins for Release %s. Please review carefully before merging."}' "${TEMP_BRANCH}" "${RELEASE_TAG}" "${RELEASE_TAG}")
 
                                     PR_RESPONSE=$(curl --silent --show-error --fail-with-body -X POST "http://gitea.kltn.internal/api/v1/repos/kltn/healthcare-manifests/pulls" \
                                         -H "accept: application/json" \
@@ -303,7 +267,7 @@ pipeline {
                                     else
                                         echo "✅ Success: Production PR created."
                                     fi
-                                '''
+                                """
                             }
                         }
                     }
@@ -312,7 +276,6 @@ pipeline {
         }
     }
 
-    // ── Post-build Cleanup ────────────────────────────────────────────────────────
     post {
         always {
             script {
@@ -320,11 +283,9 @@ pipeline {
 
                 sh "docker logout ${GITEA_REGISTRY} || true"
 
-                // Remove only the image built in this run to avoid wiping cached layers
-                // needed by other pipelines on the same runner.
-                sh "docker rmi -f ${IMAGE_TAG} || true"
+                def tagToRemove = params.RELEASE_TAG ? params.RELEASE_TAG : BUILD_NUMBER
+                sh "docker rmi -f ${GITEA_REGISTRY}/${GITEA_OWNER}/${IMAGE_NAME}:${tagToRemove} || true"
 
-                // Prune dangling images & build cache (safe; does not remove named images)
                 sh "docker image prune -f || true"
                 sh "docker builder prune -f || true"
 
@@ -333,7 +294,7 @@ pipeline {
         }
 
         success {
-            echo "✅ Pipeline PASSED — image pushed: ${IMAGE_TAG}"
+            echo "✅ Pipeline PASSED!"
         }
 
         failure {
