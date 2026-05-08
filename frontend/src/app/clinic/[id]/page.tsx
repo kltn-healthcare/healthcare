@@ -1,3 +1,5 @@
+"use client"
+
 import { Header } from "@/components/Header"
 import { Footer } from "@/components/Footer"
 import { Button } from "@/shared/ui/button"
@@ -6,29 +8,19 @@ import { Badge } from "@/shared/ui/badge"
 import { Star, MapPin, Clock, Phone, Globe, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { getClinicById } from "@/api/clinics"
 
 export default function ClinicDetailPage() {
-  const services = [
-    { name: "Khám Tổng Quát", price: "500.000đ" },
-    { name: "Khám Chuyên Khoa", price: "800.000đ" },
-    { name: "Xét Nghiệm", price: "Tùy loại" },
-    { name: "Khám Sức Khỏe", price: "1.500.000đ" },
-    { name: "Tiêm Chủng", price: "300.000đ" },
-    { name: "Thủ Thuật Nhỏ", price: "600.000đ" },
-  ]
+  const params = useParams<{ id: string }>()
+  const id = params?.id
 
-  const packages = [
-    {
-      name: "Gói Sức Khỏe Cơ Bản",
-      price: "2.000.000đ",
-      features: ["Xét nghiệm máu tổng quát", "Đo huyết áp", "Khám tổng quát"],
-    },
-  ]
-
-  const timeSlots = {
-    today: ["10:00", "11:30", "14:00", "16:30"],
-    tomorrow: ["9:00", "10:30", "13:00", "15:00", "17:00"],
-  }
+  const { data: clinic, isLoading } = useQuery({
+    queryKey: ["clinic", id],
+    enabled: !!id,
+    queryFn: () => getClinicById(String(id)),
+  })
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -37,7 +29,12 @@ export default function ClinicDetailPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <div className="relative h-80 w-full">
-          <Image src="/modern-healthcare-clinic-interior-reception.jpg" alt="Phòng Khám Đa Khoa An Khang" fill className="object-cover" />
+          <Image
+            src={clinic?.image || "/modern-healthcare-clinic-interior-reception.jpg"}
+            alt={clinic?.name || "Clinic"}
+            fill
+            className="object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
 
@@ -48,7 +45,7 @@ export default function ClinicDetailPage() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="flex-1">
                     <div className="mb-2 flex items-center gap-3">
-                      <CardTitle className="text-2xl">Phòng Khám Đa Khoa An Khang</CardTitle>
+                      <CardTitle className="text-2xl">{clinic?.name ?? (isLoading ? "Đang tải..." : "Không tìm thấy")}</CardTitle>
                       <Badge className="bg-success text-white">
                         <span className="mr-1">●</span> Đang Mở Cửa
                       </Badge>
@@ -56,17 +53,16 @@ export default function ClinicDetailPage() {
                     <div className="mb-4 flex items-center gap-2">
                       <div className="flex items-center gap-1">
                         <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xl font-semibold">4.8</span>
+                        <span className="text-xl font-semibold">{clinic?.rating ?? 0}</span>
                       </div>
-                      <span className="text-muted-foreground">(256 đánh giá)</span>
+                      <span className="text-muted-foreground">({clinic?.reviewCount ?? 0} đánh giá)</span>
                     </div>
                     <p className="text-muted-foreground">
-                      Phòng Khám Đa Khoa An Khang là cơ sở y tế hiện đại cung cấp dịch vụ chăm sóc sức khỏe toàn diện.
-                      Đội ngũ bác sĩ giàu kinh nghiệm và chuyên môn y tế chuyên nghiệp cam kết mang đến dịch vụ chăm sóc
-                      sức khỏe chất lượng trong môi trường thoải mái.
+                      {clinic?.description ||
+                        "Phòng khám cung cấp các dịch vụ chăm sóc sức khỏe chất lượng, đội ngũ bác sĩ giàu kinh nghiệm."}
                     </p>
                   </div>
-                  <Link href="/booking">
+                  <Link href={`/booking?clinicId=${clinic?.id}`}>
                     <Button size="lg" className="bg-primary">
                       <Clock className="mr-2 h-5 w-5" />
                       Đặt Lịch Khám
@@ -89,145 +85,106 @@ export default function ClinicDetailPage() {
                     <MapPin className="mt-1 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Địa chỉ</p>
-                      <p className="text-muted-foreground">123 Đường Lê Lợi, Quận 1, TP.HCM</p>
+                      <p className="text-muted-foreground">{clinic?.address || "—"}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Phone className="mt-1 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Điện thoại</p>
-                      <p className="text-muted-foreground">1900 xxxx</p>
+                      <p className="text-muted-foreground">{clinic?.phone || "—"}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Globe className="mt-1 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Website</p>
-                      <p className="text-muted-foreground">www.phongkhamankang.vn</p>
+                      <p className="text-muted-foreground">{clinic?.website || "—"}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Clock className="mt-1 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Giờ làm việc</p>
-                      <p className="text-muted-foreground">T2-T7: 8:00 - 20:00</p>
+                      <p className="text-muted-foreground">{clinic?.openingHours || "—"}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Services */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Dịch Vụ Cung Cấp</CardTitle>
-                  <CardDescription>Các dịch vụ khám và điều trị tại phòng khám</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {services.map((service, index) => (
-                      <div key={index} className="flex items-center justify-between rounded-lg border p-3">
-                        <span>{service.name}</span>
-                        <span className="font-semibold text-primary">{service.price}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Packages */}
+              {/* Doctors */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Gói Khám Sức Khỏe</CardTitle>
-                  <CardDescription>Các gói khám sức khỏe tổng quát</CardDescription>
+                  <CardTitle>Đội Ngũ Bác Sĩ</CardTitle>
+                  <CardDescription>Chọn bác sĩ để xem lịch trống và đặt hẹn</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {packages.map((pkg, index) => (
-                    <Card key={index} className="border-primary/20">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                          <span className="text-xl font-bold text-primary">{pkg.price}</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2">
-                          {pkg.features.map((feature, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                              <span className="text-sm">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <Link href="/booking" className="mt-4 block">
-                          <Button className="w-full bg-primary">Đặt Ngay</Button>
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {!clinic?.doctors?.length ? (
+                    <div className="text-sm text-muted-foreground p-4 bg-muted/20 rounded-lg text-center border border-dashed">
+                      Chưa có dữ liệu bác sĩ tại phòng khám này.
+                    </div>
+                  ) : (
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      {clinic.doctors.map((d) => (
+                        <Card key={d.id} className="overflow-hidden border group transition-all hover:shadow-md hover:border-primary/50">
+                          <div className="p-4 flex gap-4">
+                            <div className="h-16 w-16 shrink-0 rounded-full border overflow-hidden bg-muted">
+                              <img src={d.avatar || "/modern-clinic-.jpg"} className="h-full w-full object-cover" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-semibold text-lg hover:text-primary transition-colors">
+                                <Link href={`/doctor/${d.id}`}>{d.name}</Link>
+                              </div>
+                              <div className="text-sm font-medium text-primary bg-primary/10 inline-block px-2 py-0.5 rounded-sm mt-1 mb-2">
+                                {d.specialty.name}
+                              </div>
+                              <div className="text-sm text-muted-foreground flex items-center mb-1">
+                                <span className="mr-1">💼</span> {d.experience} năm kinh nghiệm
+                              </div>
+                              <div className="text-sm text-muted-foreground flex items-center">
+                                <span className="mr-1">🟢</span> {d.isAvailable ? "Đang nhận bệnh" : "Tạm ngưng"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-muted/30 p-3 flex justify-end gap-2 border-t">
+                            <Link href={`/doctor/${d.id}`}>
+                              <Button variant="outline" size="sm" className="bg-background">
+                                Xem Thông Tin
+                              </Button>
+                            </Link>
+                            <Link href={`/booking?doctorId=${d.id}&clinicId=${clinic.id}`}>
+                              <Button size="sm" className="bg-primary" disabled={!d.isAvailable}>
+                                Đặt Khám
+                              </Button>
+                            </Link>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Sidebar - Available Times */}
+            {/* Sidebar - Recommendations or Info */}
             <div>
-              <Card className="sticky top-20">
-                <CardHeader>
-                  <CardTitle>Khung Giờ Còn Trống</CardTitle>
+              <Card className="sticky top-20 shadow-md">
+                <CardHeader className="bg-primary/5 border-b pb-4">
+                  <CardTitle className="text-lg flex items-center"><CheckCircle2 className="mr-2 h-5 w-5 text-primary"/> Hướng dẫn đi khám</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="mb-3 font-semibold">Hôm nay</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {timeSlots.today.map((time) => (
-                        <Button
-                          key={time}
-                          variant="outline"
-                          className="hover:border-primary hover:bg-primary/5 bg-transparent"
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p><strong>1. Chọn bác sĩ:</strong> Xem danh sách bác sĩ chuyên khoa bên trái.</p>
+                    <p><strong>2. Đặt lịch:</strong> Bấm vào nút Đặt Khám trên bác sĩ bạn muốn khám để xem ngày & giờ còn trống thực tế.</p>
+                    <p><strong>3. Xác nhận:</strong> Hệ thống sẽ gửi email mã OTP khi bạn đăng ký hoặc xác nhận trực tiếp nếu đã đăng nhập.</p>
+                    <p><strong>4. Đến khám:</strong> Cung cấp tên và sđt cho lễ tân tại phòng khám để được ưu tiên vào khám.</p>
                   </div>
-
-                  <div>
-                    <h3 className="mb-3 font-semibold">Ngày mai</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {timeSlots.tomorrow.map((time) => (
-                        <Button
-                          key={time}
-                          variant="outline"
-                          className="hover:border-primary hover:bg-primary/5 bg-transparent"
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
+                  
+                  <div className="mt-6 border-t pt-4">
+                    <p className="text-sm font-medium text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                      Lưu ý: Mọi lịch hẹn qua hệ thống là hoàn toàn Miễn Phí. Bạn chỉ cần thanh toán viện phí tại quầy.
+                    </p>
                   </div>
-
-                  <div>
-                    <h3 className="mb-3 font-semibold">T2, 30/12</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" className="hover:border-primary hover:bg-primary/5 bg-transparent">
-                        9:30
-                      </Button>
-                      <Button variant="outline" className="hover:border-primary hover:bg-primary/5 bg-transparent">
-                        11:00
-                      </Button>
-                      <Button variant="outline" className="hover:border-primary hover:bg-primary/5 bg-transparent">
-                        14:30
-                      </Button>
-                      <Button variant="outline" className="hover:border-primary hover:bg-primary/5 bg-transparent">
-                        16:00
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Link href="/booking">
-                    <Button className="w-full bg-primary" size="lg">
-                      Xem Thêm Lịch Trống
-                    </Button>
-                  </Link>
                 </CardContent>
               </Card>
             </div>

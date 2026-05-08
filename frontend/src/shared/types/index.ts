@@ -14,11 +14,15 @@ export interface Clinic {
     email?: string
     rating: number
     reviewCount: number
+    numReviews?: number
     image: string
     isOpen: boolean
+
     openingHours: string
+    website?: string
     specialties?: string[]
     services?: string[]
+    reviews?: Review[]
 }
 
 export interface HealthPackage {
@@ -60,6 +64,7 @@ export interface Booking {
     time: string
     status: "pending" | "confirmed" | "completed" | "cancelled"
     patientInfo: PatientInfo
+    review?: Partial<Review>
 }
 
 export interface PatientInfo {
@@ -77,7 +82,18 @@ export interface User {
     email: string
     phone?: string
     avatar?: string
-    role: "patient" | "doctor" | "admin"
+    role: "patient" | "doctor" | "admin" | "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN"
+}
+
+export interface Review {
+    id: string
+    rating: number
+    comment?: string
+    createdAt: string
+    user: { id: string; name: string; avatar?: string }
+    doctor?: { id: string; name: string }
+    clinic?: { id: string; name: string }
+    bookingId?: string
 }
 
 export interface ApiResponse<T> {
@@ -110,3 +126,21 @@ export interface SortOptions {
     field: string
     order: "asc" | "desc"
 }
+
+export interface Doctor {
+    id: string
+    name: string
+    avatar?: string
+    experience: number
+    isAvailable: boolean
+    specialty: { id: string; name: string }
+    rating: number
+    reviewCount: number
+    image?: string
+    reviews?: Review[]
+    bio?: string
+    services?: any[]
+    clinic?: any
+    createdAt?: string
+}
+

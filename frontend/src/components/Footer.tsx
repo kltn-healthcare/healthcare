@@ -1,7 +1,15 @@
+"use client"
+
 import Link from "next/link"
 import { Calendar, Phone, Mail, MapPin } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import { ROUTES } from "@/shared/constants"
 
 export function Footer() {
+  const { t } = useTranslation("home")
+  const { t: tn } = useTranslation("nav")
+  const { t: tc } = useTranslation("common")
+
   return (
     <footer className="border-t bg-muted/30">
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
@@ -14,64 +22,64 @@ export function Footer() {
               <span className="font-bold">HealthCare</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Đặt lịch khám uy tín, nhanh chóng và tiện lợi
+              {t("footer.desc")}
             </p>
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold">Dịch Vụ</h3>
+            <h3 className="mb-4 font-semibold">{tc("services")}</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/" className="text-muted-foreground hover:text-primary">
-                  Phòng Khám
+                <Link href={ROUTES.CLINICS} className="text-muted-foreground hover:text-primary">
+                  {tn("clinics")}
                 </Link>
               </li>
               <li>
-                <Link href="/#packages" className="text-muted-foreground hover:text-primary">
-                  Gói Khám Sức Khỏe
+                <Link href={ROUTES.PACKAGES} className="text-muted-foreground hover:text-primary">
+                  {tn("packages")}
                 </Link>
               </li>
               <li>
-                <Link href="/booking" className="text-muted-foreground hover:text-primary">
-                  Đặt Lịch Khám
+                <Link href={ROUTES.BOOKING} className="text-muted-foreground hover:text-primary">
+                  {tc("book_appointment")}
                 </Link>
               </li>
               <li>
-                <Link href="/health-guide" className="text-muted-foreground hover:text-primary">
-                  Cẩm Nang Sức Khỏe
+                <Link href={ROUTES.HEALTH_GUIDE} className="text-muted-foreground hover:text-primary">
+                  {tn("health_guide")}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold">Về Chúng Tôi</h3>
+            <h3 className="mb-4 font-semibold">{tc("about_us")}</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/#about" className="text-muted-foreground hover:text-primary">
-                  Giới Thiệu
+                <Link href={ROUTES.ABOUT} className="text-muted-foreground hover:text-primary">
+                  {tn("about")}
                 </Link>
               </li>
               <li>
-                <Link href="/account" className="text-muted-foreground hover:text-primary">
-                  Tài Khoản
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-muted-foreground hover:text-primary">
-                  Chính Sách Bảo Mật
+                <Link href={ROUTES.ACCOUNT} className="text-muted-foreground hover:text-primary">
+                  {tc("account")}
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-muted-foreground hover:text-primary">
-                  Điều Khoản Dịch Vụ
+                  {tc("privacy_policy")}
+                </Link>
+              </li>
+              <li>
+                <Link href="#" className="text-muted-foreground hover:text-primary">
+                  {tc("terms")}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold">Liên Hệ</h3>
+            <h3 className="mb-4 font-semibold">{tc("contact")}</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="h-4 w-4" />
@@ -90,7 +98,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Đặt Lịch Phòng Khám. All rights reserved.</p>
+          <p>&copy; {tc("copyright")}</p>
         </div>
       </div>
     </footer>

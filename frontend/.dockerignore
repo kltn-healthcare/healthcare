@@ -1,9 +1,11 @@
+node_modules
+.next
 .git
 .github
-.gitignore
 .husky
-.next
-node_modules
+*.md
+tsconfig.tsbuildinfo
+.gitignore
 coverage
 Dockerfile
 Jenkinsfile

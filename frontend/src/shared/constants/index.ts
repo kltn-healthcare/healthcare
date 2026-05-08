@@ -17,6 +17,8 @@ export const ROUTES = {
     HOME: "/",
     CLINICS: "/clinics",
     CLINIC_DETAIL: (id: string) => `/clinic/${id}`,
+    DOCTORS: "/doctors",
+    PACKAGES: "/packages",
     BOOKING: "/booking",
     HEALTH_GUIDE: "/health-guide",
     ABOUT: "/about",
@@ -87,3 +89,23 @@ export const TIME_SLOTS = [
     "17:00",
     "17:30",
 ] as const
+
+// Articles
+export const ARTICLE_DEFAULTS = {
+    CATEGORY: "Cẩm nang",
+    READ_TIME: "5 phút",
+    HOME_LIMIT: 3,
+    PAGE_LIMIT: 12,
+    ALL_CATEGORY_LABEL: "Tất cả",
+} as const
+
+export const ARTICLE_QUERY_KEYS = {
+    LIST: (params?: { page?: number; limit?: number; q?: string; category?: string }) =>
+        ["articles", params ?? {}] as const,
+    FEATURED: (limit = ARTICLE_DEFAULTS.HOME_LIMIT) => ["articles", "featured", limit] as const,
+    CATEGORIES: ["articles", "categories"] as const,
+    BY_SLUG: (slug: string) => ["articles", "slug", slug] as const,
+    BY_CATEGORY: (category: string, limit?: number) =>
+        ["articles", "category", category, limit ?? null] as const,
+    ADMIN: ["admin", "articles"] as const,
+} as const
