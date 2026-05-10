@@ -2,8 +2,16 @@ import axios, { AxiosError, AxiosInstance } from 'axios'
 import { useAuthStore } from '@/store'
 
 const getBaseURL = (envVar: string, defaultPort: string) => {
-  let url = process.env[envVar] || `http://localhost:${defaultPort}`
-  return url.replace('127.0.0.1', 'localhost')
+  if (typeof window !== 'undefined') {
+    return '/api'
+  }
+
+  const configuredUrl = process.env[envVar]
+  if (configuredUrl) {
+    return configuredUrl.replace('127.0.0.1', 'localhost')
+  }
+
+  return `http://localhost:${defaultPort}`
 }
 
 const apiBaseURL = getBaseURL('NEXT_PUBLIC_API_BASE_URL', '8080')
