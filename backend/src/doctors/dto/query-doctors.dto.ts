@@ -23,6 +23,4 @@ export class QueryDoctorsDto {
   @ApiPropertyOptional()
   @IsOptional()
   limit?: string;
-
 }
-

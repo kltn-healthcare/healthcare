@@ -21,6 +21,17 @@ import { createReview } from "@/api/reviews"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
+function isBookingPast(bookingDate: string, bookingTime: string) {
+  const datePart = String(bookingDate).slice(0, 10)
+  const bookingDateTime = new Date(`${datePart}T${bookingTime}:00`)
+
+  if (Number.isNaN(bookingDateTime.getTime())) {
+    return false
+  }
+
+  return bookingDateTime.getTime() < Date.now()
+}
+
 export default function AccountPage() {
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") || "appointments"
@@ -178,7 +189,13 @@ export default function AccountPage() {
                 </Card>
               ) : (
                 <div className="grid gap-4">
-                  {(myBookingsQuery.data?.items ?? []).map((b: any) => (
+                  {(myBookingsQuery.data?.items ?? []).map((b: any) => {
+                    const isPast = isBookingPast(b.bookingDate, b.bookingTime)
+                    const canCancel =
+                      (b.status === "PENDING" || b.status === "CONFIRMED") &&
+                      !isPast
+
+                    return (
                     <Card key={b.id} className="overflow-hidden border-l-4" style={{ 
                       borderLeftColor: 
                         b.status === 'COMPLETED' ? '#10b981' : 
@@ -219,7 +236,7 @@ export default function AccountPage() {
                         </div>
                         
                         <div className="bg-muted/10 p-5 flex flex-row sm:flex-col items-center justify-end sm:justify-center gap-2 border-t sm:border-t-0 sm:border-l w-full sm:w-[200px]">
-                          {(b.status === "PENDING" || b.status === "CONFIRMED") && (
+                          {canCancel && (
                             <Button 
                               variant="destructive" 
                               className="w-full"
@@ -230,6 +247,11 @@ export default function AccountPage() {
                               }}
                             >
                               Hủy lịch
+                            </Button>
+                          )}
+                          {(b.status === "PENDING" || b.status === "CONFIRMED") && isPast && (
+                            <Button variant="outline" className="w-full" disabled>
+                              Đã quá giờ hẹn
                             </Button>
                           )}
                           {b.status === "COMPLETED" && !b.review && (
@@ -254,7 +276,7 @@ export default function AccountPage() {
                         </div>
                       </div>
                     </Card>
-                  ))}
+                  )})}
                 </div>
               )}
             </TabsContent>

@@ -10,9 +10,20 @@ export class UsersService {
   async getById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, phone: true, avatar: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        role: true,
+      },
     });
-    if (!user) throw new NotFoundException({ code: ERROR_CODES.USER_NOT_FOUND, message: 'User not found' });
+    if (!user)
+      throw new NotFoundException({
+        code: ERROR_CODES.USER_NOT_FOUND,
+        message: 'User not found',
+      });
     return user;
   }
 
@@ -23,7 +34,10 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException({ code: ERROR_CODES.USER_NOT_FOUND, message: 'User not found' });
+      throw new NotFoundException({
+        code: ERROR_CODES.USER_NOT_FOUND,
+        message: 'User not found',
+      });
     }
 
     const data: Record<string, unknown> = {};
@@ -34,7 +48,14 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data,
-      select: { id: true, name: true, email: true, phone: true, avatar: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        role: true,
+      },
     });
   }
 }

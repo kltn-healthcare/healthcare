@@ -1,19 +1,25 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { BookingStatus, Gender, UserRole } from '@prisma/client';
+import { PrismaClient, BookingStatus, Gender, UserRole } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 async function main() {
-  console.log('--- Seeding Process Started (via Nest Context) ---');
+  console.log('--- Seeding Process Started (Direct Prisma Client with Adapter) ---');
 
-  const app = await NestFactory.createApplicationContext(AppModule);
-  const prisma = app.get(PrismaService);
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is not defined in .env file');
+  }
+
+  const adapter = new PrismaPg({ connectionString });
+  const prisma = new PrismaClient({ adapter });
 
   const adminEmail = process.env.ADMIN_SEED_EMAIL || 'admin@healthcare.com';
-  const adminPassword = process.env.ADMIN_SEED_PASSWORD || 'Admin@123';
-  const doctorPassword = process.env.DOCTOR_SEED_PASSWORD || 'Doctor@123';
-  const patientPassword = process.env.PATIENT_SEED_PASSWORD || 'Patient@123';
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD || 'Admin@12345';
+  const doctorPassword = process.env.DOCTOR_SEED_PASSWORD || 'Doctor@12345';
+  const patientPassword = process.env.PATIENT_SEED_PASSWORD || 'Patient@12345';
 
   console.log(`Target admin email: ${adminEmail}`);
 
@@ -188,6 +194,45 @@ async function main() {
         });
 
       clinics.set(clinicSeed.name, clinic.id);
+    }
+
+    const clinicSpecialtiesSeed = [
+      {
+        clinicName: clinicsSeed[0].name,
+        specialtyNames: [
+          specialtyNames[0],
+          specialtyNames[1],
+          specialtyNames[3],
+          specialtyNames[4],
+          specialtyNames[5],
+        ],
+      },
+      {
+        clinicName: clinicsSeed[1].name,
+        specialtyNames: [specialtyNames[2]],
+      },
+    ];
+
+    for (const clinicSpecialty of clinicSpecialtiesSeed) {
+      const clinicId = clinics.get(clinicSpecialty.clinicName);
+
+      if (!clinicId) {
+        continue;
+      }
+
+      for (const specialtyName of clinicSpecialty.specialtyNames) {
+        const specialtyId = specialties.get(specialtyName);
+
+        if (!specialtyId) {
+          continue;
+        }
+
+        await prisma.clinicSpecialty.upsert({
+          where: { clinicId_specialtyId: { clinicId, specialtyId } },
+          update: {},
+          create: { clinicId, specialtyId },
+        });
+      }
     }
 
     const doctorProfilesSeed = [
@@ -406,7 +451,7 @@ async function main() {
   } catch (err) {
     console.error('Seed Error details:', err);
   } finally {
-    await app.close();
+    await prisma.$disconnect();
   }
 }
 

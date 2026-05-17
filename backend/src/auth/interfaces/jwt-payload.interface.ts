@@ -5,4 +5,3 @@ export interface JwtPayload {
   role: UserRole;
   email: string;
 }
-

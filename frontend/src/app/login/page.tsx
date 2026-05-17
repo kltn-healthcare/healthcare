@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
+import Link from "next/link"
+import { Logo } from "@/components/Logo"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { Calendar } from "lucide-react"
-import Link from "next/link"
+import { LockKeyhole, LogIn, Mail } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
 import { postLogin } from "@/api/auth"
 import { useAuthStore } from "@/store"
@@ -39,6 +38,7 @@ function resolveLoginRedirect(role: string, nextPath: string | null) {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const nextPath = searchParams.get("next")
   const auth = useAuthStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -48,85 +48,115 @@ export default function LoginPage() {
     onSuccess: (data) => {
       auth.login(data.user, data.accessToken)
       const normalizedRole = normalizeRole(data.user.role)
-      const nextPath = searchParams.get("next")
       const redirectTo = resolveLoginRedirect(normalizedRole, nextPath)
       router.replace(redirectTo)
     },
   })
 
+  const canSubmit = Boolean(email.trim() && password)
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
-      <main className="flex flex-1 items-center justify-center bg-muted/30 py-12">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-md">
-            <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-                <Calendar className="h-8 w-8 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold">Đăng Nhập</h1>
-              <p className="text-muted-foreground">Đăng nhập để quản lý lịch khám của bạn</p>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Chào mừng trở lại</CardTitle>
-                <CardDescription>Nhập thông tin đăng nhập của bạn</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Mật khẩu</Label>
-                    <Link href="#" className="text-sm text-primary hover:underline">
-                      Quên mật khẩu?
-                    </Link>
-                  </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                {loginMutation.isError && (
-                  <div className="text-sm text-destructive">
-                    Đăng nhập thất bại. Vui lòng kiểm tra email/mật khẩu.
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button
-                  className="w-full bg-primary"
-                  disabled={loginMutation.isPending || !email || !password}
-                  onClick={() => loginMutation.mutate({ email, password })}
-                >
-                  {loginMutation.isPending ? "Đang đăng nhập..." : "Đăng Nhập"}
-                </Button>
-                <p className="text-center text-sm text-muted-foreground">
-                  Chưa có tài khoản?{" "}
-                  <Link href={`/register${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next") as string)}` : ""}`} className="text-primary hover:underline">
-                    Đăng ký ngay
-                  </Link>
-                </p>
-              </CardFooter>
-            </Card>
-          </div>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="w-full max-w-[520px]">
+        <div className="mb-6 text-center">
+          <Logo className="mb-4 scale-90 justify-center" />
+          <h1 className="text-[28px] font-bold leading-tight text-sky-600">
+            HEALTHCARE
+          </h1>
+          <p className="mt-1 text-lg text-slate-600">
+            Hệ thống quản lý chăm sóc sức khỏe
+          </p>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+          <CardHeader className="px-5 pt-5 pb-1">
+            <CardTitle className="text-[26px] font-bold text-slate-800">
+              Đăng nhập
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <form
+              className="space-y-5"
+              onSubmit={(event) => {
+                event.preventDefault()
+
+                if (!canSubmit) {
+                  return
+                }
+
+                loginMutation.mutate({ email: email.trim(), password })
+              }}
+            >
+              <div className="space-y-2">
+                <Label
+                  htmlFor="email"
+                  className="flex items-center gap-3 text-base font-semibold text-slate-600"
+                >
+                  <Mail className="h-5 w-5" />
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@healthcare.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  className="h-12 rounded-xl border-slate-200 bg-blue-50 px-5 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  className="flex items-center gap-3 text-base font-semibold text-slate-600"
+                >
+                  <LockKeyhole className="h-5 w-5" />
+                  Mật khẩu
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  className="h-12 rounded-xl border-slate-200 bg-blue-50 px-5 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                />
+              </div>
+
+              {loginMutation.isError && (
+                <div className="text-sm text-destructive">
+                  Đăng nhập thất bại. Vui lòng kiểm tra email/mật khẩu.
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-base font-bold shadow-lg shadow-cyan-700/20 hover:from-blue-700 hover:to-cyan-700"
+                disabled={loginMutation.isPending || !canSubmit}
+              >
+                <LogIn className="h-5 w-5" />
+                {loginMutation.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
+              </Button>
+
+              <p className="text-center text-sm text-slate-600">
+                Chưa có tài khoản?{" "}
+                <Link
+                  href={`/register${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
+                  className="font-medium text-sky-600 hover:text-sky-700 hover:underline"
+                >
+                  Đăng ký ngay
+                </Link>
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="mt-5 text-center text-sm text-slate-500">
+          <p>© 2026 HEALTHCARE. All rights reserved.</p>
+        </div>
+      </div>
+    </main>
   )
 }

@@ -27,6 +27,40 @@ import {
   SelectValue,
 } from "@/shared/ui/select"
 
+type SlotReason = "PAST" | "BOOKING_PENDING" | "BOOKING_CONFIRMED" | null
+
+type TimeSlot = {
+  time: string
+  isAvailable: boolean
+  isPast?: boolean
+  bookingStatus?: "PENDING" | "CONFIRMED" | null
+  reason?: SlotReason
+}
+
+function isPastSlot(date: Date, time: string) {
+  const [hoursRaw, minutesRaw] = time.split(":")
+  const slotDateTime = new Date(date)
+  slotDateTime.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0)
+
+  return slotDateTime.getTime() < Date.now()
+}
+
+function getSlotHint(slot: TimeSlot) {
+  if (slot.reason === "PAST" || slot.isPast) {
+    return "Slot này đã quá giờ"
+  }
+
+  if (slot.reason === "BOOKING_PENDING" || slot.bookingStatus === "PENDING") {
+    return "Slot này đang được đặt bởi người khác"
+  }
+
+  if (slot.reason === "BOOKING_CONFIRMED" || slot.bookingStatus === "CONFIRMED") {
+    return "Slot này đã được đặt bởi người khác"
+  }
+
+  return "Chọn khung giờ này"
+}
+
 export default function BookingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -89,12 +123,37 @@ export default function BookingPage() {
     queryFn: () => getDoctorAvailability(doctorId, format(date, "yyyy-MM-dd")),
   })
 
-  const availableSlots = useMemo(() => {
+  const timeSlots = useMemo<TimeSlot[]>(() => {
     const res = availQuery.data as any
     if (!res) return []
-    if (Array.isArray(res)) return res
-    return res.availableSlots || res.items || []
-  }, [availQuery.data])
+    const rawSlots = res.slotDetails || res.slots || res.availableSlots || res.items || res
+    if (!Array.isArray(rawSlots)) return []
+
+    return rawSlots.map((slot: any) => {
+      if (typeof slot === "string") {
+        const isPast = isPastSlot(date, slot)
+        return {
+          time: slot,
+          isAvailable: !isPast,
+          isPast,
+          bookingStatus: null,
+          reason: isPast ? "PAST" : null,
+        }
+      }
+
+      const time = slot.time
+      const isPast = slot.isPast ?? isPastSlot(date, time)
+      const bookingStatus = slot.bookingStatus ?? null
+
+      return {
+        time,
+        isAvailable: Boolean(slot.isAvailable ?? (!isPast && !bookingStatus)),
+        isPast,
+        bookingStatus,
+        reason: slot.reason ?? (isPast ? "PAST" : null),
+      }
+    })
+  }, [availQuery.data, date])
 
   const createBookingMutation = useMutation({
     mutationFn: postBooking,
@@ -293,26 +352,36 @@ export default function BookingPage() {
                       </Label>
                       {availQuery.isLoading ? (
                         <div className="text-sm text-muted-foreground italic">Đang tải lịch trống...</div>
-                      ) : availableSlots.length === 0 ? (
+                      ) : timeSlots.length === 0 ? (
                         <div className="text-sm text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-200">
                           Bác sĩ không có lịch làm việc ngày này. Vui lòng chọn ngày khác.
                         </div>
                       ) : (
                         <div className="space-y-4">
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                            {availableSlots.map((slot: any, idx: number) => {
-                              const timeValue = typeof slot === 'string' ? slot : slot.time;
-                              const isAvailable = typeof slot === 'string' ? true : (slot.isAvailable ?? true);
+                            {timeSlots.map((slot, idx) => {
+                              const timeValue = slot.time
+                              const hint = getSlotHint(slot)
                               
                               return (
                                 <Button
                                   key={`${timeValue}-${idx}`}
                                   variant={selectedTime === timeValue ? "default" : "outline"}
+                                  title={hint}
+                                  aria-label={`${timeValue} - ${hint}`}
                                   className={cn(
                                     "transition-all duration-200",
-                                    selectedTime === timeValue ? "bg-primary shadow-md scale-[1.02]" : "hover:border-primary hover:text-primary"
+                                    selectedTime === timeValue && slot.isAvailable
+                                      ? "bg-primary shadow-md scale-[1.02]"
+                                      : slot.isPast || slot.reason === "PAST"
+                                        ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-400"
+                                        : slot.bookingStatus === "PENDING" || slot.reason === "BOOKING_PENDING"
+                                          ? "cursor-not-allowed border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-200 hover:text-amber-700"
+                                          : slot.bookingStatus === "CONFIRMED" || slot.reason === "BOOKING_CONFIRMED"
+                                            ? "cursor-not-allowed border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-200 hover:text-rose-700"
+                                            : "hover:border-primary hover:text-primary"
                                   )}
-                                  disabled={!isAvailable}
+                                  disabled={!slot.isAvailable}
                                   onClick={() => setSelectedTime(timeValue)}
                                 >
                                   <Clock className="mr-2 h-4 w-4" />

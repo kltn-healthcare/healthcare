@@ -8,7 +8,7 @@ import { QueryDoctorsDto } from './dto/query-doctors.dto';
 @ApiTags('Doctors')
 @Controller({ path: 'doctors', version: '1' })
 export class DoctorsController {
-  constructor(private readonly doctorsService: DoctorsService) { }
+  constructor(private readonly doctorsService: DoctorsService) {}
 
   @Public()
   @Get()
@@ -31,4 +31,3 @@ export class DoctorsController {
     return this.doctorsService.getAvailability(doctorId, query);
   }
 }
-

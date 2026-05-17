@@ -26,17 +26,18 @@ export class ResponseTransformInterceptor implements NestInterceptor {
 
     if (shouldSkip) return next.handle();
 
-    const res = context
-      .switchToHttp()
-      .getResponse<{ statusCode: number }>();
+    const res = context.switchToHttp().getResponse<{ statusCode: number }>();
 
-    return next.handle().pipe(map((payload) => this.normalize(payload, res.statusCode)));
+    return next
+      .handle()
+      .pipe(map((payload) => this.normalize(payload, res.statusCode)));
   }
 
   private normalize(payload: unknown, statusCode: number): StandardResponse {
     if (payload && typeof payload === 'object') {
       const maybe = payload as Record<string, unknown>;
-      if ('statusCode' in maybe && 'data' in maybe) return payload as StandardResponse;
+      if ('statusCode' in maybe && 'data' in maybe)
+        return payload as StandardResponse;
 
       if ('message' in maybe) {
         const { message, ...rest } = maybe;
@@ -51,4 +52,3 @@ export class ResponseTransformInterceptor implements NestInterceptor {
     return { statusCode, data: payload ?? null };
   }
 }
-

@@ -7,4 +7,3 @@ import { SpecialtiesService } from './specialties.service';
   providers: [SpecialtiesService],
 })
 export class SpecialtiesModule {}
-

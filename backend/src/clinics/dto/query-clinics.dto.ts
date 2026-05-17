@@ -22,4 +22,3 @@ export class QueryClinicsDto {
   @Min(1)
   limit?: number = 12;
 }
-

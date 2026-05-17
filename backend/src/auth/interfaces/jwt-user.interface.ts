@@ -5,4 +5,3 @@ export interface JwtUser {
   role: UserRole;
   email: string;
 }
-

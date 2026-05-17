@@ -21,4 +21,3 @@ export class ClinicsController {
     return this.clinicsService.getById(id);
   }
 }
-

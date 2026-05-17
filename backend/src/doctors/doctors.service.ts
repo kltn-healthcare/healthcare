@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_CODES } from '../common/constants/error-codes';
@@ -13,7 +17,9 @@ const doctorDetailSelect = {
   experience: true,
   isAvailable: true,
   qualifications: true,
-  clinic: { select: { id: true, name: true, address: true, phone: true, image: true } },
+  clinic: {
+    select: { id: true, name: true, address: true, phone: true, image: true },
+  },
   specialty: { select: { id: true, name: true } },
   createdAt: true,
 } as const;
@@ -36,7 +42,7 @@ type DoctorAdminSettings = {
 
 @Injectable()
 export class DoctorsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async list(dto: QueryDoctorsDto) {
     const where = {
@@ -138,6 +144,7 @@ export class DoctorsService {
         slots: [],
         bookedSlots: [],
         availableSlots: [],
+        slotDetails: [],
       };
     }
 
@@ -157,6 +164,7 @@ export class DoctorsService {
         slots: [],
         bookedSlots: [],
         availableSlots: [],
+        slotDetails: [],
       };
     }
 
@@ -176,12 +184,43 @@ export class DoctorsService {
       },
       select: {
         bookingTime: true,
+        status: true,
       },
     });
 
-    const bookedSlots = Array.from(new Set(booked.map((row) => row.bookingTime))).sort();
-    const bookedSet = new Set(bookedSlots);
-    const availableSlots = slots.filter((slot) => !bookedSet.has(slot));
+    const bookedSlots = Array.from(
+      new Set(booked.map((row) => row.bookingTime)),
+    ).sort();
+    const bookedByTime = new Map(
+      booked.map((row) => [row.bookingTime, row.status]),
+    );
+    const now = Date.now();
+    const slotDetails = slots.map((slot) => {
+      const slotDateTime = new Date(date);
+      const [hoursRaw, minutesRaw] = slot.split(':');
+      slotDateTime.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0);
+
+      const bookingStatus = bookedByTime.get(slot);
+      const isPast = slotDateTime.getTime() < now;
+      const isAvailable = !isPast && !bookingStatus;
+
+      return {
+        time: slot,
+        isAvailable,
+        isPast,
+        bookingStatus: bookingStatus ?? null,
+        reason: isPast
+          ? 'PAST'
+          : bookingStatus === BookingStatus.PENDING
+            ? 'BOOKING_PENDING'
+            : bookingStatus === BookingStatus.CONFIRMED
+              ? 'BOOKING_CONFIRMED'
+              : null,
+      };
+    });
+    const availableSlots = slotDetails
+      .filter((slot) => slot.isAvailable)
+      .map((slot) => slot.time);
 
     return {
       doctorId: doctor.id,
@@ -191,6 +230,7 @@ export class DoctorsService {
       slots,
       bookedSlots,
       availableSlots,
+      slotDetails,
     };
   }
 
@@ -215,7 +255,11 @@ export class DoctorsService {
     return settings as DoctorAdminSettings;
   }
 
-  private buildTimeSlots(startTime: string, endTime: string, slotMinutes: number) {
+  private buildTimeSlots(
+    startTime: string,
+    endTime: string,
+    slotMinutes: number,
+  ) {
     const start = this.timeToMinutes(startTime);
     const end = this.timeToMinutes(endTime);
 
@@ -224,7 +268,11 @@ export class DoctorsService {
     }
 
     const slots: string[] = [];
-    for (let cursor = start; cursor + slotMinutes <= end; cursor += slotMinutes) {
+    for (
+      let cursor = start;
+      cursor + slotMinutes <= end;
+      cursor += slotMinutes
+    ) {
       slots.push(this.minutesToTime(cursor));
     }
 
@@ -261,4 +309,3 @@ export class DoctorsService {
     return `${hour}:${minute}`;
   }
 }
-

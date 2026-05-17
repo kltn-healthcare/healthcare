@@ -37,4 +37,3 @@ export class ClinicResponseDto {
   @ApiProperty({ required: false })
   openingHours?: string | null;
 }
-

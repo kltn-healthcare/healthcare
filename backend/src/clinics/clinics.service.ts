@@ -91,4 +91,3 @@ export class ClinicsService {
     return { ...clinic, rating: clinic.rating.toString() };
   }
 }
-

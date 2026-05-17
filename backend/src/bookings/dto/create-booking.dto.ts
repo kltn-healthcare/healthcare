@@ -58,4 +58,3 @@ export class CreateBookingDto {
   @IsNotEmpty()
   bookingTime: string;
 }
-

@@ -11,7 +11,7 @@ import { BookingsService } from './bookings.service';
 @ApiBearerAuth('JWT')
 @Controller({ path: 'bookings', version: '1' })
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) { }
+  constructor(private readonly bookingsService: BookingsService) {}
 
   @Post()
   create(@CurrentUser() user: JwtUser, @Body() dto: CreateBookingDto) {
@@ -46,4 +46,3 @@ export class BookingsController {
     return this.bookingsService.rescheduleByPatient(user.id, id, dto);
   }
 }
-

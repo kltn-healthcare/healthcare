@@ -24,6 +24,7 @@ export type AdminClinic = {
     isOpen: boolean
     rating: string
     reviewCount: number
+    specialties?: Array<{ id: string; name: string }>
 }
 
 export type AdminDoctor = {
@@ -100,6 +101,7 @@ export async function createAdminClinic(input: {
     image?: string
     openingHours?: string
     isOpen?: boolean
+    specialtyIds?: string[]
 }) {
     const res = await adminClient.post<AdminClinic>('/v1/admin/clinics', input)
     return res.data
@@ -115,6 +117,7 @@ export async function updateAdminClinic(id: string, input: Partial<{
     image: string
     openingHours: string
     isOpen: boolean
+    specialtyIds: string[]
 }>) {
     const res = await adminClient.patch<AdminClinic>(`/v1/admin/clinics/${id}`, input)
     return res.data

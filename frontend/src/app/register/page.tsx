@@ -1,34 +1,30 @@
 "use client"
 
 import { useState } from "react"
-import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
-import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card"
-import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
-import { Calendar, KeyRound } from "lucide-react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
+import { KeyRound, LockKeyhole, Mail, Phone, UserRound } from "lucide-react"
+import { Logo } from "@/components/Logo"
 import { postRegister, postVerifyRegisterOtp } from "@/api/auth"
 import { useAuthStore } from "@/store"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
 
 export default function RegisterPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const auth = useAuthStore()
-  
   const nextPath = searchParams.get("next")
 
   const [step, setStep] = useState<"register" | "otp">("register")
-
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  
   const [otp, setOtp] = useState("")
 
   const registerMutation = useMutation({
@@ -47,153 +43,235 @@ export default function RegisterPage() {
     },
   })
 
-  const passwordMismatch = password && confirmPassword && password !== confirmPassword
+  const passwordMismatch =
+    Boolean(password && confirmPassword) && password !== confirmPassword
+  const canRegister = Boolean(name.trim() && email.trim() && password) && !passwordMismatch
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
-      <main className="flex flex-1 items-center justify-center bg-muted/30 py-12">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-md">
-            
-            {step === "register" ? (
-              <>
-                <div className="mb-6 text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-                    <Calendar className="h-8 w-8 text-white" />
-                  </div>
-                  <h1 className="text-2xl font-bold">Đăng Ký</h1>
-                  <p className="text-muted-foreground">Tạo tài khoản để bắt đầu đặt lịch khám</p>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Tạo tài khoản mới</CardTitle>
-                    <CardDescription>Nhập thông tin của bạn để đăng ký</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullname">Họ và Tên</Label>
-                      <Input id="fullname" placeholder="Nguyễn Văn A" value={name} onChange={(e) => setName(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Số Điện Thoại</Label>
-                      <Input id="phone" type="tel" placeholder="0912345678" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Mật khẩu</Label>
-                      <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirm-password">Xác nhận Mật khẩu</Label>
-                      <Input
-                        id="confirm-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
-                    </div>
-                    {passwordMismatch && (
-                      <div className="text-sm text-destructive">Mật khẩu xác nhận không khớp.</div>
-                    )}
-                    {registerMutation.isError && (
-                      <div className="text-sm text-destructive">Đăng ký thất bại. Email có thể đã tồn tại.</div>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-4">
-                    <Button
-                      className="w-full bg-primary"
-                      disabled={
-                        registerMutation.isPending ||
-                        !name ||
-                        !email ||
-                        !password ||
-                        passwordMismatch
-                      }
-                      onClick={() =>
-                        registerMutation.mutate({
-                          name,
-                          email,
-                          phone: phone || undefined,
-                          password,
-                        })
-                      }
-                    >
-                      {registerMutation.isPending ? "Đang gửi OTP..." : "Đăng Ký"}
-                    </Button>
-                    <p className="text-center text-sm text-muted-foreground">
-                      Đã có tài khoản?{" "}
-                      <Link href={`/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`} className="text-primary hover:underline">
-                        Đăng nhập
-                      </Link>
-                    </p>
-                  </CardFooter>
-                </Card>
-              </>
-            ) : (
-              <>
-                <div className="mb-6 text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                    <KeyRound className="h-8 w-8 text-primary" />
-                  </div>
-                  <h1 className="text-2xl font-bold">Xác Nhận Email</h1>
-                  <p className="text-muted-foreground mt-2">
-                    Mã xác nhận (OTP) gồm 6 chữ số đã được gửi đến email <strong>{email}</strong>
-                  </p>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Nhập mã OTP</CardTitle>
-                    <CardDescription>Mã xác minh có hiệu lực trong 5 phút</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="otp">Mã Xác Nhận (OTP)</Label>
-                      <Input 
-                        id="otp" 
-                        placeholder="123456" 
-                        value={otp} 
-                        onChange={(e) => setOtp(e.target.value)} 
-                        className="text-center text-lg tracking-[0.5em] font-medium"
-                        maxLength={6}
-                      />
-                    </div>
-                    {verifyOtpMutation.isError && (
-                      <div className="text-sm text-destructive">Mã OTP không đúng hoặc đã hết hạn.</div>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-4">
-                    <Button
-                      className="w-full bg-primary"
-                      disabled={verifyOtpMutation.isPending || otp.length !== 6}
-                      onClick={() => verifyOtpMutation.mutate({ email, otp })}
-                    >
-                      {verifyOtpMutation.isPending ? "Đang xác nhận..." : "Xác Nhận"}
-                    </Button>
-                    <Button
-                      variant="link"
-                      className="text-sm text-muted-foreground"
-                      onClick={() => setStep("register")}
-                    >
-                      Quay lại trang đăng ký
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </>
-            )}
-            
-          </div>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="w-full max-w-[560px]">
+        <div className="mb-5 text-center">
+          <Logo className="mb-3 scale-90 justify-center" />
+          <h1 className="text-[26px] font-bold leading-tight text-sky-600">
+            HEALTHCARE
+          </h1>
+          <p className="mt-1 text-base text-slate-600">
+            Tạo tài khoản để đặt lịch khám nhanh hơn
+          </p>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {step === "register" ? (
+          <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+            <CardHeader className="px-5 pt-4 pb-1">
+              <CardTitle className="text-[25px] font-bold text-slate-800">
+                Đăng ký
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault()
+
+                  if (!canRegister) {
+                    return
+                  }
+
+                  registerMutation.mutate({
+                    name: name.trim(),
+                    email: email.trim(),
+                    phone: phone.trim() || undefined,
+                    password,
+                  })
+                }}
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fullname" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                      <UserRound className="h-4 w-4" />
+                      Họ và tên
+                    </Label>
+                    <Input
+                      id="fullname"
+                      placeholder="Nguyễn Văn A"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      autoComplete="name"
+                      className="h-11 rounded-xl border-slate-200 bg-blue-50 px-4 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                      <Phone className="h-4 w-4" />
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="0912345678"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      autoComplete="tel"
+                      className="h-11 rounded-xl border-slate-200 bg-blue-50 px-4 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="email@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    className="h-11 rounded-xl border-slate-200 bg-blue-50 px-4 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                      <LockKeyhole className="h-4 w-4" />
+                      Mật khẩu
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Nhập mật khẩu"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="new-password"
+                      className="h-11 rounded-xl border-slate-200 bg-blue-50 px-4 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirm-password" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                      <LockKeyhole className="h-4 w-4" />
+                      Xác nhận mật khẩu
+                    </Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      placeholder="Nhập lại mật khẩu"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      autoComplete="new-password"
+                      className="h-11 rounded-xl border-slate-200 bg-blue-50 px-4 text-base text-slate-900 shadow-inner focus-visible:border-sky-500 focus-visible:ring-sky-500/20"
+                    />
+                  </div>
+                </div>
+
+                {passwordMismatch && (
+                  <div className="text-sm text-destructive">
+                    Mật khẩu xác nhận không khớp.
+                  </div>
+                )}
+                {registerMutation.isError && (
+                  <div className="text-sm text-destructive">
+                    Đăng ký thất bại. Email có thể đã tồn tại.
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="h-11 w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-base font-bold shadow-lg shadow-cyan-700/20 hover:from-blue-700 hover:to-cyan-700"
+                  disabled={registerMutation.isPending || !canRegister}
+                >
+                  {registerMutation.isPending ? "Đang gửi OTP..." : "Đăng ký"}
+                </Button>
+
+                <p className="text-center text-sm text-slate-600">
+                  Đã có tài khoản?{" "}
+                  <Link
+                    href={`/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
+                    className="font-medium text-sky-600 hover:text-sky-700 hover:underline"
+                  >
+                    Đăng nhập
+                  </Link>
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
+            <CardHeader className="px-5 pt-5 pb-1 text-center">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <CardTitle className="text-[25px] font-bold text-slate-800">
+                Xác nhận email
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault()
+
+                  if (otp.length !== 6) {
+                    return
+                  }
+
+                  verifyOtpMutation.mutate({ email, otp })
+                }}
+              >
+                <p className="text-center text-sm text-slate-600">
+                  Mã OTP gồm 6 chữ số đã được gửi đến{" "}
+                  <span className="font-medium text-slate-800">{email}</span>
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="otp" className="text-sm font-semibold text-slate-600">
+                    Mã xác nhận
+                  </Label>
+                  <Input
+                    id="otp"
+                    placeholder="123456"
+                    value={otp}
+                    onChange={(event) => setOtp(event.target.value)}
+                    className="h-12 text-center text-lg font-medium tracking-[0.5em]"
+                    maxLength={6}
+                  />
+                </div>
+
+                {verifyOtpMutation.isError && (
+                  <div className="text-sm text-destructive">
+                    Mã OTP không đúng hoặc đã hết hạn.
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="h-11 w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-base font-bold shadow-lg shadow-cyan-700/20 hover:from-blue-700 hover:to-cyan-700"
+                  disabled={verifyOtpMutation.isPending || otp.length !== 6}
+                >
+                  {verifyOtpMutation.isPending ? "Đang xác nhận..." : "Xác nhận"}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full text-sm text-slate-600"
+                  onClick={() => setStep("register")}
+                >
+                  Quay lại trang đăng ký
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mt-4 text-center text-sm text-slate-500">
+          <p>© 2026 HEALTHCARE. All rights reserved.</p>
+        </div>
+      </div>
+    </main>
   )
 }

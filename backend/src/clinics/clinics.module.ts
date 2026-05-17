@@ -7,4 +7,3 @@ import { ClinicsService } from './clinics.service';
   providers: [ClinicsService],
 })
 export class ClinicsModule {}
-

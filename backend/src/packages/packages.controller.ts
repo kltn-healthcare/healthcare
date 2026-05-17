@@ -13,7 +13,7 @@ export class PackagesController {
     return {
       success: true,
       data: items,
-      items: items // Some generic frontend maps might expect items
+      items: items, // Some generic frontend maps might expect items
     };
   }
 
@@ -24,7 +24,7 @@ export class PackagesController {
     return {
       success: true,
       data: items,
-      items: items
+      items: items,
     };
   }
 
@@ -34,7 +34,7 @@ export class PackagesController {
     return {
       success: true,
       data: items,
-      items: items
+      items: items,
     };
   }
 
@@ -44,7 +44,7 @@ export class PackagesController {
     return {
       success: true,
       data: item,
-      item: item
+      item: item,
     };
   }
 }

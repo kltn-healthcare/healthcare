@@ -26,30 +26,31 @@ healthcare/
 
 ### Các service & port
 
-| Service          | Port | Mô tả                                 |
-|-----------------|------|---------------------------------------|
-| **frontend**    | 3000 | Giao diện người dùng (Next.js)        |
-| **auth-service**| 3001 | Đăng ký / đăng nhập / OTP email      |
+| Service                   | Port | Mô tả                                    |
+| ------------------------- | ---- | ------------------------------------------ |
+| **frontend**        | 3000 | Giao diện người dùng (Next.js)         |
+| **auth-service**    | 3001 | Đăng ký / đăng nhập / OTP email      |
 | **backend-service** | 8080 | API chính (clinics, doctors, bookings...) |
-| **admin-service**| 3002 | Quản trị (admin, doctor-admin)        |
-| **PostgreSQL**  | 5432 | Cơ sở dữ liệu                         |
-| **Redis**       | 6379 | Cache / OTP session                   |
+| **admin-service**   | 3002 | Quản trị (admin, doctor-admin)           |
+| **PostgreSQL**      | 5432 | Cơ sở dữ liệu                          |
+| **Redis**           | 6379 | Cache / OTP session                        |
 
 ### Công nghệ sử dụng
 
-| Layer     | Stack |
-|-----------|-------|
-| Frontend  | Next.js 14, React Query, Zustand, Axios |
-| Backend   | NestJS 11, Prisma 7, PostgreSQL 15, Redis 7 |
+| Layer     | Stack                                                |
+| --------- | ---------------------------------------------------- |
+| Frontend  | Next.js 14, React Query, Zustand, Axios              |
+| Backend   | NestJS 11, Prisma 7, PostgreSQL 15, Redis 7          |
 | Auth      | JWT Bearer token, Bcrypt, OTP qua Email (Nodemailer) |
-| API Docs  | Swagger (`/docs` trên mỗi service)       |
-| Container | Docker, Docker Compose, pnpm             |
+| API Docs  | Swagger (`/docs` trên mỗi service)               |
+| Container | Docker, Docker Compose, pnpm                         |
 
 ---
 
 ## Cách 1: Chạy local (Development)
 
 ### Yêu cầu
+
 - Node.js >= 20
 - pnpm >= 10 (`npm i -g pnpm`)
 - Docker Desktop (để chạy PostgreSQL + Redis)
@@ -154,18 +155,19 @@ pnpm dev
 
 ### Kiểm tra hoạt động
 
-| URL | Mô tả |
-|-----|-------|
-| http://localhost:3000 | Frontend |
+| URL                        | Mô tả                |
+| -------------------------- | ---------------------- |
+| http://localhost:3000      | Frontend               |
 | http://localhost:8080/docs | Swagger — Backend API |
-| http://localhost:3001/docs | Swagger — Auth API |
-| http://localhost:3002/docs | Swagger — Admin API |
+| http://localhost:3001/docs | Swagger — Auth API    |
+| http://localhost:3002/docs | Swagger — Admin API   |
 
 ---
 
 ## Cách 2: Chạy bằng Docker Compose (Production-like)
 
 ### Yêu cầu
+
 - Docker Desktop
 
 ### Bước 1 — Cấu hình SMTP (bắt buộc nếu dùng tính năng OTP)
@@ -209,12 +211,12 @@ docker-compose -f docker-compose.yaml down -v
 
 ### Kiểm tra hoạt động
 
-| URL | Mô tả |
-|-----|-------|
-| http://localhost:3000 | Frontend |
+| URL                        | Mô tả                |
+| -------------------------- | ---------------------- |
+| http://localhost:3000      | Frontend               |
 | http://localhost:8080/docs | Swagger — Backend API |
-| http://localhost:3001/docs | Swagger — Auth API |
-| http://localhost:3002/docs | Swagger — Admin API |
+| http://localhost:3001/docs | Swagger — Auth API    |
+| http://localhost:3002/docs | Swagger — Admin API   |
 
 ---
 
@@ -222,38 +224,40 @@ docker-compose -f docker-compose.yaml down -v
 
 ### Auth Service — `http://localhost:3001/v1`
 
-| Method | Endpoint | Auth | Mô tả |
-|--------|----------|------|-------|
-| POST | `/auth/register` | Public | Gửi OTP đăng ký |
-| POST | `/auth/verify-register-otp` | Public | Xác nhận OTP, tạo tài khoản |
-| POST | `/auth/login` | Public | Đăng nhập, nhận JWT |
+| Method | Endpoint                      | Auth   | Mô tả                          |
+| ------ | ----------------------------- | ------ | -------------------------------- |
+| POST   | `/auth/register`            | Public | Gửi OTP đăng ký              |
+| POST   | `/auth/verify-register-otp` | Public | Xác nhận OTP, tạo tài khoản |
+| POST   | `/auth/login`               | Public | Đăng nhập, nhận JWT          |
 
 ### Backend Service — `http://localhost:8080/v1`
 
-| Method | Endpoint | Auth | Mô tả |
-|--------|----------|------|-------|
-| GET | `/health` | Public | Health check |
-| GET | `/clinics` | Public | Danh sách phòng khám |
-| GET | `/clinics/:id` | Public | Chi tiết phòng khám |
-| GET | `/doctors` | Public | Danh sách bác sĩ |
-| GET | `/specialties` | Public | Danh sách chuyên khoa |
-| GET | `/users/me` | 🔒 JWT | Thông tin người dùng |
-| POST | `/bookings` | 🔒 JWT | Tạo lịch hẹn |
-| GET | `/bookings/me` | 🔒 JWT | Lịch hẹn của tôi |
+| Method | Endpoint         | Auth   | Mô tả                  |
+| ------ | ---------------- | ------ | ------------------------ |
+| GET    | `/health`      | Public | Health check             |
+| GET    | `/clinics`     | Public | Danh sách phòng khám  |
+| GET    | `/clinics/:id` | Public | Chi tiết phòng khám   |
+| GET    | `/doctors`     | Public | Danh sách bác sĩ      |
+| GET    | `/specialties` | Public | Danh sách chuyên khoa  |
+| GET    | `/users/me`    | 🔒 JWT | Thông tin người dùng |
+| POST   | `/bookings`    | 🔒 JWT | Tạo lịch hẹn          |
+| GET    | `/bookings/me` | 🔒 JWT | Lịch hẹn của tôi     |
 
 ### Admin Service — `http://localhost:3002/v1`
 
-| Method | Endpoint | Auth | Mô tả |
-|--------|----------|------|-------|
-| GET | `/admin/users` | 🔒 ADMIN | Quản lý người dùng |
-| GET | `/admin/bookings` | 🔒 ADMIN | Quản lý đặt lịch |
-| * | `/doctor-admin/*` | 🔒 DOCTOR | Quản lý bác sĩ |
+| Method | Endpoint            | Auth      | Mô tả                 |
+| ------ | ------------------- | --------- | ----------------------- |
+| GET    | `/admin/users`    | 🔒 ADMIN  | Quản lý người dùng |
+| GET    | `/admin/bookings` | 🔒 ADMIN  | Quản lý đặt lịch   |
+| *      | `/doctor-admin/*` | 🔒 DOCTOR | Quản lý bác sĩ      |
 
 ---
 
 ## Lệnh hữu ích
 
 ```bash
+
+
 # Xem logs một service cụ thể (Docker)
 docker logs healthcare-backend -f
 docker logs healthcare-auth -f

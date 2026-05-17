@@ -178,16 +178,26 @@ export class AdminService {
         isOpen: true,
         rating: true,
         reviewCount: true,
+        specialties: {
+          select: { specialty: { select: { id: true, name: true } } },
+          orderBy: { specialty: { name: 'asc' } },
+        },
         createdAt: true,
       },
     });
 
     return {
-      items: items.map((item) => ({ ...item, rating: item.rating.toString() })),
+      items: items.map((item) => ({
+        ...item,
+        rating: item.rating.toString(),
+        specialties: item.specialties.map((row) => row.specialty),
+      })),
     };
   }
 
   async createClinic(dto: CreateClinicAdminDto) {
+    const specialtyIds = await this.normalizeSpecialtyIds(dto.specialtyIds);
+
     const clinic = await this.prisma.clinic.create({
       data: {
         name: dto.name.trim(),
@@ -199,6 +209,13 @@ export class AdminService {
         image: dto.image,
         openingHours: dto.openingHours,
         isOpen: dto.isOpen ?? true,
+        specialties: specialtyIds.length
+          ? {
+              create: specialtyIds.map((specialtyId) => ({
+                specialty: { connect: { id: specialtyId } },
+              })),
+            }
+          : undefined,
       },
       select: {
         id: true,
@@ -213,10 +230,18 @@ export class AdminService {
         isOpen: true,
         rating: true,
         reviewCount: true,
+        specialties: {
+          select: { specialty: { select: { id: true, name: true } } },
+          orderBy: { specialty: { name: 'asc' } },
+        },
       },
     });
 
-    return { ...clinic, rating: clinic.rating.toString() };
+    return {
+      ...clinic,
+      rating: clinic.rating.toString(),
+      specialties: clinic.specialties.map((row) => row.specialty),
+    };
   }
 
   async updateClinic(id: string, dto: UpdateClinicAdminDto) {
@@ -249,6 +274,16 @@ export class AdminService {
     if (dto.isOpen !== undefined) {
       data.isOpen = dto.isOpen;
     }
+    if (dto.specialtyIds !== undefined) {
+      const specialtyIds = await this.normalizeSpecialtyIds(dto.specialtyIds);
+
+      data.specialties = {
+        deleteMany: {},
+        create: specialtyIds.map((specialtyId) => ({
+          specialty: { connect: { id: specialtyId } },
+        })),
+      };
+    }
 
     const clinic = await this.prisma.clinic.update({
       where: { id },
@@ -266,10 +301,18 @@ export class AdminService {
         isOpen: true,
         rating: true,
         reviewCount: true,
+        specialties: {
+          select: { specialty: { select: { id: true, name: true } } },
+          orderBy: { specialty: { name: 'asc' } },
+        },
       },
     });
 
-    return { ...clinic, rating: clinic.rating.toString() };
+    return {
+      ...clinic,
+      rating: clinic.rating.toString(),
+      specialties: clinic.specialties.map((row) => row.specialty),
+    };
   }
 
   async deleteClinic(id: string) {
@@ -298,6 +341,8 @@ export class AdminService {
   }
 
   async createDoctor(dto: CreateDoctorAdminDto) {
+    await this.assertClinicHasSpecialty(dto.clinicId, dto.specialtyId);
+
     const doctor = await this.prisma.doctor.create({
       data: {
         clinicId: dto.clinicId,
@@ -353,6 +398,24 @@ export class AdminService {
       data.isAvailable = dto.isAvailable;
     }
 
+    if (dto.clinicId !== undefined || dto.specialtyId !== undefined) {
+      const current = await this.prisma.doctor.findUnique({
+        where: { id },
+        select: { clinicId: true, specialtyId: true },
+      });
+
+      if (!current) {
+        throw new NotFoundException({
+          code: 'DOCTOR_NOT_FOUND',
+          message: 'Doctor not found',
+        });
+      }
+
+      const nextClinicId = dto.clinicId ?? current.clinicId;
+      const nextSpecialtyId = dto.specialtyId ?? current.specialtyId;
+      await this.assertClinicHasSpecialty(nextClinicId, nextSpecialtyId);
+    }
+
     const doctor = await this.prisma.doctor.update({
       where: { id },
       data,
@@ -375,6 +438,55 @@ export class AdminService {
   async deleteDoctor(id: string) {
     await this.prisma.doctor.delete({ where: { id } });
     return { id };
+  }
+
+  private async assertClinicHasSpecialty(
+    clinicId: string,
+    specialtyId: string,
+  ) {
+    const match = await this.prisma.clinicSpecialty.findUnique({
+      where: { clinicId_specialtyId: { clinicId, specialtyId } },
+      select: { clinicId: true },
+    });
+
+    if (!match) {
+      throw new BadRequestException({
+        code: 'CLINIC_SPECIALTY_NOT_ALLOWED',
+        message: 'Selected specialty is not enabled for this clinic',
+      });
+    }
+  }
+
+  private async normalizeSpecialtyIds(specialtyIds?: string[]) {
+    if (!specialtyIds?.length) {
+      return [];
+    }
+
+    const normalizedIds = Array.from(
+      new Set(
+        specialtyIds.map((specialtyId) => specialtyId.trim()).filter(Boolean),
+      ),
+    );
+
+    if (!normalizedIds.length) {
+      return [];
+    }
+
+    const existingSpecialties = await this.prisma.specialty.findMany({
+      where: { id: { in: normalizedIds } },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingSpecialties.map((item) => item.id));
+    const missingIds = normalizedIds.filter((id) => !existingIds.has(id));
+
+    if (missingIds.length) {
+      throw new BadRequestException({
+        code: 'CLINIC_SPECIALTY_INVALID',
+        message: 'One or more selected specialties do not exist',
+      });
+    }
+
+    return normalizedIds;
   }
 
   async listArticles() {

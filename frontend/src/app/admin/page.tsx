@@ -22,6 +22,14 @@ import { Label } from "@/shared/ui/label"
 import { Switch } from "@/shared/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Textarea } from "@/shared/ui/textarea"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/shared/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Badge } from "@/shared/ui/badge"
 import {
@@ -247,7 +255,7 @@ export default function AdminPage() {
                     onLogout={() => auth.logout()}
                 />
 
-                {role === "DOCTOR" ? <DoctorAdminSection /> : <SystemAdminSection />}
+                {role === "DOCTOR" ? <DoctorAdminSection /> : <SystemAdminSectionV2 />}
             </div>
         </main>
     )
@@ -312,6 +320,8 @@ function DoctorAdminSection() {
     )
     const [scheduleError, setScheduleError] = useState<string | null>(null)
     const [services, setServices] = useState<DoctorServicePrice[]>([])
+    const [cancelBookingTarget, setCancelBookingTarget] = useState<DoctorBookingItem | null>(null)
+    const [cancelReason, setCancelReason] = useState("")
 
     const allBookings = allBookingsQuery.data?.items ?? []
     const pendingBookings = pendingBookingsQuery.data?.items ?? []
@@ -340,10 +350,19 @@ function DoctorAdminSection() {
     }, [settingsQuery.data])
 
     const updateBookingStatusMutation = useMutation({
-        mutationFn: ({ id, status }: { id: string; status: "CONFIRMED" | "COMPLETED" | "CANCELLED" }) =>
-            patchDoctorBookingStatus(id, { status }),
+        mutationFn: ({
+            id,
+            status,
+            cancellationReason,
+        }: {
+            id: string
+            status: "CONFIRMED" | "COMPLETED" | "CANCELLED"
+            cancellationReason?: string
+        }) => patchDoctorBookingStatus(id, { status, cancellationReason }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["doctor-admin", "bookings"] })
+            setCancelBookingTarget(null)
+            setCancelReason("")
         },
     })
 
@@ -396,6 +415,23 @@ function DoctorAdminSection() {
         )
     }
 
+    const requestCancelBooking = (booking: DoctorBookingItem) => {
+        setCancelBookingTarget(booking)
+        setCancelReason("")
+    }
+
+    const confirmCancelBooking = () => {
+        if (!cancelBookingTarget) {
+            return
+        }
+
+        updateBookingStatusMutation.mutate({
+            id: cancelBookingTarget.id,
+            status: "CANCELLED",
+            cancellationReason: cancelReason.trim() || undefined,
+        })
+    }
+
     return (
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -445,9 +481,7 @@ function DoctorAdminSection() {
                                             size="sm"
                                             variant="destructive"
                                             disabled={updateBookingStatusMutation.isPending}
-                                            onClick={() =>
-                                                updateBookingStatusMutation.mutate({ id: item.id, status: "CANCELLED" })
-                                            }
+                                            onClick={() => requestCancelBooking(item)}
                                         >
                                             Từ chối
                                         </Button>
@@ -513,9 +547,7 @@ function DoctorAdminSection() {
                                                 item.status === "CANCELLED" ||
                                                 updateBookingStatusMutation.isPending
                                             }
-                                            onClick={() =>
-                                                updateBookingStatusMutation.mutate({ id: item.id, status: "CANCELLED" })
-                                            }
+                                            onClick={() => requestCancelBooking(item)}
                                         >
                                             Hủy
                                         </Button>
@@ -701,6 +733,64 @@ function DoctorAdminSection() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <Dialog
+                open={Boolean(cancelBookingTarget)}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setCancelBookingTarget(null)
+                        setCancelReason("")
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Xác nhận hủy lịch hẹn</DialogTitle>
+                        <DialogDescription>
+                            Hành động này sẽ hủy lịch của bệnh nhân{" "}
+                            <span className="font-medium text-foreground">
+                                {cancelBookingTarget?.patientName}
+                            </span>
+                            . Vui lòng kiểm tra kỹ trước khi xác nhận.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3">
+                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                            <div>Ngày khám: {cancelBookingTarget ? formatDate(cancelBookingTarget.bookingDate) : ""}</div>
+                            <div>Giờ khám: {cancelBookingTarget?.bookingTime}</div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="doctor-cancel-reason">Lý do hủy (không bắt buộc)</Label>
+                            <Textarea
+                                id="doctor-cancel-reason"
+                                value={cancelReason}
+                                onChange={(event) => setCancelReason(event.target.value)}
+                                placeholder="Nhập lý do để bệnh nhân nắm thông tin..."
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setCancelBookingTarget(null)
+                                setCancelReason("")
+                            }}
+                        >
+                            Quay lại
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            disabled={updateBookingStatusMutation.isPending}
+                            onClick={confirmCancelBooking}
+                        >
+                            {updateBookingStatusMutation.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
@@ -751,6 +841,672 @@ function BookingTable({
                 ))}
             </TableBody>
         </Table>
+    )
+}
+
+function SystemAdminSectionV2() {
+    const queryClient = useQueryClient()
+
+    const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "PATIENT" | "DOCTOR">("ALL")
+    const [userKeyword, setUserKeyword] = useState("")
+    const [doctorName, setDoctorName] = useState("")
+    const [doctorEmail, setDoctorEmail] = useState("")
+    const [doctorPhone, setDoctorPhone] = useState("")
+    const [doctorPassword, setDoctorPassword] = useState("")
+
+    const [clinicName, setClinicName] = useState("")
+    const [clinicAddress, setClinicAddress] = useState("")
+    const [clinicDescription, setClinicDescription] = useState("")
+    const [clinicPhone, setClinicPhone] = useState("")
+    const [clinicEmail, setClinicEmail] = useState("")
+    const [clinicWebsite, setClinicWebsite] = useState("")
+    const [clinicImage, setClinicImage] = useState("")
+    const [clinicOpeningHours, setClinicOpeningHours] = useState("")
+    const [clinicOpen, setClinicOpen] = useState(true)
+    const [clinicSpecialtyIds, setClinicSpecialtyIds] = useState<string[]>([])
+    const [editingClinic, setEditingClinic] = useState<AdminClinic | null>(null)
+
+    const [editingDoctor, setEditingDoctor] = useState<AdminDoctor | null>(null)
+    const [doctorEditClinicId, setDoctorEditClinicId] = useState("")
+    const [doctorEditSpecialtyId, setDoctorEditSpecialtyId] = useState("")
+    const [doctorEditExperience, setDoctorEditExperience] = useState("0")
+    const [doctorEditAvatar, setDoctorEditAvatar] = useState("")
+    const [doctorEditBio, setDoctorEditBio] = useState("")
+    const [doctorEditAvailable, setDoctorEditAvailable] = useState(true)
+
+    const [articleTitle, setArticleTitle] = useState("")
+    const [articleDescription, setArticleDescription] = useState("")
+    const [articleCategory, setArticleCategory] = useState<string>(ARTICLE_DEFAULTS.CATEGORY)
+    const [articleReadTime, setArticleReadTime] = useState<string>(ARTICLE_DEFAULTS.READ_TIME)
+    const [articleImage, setArticleImage] = useState("")
+    const [editingArticleId, setEditingArticleId] = useState<string | null>(null)
+
+    const usersQuery = useQuery({ queryKey: ["admin", "users"], queryFn: () => getAdminUsers() })
+    const clinicsQuery = useQuery({ queryKey: ["admin", "clinics"], queryFn: getAdminClinics })
+    const doctorsQuery = useQuery({ queryKey: ["admin", "doctors"], queryFn: getAdminDoctors })
+    const articlesQuery = useQuery({ queryKey: ARTICLE_QUERY_KEYS.ADMIN, queryFn: getAdminArticles })
+    const specialtiesQuery = useQuery({ queryKey: ["specialties"], queryFn: getSpecialties })
+
+    const users = useMemo(() => {
+        const keyword = userKeyword.trim().toLowerCase()
+        return (usersQuery.data?.items ?? [])
+            .filter((user) => normalizeRole(user.role) !== "ADMIN")
+            .filter((user) => userRoleFilter === "ALL" || user.role === userRoleFilter)
+            .filter((user) => {
+                if (!keyword) return true
+                return [user.name, user.email, user.phone ?? ""].some((value) =>
+                    value.toLowerCase().includes(keyword),
+                )
+            })
+    }, [usersQuery.data?.items, userKeyword, userRoleFilter])
+
+    const clinics = clinicsQuery.data?.items ?? []
+    const doctors = doctorsQuery.data?.items ?? []
+    const articles = articlesQuery.data?.items ?? []
+    const specialties = specialtiesQuery.data ?? []
+
+    const clinicSpecialtyOptions = editingDoctor
+        ? clinics.find((clinic) => clinic.id === doctorEditClinicId)?.specialties ?? []
+        : []
+
+    const createUserMutation = useMutation({
+        mutationFn: createAdminUser,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "users"] })
+            setDoctorName("")
+            setDoctorEmail("")
+            setDoctorPhone("")
+            setDoctorPassword("")
+        },
+    })
+
+    const updateUserMutation = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateAdminUser>[1] }) =>
+            updateAdminUser(id, payload),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+    })
+
+    const deleteUserMutation = useMutation({
+        mutationFn: deleteAdminUser,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+    })
+
+    const createClinicMutation = useMutation({
+        mutationFn: createAdminClinic,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "clinics"] })
+            resetClinicCreateForm()
+        },
+    })
+
+    const updateClinicMutation = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateAdminClinic>[1] }) =>
+            updateAdminClinic(id, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "clinics"] })
+            queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+            closeClinicDialog()
+        },
+    })
+
+    const deleteClinicMutation = useMutation({
+        mutationFn: deleteAdminClinic,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "clinics"] })
+            queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+        },
+    })
+
+    const updateDoctorMutation = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateAdminDoctor>[1] }) =>
+            updateAdminDoctor(id, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+            closeDoctorDialog()
+        },
+    })
+
+    const deleteDoctorMutation = useMutation({
+        mutationFn: deleteAdminDoctor,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] }),
+    })
+
+    const toggleDoctorAvailabilityMutation = useMutation({
+        mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
+            updateAdminDoctor(id, { isAvailable }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] }),
+    })
+
+    const createArticleMutation = useMutation({
+        mutationFn: createAdminArticle,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ARTICLE_QUERY_KEYS.ADMIN })
+            resetArticleForm()
+        },
+    })
+
+    const updateArticleMutation = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateAdminArticle>[1] }) =>
+            updateAdminArticle(id, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ARTICLE_QUERY_KEYS.ADMIN })
+            resetArticleForm()
+        },
+    })
+
+    const deleteArticleMutation = useMutation({
+        mutationFn: deleteAdminArticle,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ARTICLE_QUERY_KEYS.ADMIN }),
+    })
+
+    function toggleClinicSpecialty(id: string) {
+        setClinicSpecialtyIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+        )
+    }
+
+    function resetClinicCreateForm() {
+        setClinicName("")
+        setClinicAddress("")
+        setClinicDescription("")
+        setClinicPhone("")
+        setClinicEmail("")
+        setClinicWebsite("")
+        setClinicImage("")
+        setClinicOpeningHours("")
+        setClinicOpen(true)
+        setClinicSpecialtyIds([])
+    }
+
+    function openClinicDialog(clinic: AdminClinic) {
+        setEditingClinic(clinic)
+        setClinicName(clinic.name)
+        setClinicAddress(clinic.address)
+        setClinicDescription(clinic.description ?? "")
+        setClinicPhone(clinic.phone ?? "")
+        setClinicEmail(clinic.email ?? "")
+        setClinicWebsite(clinic.website ?? "")
+        setClinicImage(clinic.image ?? "")
+        setClinicOpeningHours(clinic.openingHours ?? "")
+        setClinicOpen(clinic.isOpen)
+        setClinicSpecialtyIds(clinic.specialties?.map((item) => item.id) ?? [])
+    }
+
+    function closeClinicDialog() {
+        setEditingClinic(null)
+        resetClinicCreateForm()
+    }
+
+    function getClinicPayload() {
+        return {
+            name: clinicName.trim(),
+            address: clinicAddress.trim(),
+            description: clinicDescription.trim() || undefined,
+            phone: clinicPhone.trim() || undefined,
+            email: clinicEmail.trim() || undefined,
+            website: clinicWebsite.trim() || undefined,
+            image: clinicImage.trim() || undefined,
+            openingHours: clinicOpeningHours.trim() || undefined,
+            isOpen: clinicOpen,
+            specialtyIds: clinicSpecialtyIds,
+        }
+    }
+
+    const isClinicChanged = Boolean(
+        editingClinic &&
+            JSON.stringify(getClinicPayload()) !==
+                JSON.stringify({
+                    name: editingClinic.name,
+                    address: editingClinic.address,
+                    description: editingClinic.description || undefined,
+                    phone: editingClinic.phone || undefined,
+                    email: editingClinic.email || undefined,
+                    website: editingClinic.website || undefined,
+                    image: editingClinic.image || undefined,
+                    openingHours: editingClinic.openingHours || undefined,
+                    isOpen: editingClinic.isOpen,
+                    specialtyIds: editingClinic.specialties?.map((item) => item.id) ?? [],
+                }),
+    )
+
+    function openDoctorDialog(doctor: AdminDoctor) {
+        setEditingDoctor(doctor)
+        setDoctorEditClinicId(doctor.clinic.id)
+        setDoctorEditSpecialtyId(doctor.specialty.id)
+        setDoctorEditExperience(String(doctor.experience ?? 0))
+        setDoctorEditAvatar(doctor.avatar ?? "")
+        setDoctorEditBio(doctor.bio ?? "")
+        setDoctorEditAvailable(doctor.isAvailable)
+    }
+
+    function closeDoctorDialog() {
+        setEditingDoctor(null)
+        setDoctorEditClinicId("")
+        setDoctorEditSpecialtyId("")
+        setDoctorEditExperience("0")
+        setDoctorEditAvatar("")
+        setDoctorEditBio("")
+        setDoctorEditAvailable(true)
+    }
+
+    const doctorPayload = {
+        clinicId: doctorEditClinicId,
+        specialtyId: doctorEditSpecialtyId,
+        experience: Number(doctorEditExperience) || 0,
+        avatar: doctorEditAvatar.trim() || undefined,
+        bio: doctorEditBio.trim() || undefined,
+        isAvailable: doctorEditAvailable,
+    }
+
+    const isDoctorChanged = Boolean(
+        editingDoctor &&
+            JSON.stringify(doctorPayload) !==
+                JSON.stringify({
+                    clinicId: editingDoctor.clinic.id,
+                    specialtyId: editingDoctor.specialty.id,
+                    experience: editingDoctor.experience ?? 0,
+                    avatar: editingDoctor.avatar || undefined,
+                    bio: editingDoctor.bio || undefined,
+                    isAvailable: editingDoctor.isAvailable,
+                }),
+    )
+
+    function resetArticleForm() {
+        setEditingArticleId(null)
+        setArticleTitle("")
+        setArticleDescription("")
+        setArticleCategory(ARTICLE_DEFAULTS.CATEGORY)
+        setArticleReadTime(ARTICLE_DEFAULTS.READ_TIME)
+        setArticleImage("")
+    }
+
+    function fillArticleForm(article: AdminArticle) {
+        setEditingArticleId(article.id)
+        setArticleTitle(article.title)
+        setArticleDescription(article.description)
+        setArticleCategory(article.category)
+        setArticleReadTime(article.readTime)
+        setArticleImage(article.image ?? "")
+    }
+
+    const canCreateDoctorAccount = Boolean(doctorName.trim() && doctorEmail.trim() && doctorPassword)
+    const canCreateClinic = Boolean(clinicName.trim() && clinicAddress.trim())
+    const canUpdateClinic = Boolean(canCreateClinic && isClinicChanged)
+    const canUpdateDoctor = Boolean(editingDoctor && doctorEditClinicId && doctorEditSpecialtyId && isDoctorChanged)
+
+    return (
+        <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard icon={Users} title="Tài khoản" value={String(users.length)} />
+                <StatCard icon={Stethoscope} title="Tài khoản bác sĩ" value={String(users.filter((user) => user.role === "DOCTOR").length)} />
+                <StatCard icon={Building2} title="Phòng khám mở" value={String(clinics.filter((clinic) => clinic.isOpen).length)} />
+                <StatCard icon={Newspaper} title="Bài cẩm nang" value={String(articles.length)} />
+            </div>
+
+            <Tabs defaultValue="users" className="space-y-4">
+                <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-muted p-1">
+                    <TabsTrigger value="users" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Người dùng</TabsTrigger>
+                    <TabsTrigger value="clinics" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Phòng khám</TabsTrigger>
+                    <TabsTrigger value="doctors" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Bác sĩ</TabsTrigger>
+                    <TabsTrigger value="news" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Cẩm nang</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="users" className="space-y-4">
+                    <Card>
+                        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle>Danh sách người dùng</CardTitle>
+                            </div>
+                            <div className="flex flex-col gap-2 md:flex-row">
+                                <Input value={userKeyword} onChange={(event) => setUserKeyword(event.target.value)} placeholder="Tìm theo tên, email, SĐT" />
+                                <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "ALL" | "PATIENT" | "DOCTOR")}>
+                                    <SelectTrigger className="md:w-44"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">Tất cả vai trò</SelectItem>
+                                        <SelectItem value="PATIENT">Bệnh nhân</SelectItem>
+                                        <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Họ tên</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Điện thoại</TableHead>
+                                        <TableHead>Vai trò</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
+                                        <TableHead>Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {users.map((user) => (
+                                        <TableRow key={user.id}>
+                                            <TableCell className="font-medium">{user.name}</TableCell>
+                                            <TableCell>{user.email}</TableCell>
+                                            <TableCell>{user.phone || "-"}</TableCell>
+                                            <TableCell><Badge variant="outline">{getRoleLabel(user.role)}</Badge></TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={user.isActive ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
+                                                    {user.isActive ? "Đang hoạt động" : "Đã khóa"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="space-x-2">
+                                                <Button size="sm" variant="outline" onClick={() => updateUserMutation.mutate({ id: user.id, payload: { isActive: !user.isActive } })}>
+                                                    {user.isActive ? "Khóa" : "Mở"}
+                                                </Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteUserMutation.mutate(user.id)}>
+                                                    Xóa
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="clinics" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Thêm phòng khám</CardTitle>
+                            <CardDescription>Chọn một hoặc nhiều chuyên khoa mà phòng khám cung cấp.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Tên phòng khám" />
+                                <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} placeholder="Địa chỉ" />
+                                <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} placeholder="Số điện thoại" />
+                                <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} placeholder="Email" />
+                                <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} placeholder="Website" />
+                                <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} placeholder="Giờ mở cửa" />
+                                <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} placeholder="Link ảnh phòng khám" className="md:col-span-2" />
+                            </div>
+                            <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} placeholder="Mô tả phòng khám" />
+                            <div className="space-y-2">
+                                <Label>Chuyên khoa</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {specialties.map((specialty) => (
+                                        <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                                            <input type="checkbox" checked={clinicSpecialtyIds.includes(specialty.id)} onChange={() => toggleClinicSpecialty(specialty.id)} />
+                                            {specialty.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Switch checked={clinicOpen} onCheckedChange={setClinicOpen} />
+                                <Label>Đang mở cửa</Label>
+                            </div>
+                            <Button disabled={createClinicMutation.isPending || !canCreateClinic} onClick={() => createClinicMutation.mutate(getClinicPayload())}>
+                                {createClinicMutation.isPending ? "Đang thêm..." : "Thêm phòng khám"}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Danh sách phòng khám</CardTitle>
+                            <CardDescription>Bấm Sửa để chỉnh thông tin bằng popup.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Phòng khám</TableHead>
+                                        <TableHead>Chuyên khoa</TableHead>
+                                        <TableHead>Liên hệ</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
+                                        <TableHead>Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {clinics.map((clinic) => (
+                                        <TableRow key={clinic.id}>
+                                            <TableCell>
+                                                <div className="font-medium">{clinic.name}</div>
+                                                <div className="text-xs text-muted-foreground">{clinic.address}</div>
+                                            </TableCell>
+                                            <TableCell>{clinic.specialties?.map((item) => item.name).join(", ") || "Chưa thiết lập"}</TableCell>
+                                            <TableCell>{clinic.phone || clinic.email || "-"}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={clinic.isOpen ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
+                                                    {clinic.isOpen ? "Đang mở" : "Tạm đóng"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="space-x-2">
+                                                <Button size="sm" variant="outline" onClick={() => openClinicDialog(clinic)}>Sửa</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteClinicMutation.mutate(clinic.id)}>Xóa</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="doctors" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Tạo tài khoản bác sĩ</CardTitle>
+                            <CardDescription>Tài khoản bác sĩ được tạo ở đây, hồ sơ chuyên môn chỉnh trong popup Sửa ở danh sách bác sĩ.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="grid gap-3 md:grid-cols-4">
+                                <Input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Họ tên bác sĩ" />
+                                <Input value={doctorEmail} onChange={(event) => setDoctorEmail(event.target.value)} placeholder="Email đăng nhập" />
+                                <Input value={doctorPhone} onChange={(event) => setDoctorPhone(event.target.value)} placeholder="Số điện thoại" />
+                                <Input value={doctorPassword} onChange={(event) => setDoctorPassword(event.target.value)} type="password" placeholder="Mật khẩu" />
+                            </div>
+                            <Button disabled={createUserMutation.isPending || !canCreateDoctorAccount} onClick={() => createUserMutation.mutate({ name: doctorName.trim(), email: doctorEmail.trim(), phone: doctorPhone.trim() || undefined, password: doctorPassword, role: "DOCTOR" })}>
+                                {createUserMutation.isPending ? "Đang tạo..." : "Tạo tài khoản bác sĩ"}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Danh sách bác sĩ</CardTitle>
+                            <CardDescription>Sửa hồ sơ, tạm nghỉ hoặc xóa bác sĩ.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Ảnh</TableHead>
+                                        <TableHead>Bác sĩ</TableHead>
+                                        <TableHead>Phòng khám</TableHead>
+                                        <TableHead>Chuyên khoa</TableHead>
+                                        <TableHead>Kinh nghiệm</TableHead>
+                                        <TableHead>Trạng thái</TableHead>
+                                        <TableHead>Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {doctors.map((doctor) => (
+                                        <TableRow key={doctor.id}>
+                                            <TableCell>
+                                                {doctor.avatar ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={doctor.avatar} alt={doctor.name} className="h-12 w-12 rounded-full object-cover" />
+                                                ) : (
+                                                    <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-slate-50 text-slate-400">
+                                                        <Stethoscope className="h-4 w-4" />
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{doctor.name}</div>
+                                                <div className="text-xs text-muted-foreground">{doctor.user?.email || "Chưa liên kết account"}</div>
+                                            </TableCell>
+                                            <TableCell>{doctor.clinic.name}</TableCell>
+                                            <TableCell>{doctor.specialty.name}</TableCell>
+                                            <TableCell>{doctor.experience} năm</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={doctor.isAvailable ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
+                                                    {doctor.isAvailable ? "Sẵn sàng" : "Tạm nghỉ"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="space-x-2">
+                                                <Button size="sm" variant="outline" onClick={() => openDoctorDialog(doctor)}>Sửa</Button>
+                                                <Button size="sm" variant="outline" onClick={() => toggleDoctorAvailabilityMutation.mutate({ id: doctor.id, isAvailable: !doctor.isAvailable })}>
+                                                    {doctor.isAvailable ? "Tạm nghỉ" : "Mở khám"}
+                                                </Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteDoctorMutation.mutate(doctor.id)}>Xóa</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="news" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{editingArticleId ? "Cập nhật bài cẩm nang" : "Thêm bài cẩm nang"}</CardTitle>
+                            <CardDescription>Quản lý nội dung cẩm nang sức khỏe trên website.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-2 md:grid-cols-2">
+                                <Input value={articleTitle} onChange={(event) => setArticleTitle(event.target.value)} placeholder="Tiêu đề" />
+                                <Input value={articleCategory} onChange={(event) => setArticleCategory(event.target.value)} placeholder="Chuyên mục" />
+                                <Input value={articleReadTime} onChange={(event) => setArticleReadTime(event.target.value)} placeholder="Thời gian đọc" />
+                                <Input value={articleImage} onChange={(event) => setArticleImage(event.target.value)} placeholder="Link ảnh đại diện" />
+                            </div>
+                            <Textarea value={articleDescription} onChange={(event) => setArticleDescription(event.target.value)} placeholder="Mô tả nội dung" />
+                            <div className="flex gap-2">
+                                <Button
+                                    disabled={(!editingArticleId && createArticleMutation.isPending) || Boolean(editingArticleId && updateArticleMutation.isPending) || !articleTitle || !articleDescription}
+                                    onClick={() => {
+                                        const payload = { title: articleTitle, description: articleDescription, category: articleCategory, readTime: articleReadTime, image: articleImage || undefined }
+                                        if (editingArticleId) updateArticleMutation.mutate({ id: editingArticleId, payload })
+                                        else createArticleMutation.mutate(payload)
+                                    }}
+                                >
+                                    {editingArticleId ? "Cập nhật bài viết" : "Thêm bài viết"}
+                                </Button>
+                                {editingArticleId ? <Button variant="outline" onClick={resetArticleForm}>Hủy chỉnh sửa</Button> : null}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Danh sách cẩm nang</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Tiêu đề</TableHead>
+                                        <TableHead>Chuyên mục</TableHead>
+                                        <TableHead>Thời gian đọc</TableHead>
+                                        <TableHead>Thao tác</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {articles.map((article) => (
+                                        <TableRow key={article.id}>
+                                            <TableCell className="font-medium">{article.title}</TableCell>
+                                            <TableCell>{article.category}</TableCell>
+                                            <TableCell>{article.readTime}</TableCell>
+                                            <TableCell className="space-x-2">
+                                                <Button size="sm" variant="outline" onClick={() => fillArticleForm(article)}>Sửa</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteArticleMutation.mutate(article.id)}>Xóa</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
+            <Dialog open={Boolean(editingClinic)} onOpenChange={(open) => !open && closeClinicDialog()}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Sửa phòng khám</DialogTitle>
+                        <DialogDescription>Cập nhật thông tin và danh sách chuyên khoa của phòng khám.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Tên phòng khám" />
+                            <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} placeholder="Địa chỉ" />
+                            <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} placeholder="Số điện thoại" />
+                            <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} placeholder="Email" />
+                            <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} placeholder="Website" />
+                            <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} placeholder="Giờ mở cửa" />
+                            <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} placeholder="Link ảnh phòng khám" className="md:col-span-2" />
+                        </div>
+                        <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} placeholder="Mô tả phòng khám" />
+                        <div className="flex flex-wrap gap-2">
+                            {specialties.map((specialty) => (
+                                <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                                    <input type="checkbox" checked={clinicSpecialtyIds.includes(specialty.id)} onChange={() => toggleClinicSpecialty(specialty.id)} />
+                                    {specialty.name}
+                                </label>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Switch checked={clinicOpen} onCheckedChange={setClinicOpen} />
+                            <Label>Đang mở cửa</Label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeClinicDialog}>Đóng</Button>
+                        <Button disabled={updateClinicMutation.isPending || !canUpdateClinic} onClick={() => editingClinic && updateClinicMutation.mutate({ id: editingClinic.id, payload: getClinicPayload() })}>
+                            {updateClinicMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(editingDoctor)} onOpenChange={(open) => !open && closeDoctorDialog()}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Sửa hồ sơ bác sĩ</DialogTitle>
+                        <DialogDescription>Chuyên khoa chỉ lấy từ danh sách chuyên khoa đã thiết lập cho phòng khám.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Phòng khám</Label>
+                                <Select value={doctorEditClinicId} onValueChange={(value) => { setDoctorEditClinicId(value); setDoctorEditSpecialtyId("") }}>
+                                    <SelectTrigger><SelectValue placeholder="Chọn phòng khám" /></SelectTrigger>
+                                    <SelectContent>{clinics.map((clinic) => <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Chuyên khoa</Label>
+                                <Select value={doctorEditSpecialtyId} onValueChange={setDoctorEditSpecialtyId} disabled={!doctorEditClinicId}>
+                                    <SelectTrigger><SelectValue placeholder="Chọn chuyên khoa" /></SelectTrigger>
+                                    <SelectContent>{clinicSpecialtyOptions.map((specialty) => <SelectItem key={specialty.id} value={specialty.id}>{specialty.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <Input type="number" min={0} value={doctorEditExperience} onChange={(event) => setDoctorEditExperience(event.target.value)} placeholder="Số năm kinh nghiệm" />
+                            <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} placeholder="Link ảnh đại diện" />
+                        </div>
+                        <Textarea value={doctorEditBio} onChange={(event) => setDoctorEditBio(event.target.value)} placeholder="Giới thiệu bác sĩ" />
+                        <div className="flex items-center gap-2">
+                            <Switch checked={doctorEditAvailable} onCheckedChange={setDoctorEditAvailable} />
+                            <Label>Active</Label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeDoctorDialog}>Đóng</Button>
+                        <Button disabled={updateDoctorMutation.isPending || !canUpdateDoctor} onClick={() => editingDoctor && updateDoctorMutation.mutate({ id: editingDoctor.id, payload: doctorPayload })}>
+                            {updateDoctorMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     )
 }
 

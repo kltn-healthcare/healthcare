@@ -71,6 +71,7 @@ model Clinic {
   bookings       Booking[]
   reviews        Review[]
   healthPackages HealthPackage[]
+  specialties    ClinicSpecialty[]
 
   @@map("clinics")
   @@index([isOpen, rating])
@@ -84,8 +85,22 @@ model Specialty {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   doctors Doctor[]
+  clinics ClinicSpecialty[]
 
   @@map("specialties")
+}
+
+model ClinicSpecialty {
+  clinicId    String   @map("clinic_id")
+  specialtyId String   @map("specialty_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  clinic    Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([clinicId, specialtyId])
+  @@map("clinic_specialties")
+  @@index([specialtyId])
 }
 
 model Doctor {

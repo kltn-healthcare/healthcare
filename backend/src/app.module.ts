@@ -21,6 +21,7 @@ import { AdminModule } from './admin/admin.module';
 import { ArticlesModule } from './articles/articles.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PackagesModule } from './packages/packages.module';
+import { FirebaseModule } from './common/firebase/firebase.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PackagesModule } from './packages/packages.module';
     AdminModule,
     ReviewsModule,
     PackagesModule,
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [

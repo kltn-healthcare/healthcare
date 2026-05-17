@@ -1,5 +1,11 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  validateSync,
+} from 'class-validator';
 
 enum Environment {
   Development = 'development',
@@ -57,8 +63,23 @@ class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   REGISTER_OTP_TTL_SECONDS: number = 300;
-}
 
+  @IsString()
+  @IsOptional()
+  FIREBASE_PROJECT_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  FIREBASE_CREDENTIAL_SOURCE?: string = 'default';
+
+  @IsString()
+  @IsOptional()
+  FIREBASE_SERVICE_ACCOUNT_KEY_PATH?: string;
+
+  @IsString()
+  @IsOptional()
+  FIREBASE_SERVICE_ACCOUNT_JSON?: string;
+}
 
 export function validate(config: Record<string, unknown>) {
   const validated = plainToInstance(EnvironmentVariables, config, {
@@ -70,4 +91,3 @@ export function validate(config: Record<string, unknown>) {
   }
   return validated;
 }
-

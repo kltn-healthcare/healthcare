@@ -1,16 +1,14 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Client } from 'pg';
 import * as bcrypt from 'bcrypt';
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL is not defined in .env');
 
-  const pgClient = new Client({ connectionString });
-  await pgClient.connect();
-  const adapter = new PrismaPg(pgClient);
+  const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });
 
   console.log('--- Seeding Demo Data ---');
@@ -87,7 +85,63 @@ async function main() {
     });
   }
   const allClinics = await prisma.clinic.findMany();
+  const clinicByName = new Map(allClinics.map((clinic) => [clinic.name, clinic]));
+  const specialtyByName = new Map(
+    allSpecialties.map((specialty) => [specialty.name, specialty]),
+  );
   console.log(`Seeded ${allClinics.length} clinics.`);
+
+  const clinicSpecialtiesData = [
+    {
+      clinicName: clinicsData[0].name,
+      specialtyNames: [
+        specialtiesData[0].name,
+        specialtiesData[1].name,
+        specialtiesData[3].name,
+        specialtiesData[4].name,
+        specialtiesData[5].name,
+      ],
+    },
+    {
+      clinicName: clinicsData[1].name,
+      specialtyNames: [specialtiesData[2].name],
+    },
+    {
+      clinicName: clinicsData[2].name,
+      specialtyNames: [
+        specialtiesData[0].name,
+        specialtiesData[1].name,
+        specialtiesData[3].name,
+      ],
+    },
+  ];
+
+  for (const item of clinicSpecialtiesData) {
+    const clinic = clinicByName.get(item.clinicName);
+
+    if (!clinic) continue;
+
+    for (const specialtyName of item.specialtyNames) {
+      const specialty = specialtyByName.get(specialtyName);
+
+      if (!specialty) continue;
+
+      await prisma.clinicSpecialty.upsert({
+        where: {
+          clinicId_specialtyId: {
+            clinicId: clinic.id,
+            specialtyId: specialty.id,
+          },
+        },
+        update: {},
+        create: {
+          clinicId: clinic.id,
+          specialtyId: specialty.id,
+        },
+      });
+    }
+  }
+  console.log('Seeded clinic-specialty mappings.');
 
   // 3. Create Doctors
   const doctorsData = [
@@ -96,24 +150,24 @@ async function main() {
       experience: 15,
       avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=400',
       bio: 'Chuyên gia nội khoa với hơn 15 năm kinh nghiệm.',
-      clinicId: allClinics[0].id,
-      specialtyId: allSpecialties[0].id,
+      clinicId: clinicByName.get(clinicsData[0].name)!.id,
+      specialtyId: specialtyByName.get(specialtiesData[0].name)!.id,
     },
     {
       name: 'BS. Nguyễn Thị Mai',
       experience: 10,
       avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=400',
       bio: 'Bác sĩ nhi khoa tâm huyết.',
-      clinicId: allClinics[0].id,
-      specialtyId: allSpecialties[1].id,
+      clinicId: clinicByName.get(clinicsData[0].name)!.id,
+      specialtyId: specialtyByName.get(specialtiesData[1].name)!.id,
     },
     {
       name: 'BS. Trần Hoàng Nam',
       experience: 12,
       avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400',
       bio: 'Chuyên gia phục hình răng sứ.',
-      clinicId: allClinics[1].id,
-      specialtyId: allSpecialties[2].id,
+      clinicId: clinicByName.get(clinicsData[1].name)!.id,
+      specialtyId: specialtyByName.get(specialtiesData[2].name)!.id,
     },
   ];
 
@@ -126,7 +180,6 @@ async function main() {
 
   console.log('--- Demo Data Seeding Completed ---');
   await prisma.$disconnect();
-  await pgClient.end();
 }
 
 main().catch(console.error);

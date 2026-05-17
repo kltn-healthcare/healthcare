@@ -8,7 +8,7 @@ import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateBookingDto) {
     const clinic = await this.prisma.clinic.findUnique({
@@ -54,7 +54,11 @@ export class BookingsService {
 
     // Slot is considered locked when another patient already has a pending/confirmed booking.
     if (dto.doctorId) {
-      await this.ensureDoctorSlotAvailable(dto.doctorId, bookingDate, dto.bookingTime);
+      await this.ensureDoctorSlotAvailable(
+        dto.doctorId,
+        bookingDate,
+        dto.bookingTime,
+      );
     }
 
     const patientDob = dto.patientDob ? new Date(dto.patientDob) : undefined;
@@ -148,7 +152,11 @@ export class BookingsService {
     return booking;
   }
 
-  async cancelByPatient(userId: string, bookingId: string, dto: CancelBookingDto) {
+  async cancelByPatient(
+    userId: string,
+    bookingId: string,
+    dto: CancelBookingDto,
+  ) {
     const booking = await this.prisma.booking.findFirst({
       where: {
         id: bookingId,
@@ -157,6 +165,8 @@ export class BookingsService {
       select: {
         id: true,
         status: true,
+        bookingDate: true,
+        bookingTime: true,
       },
     });
 
@@ -176,6 +186,8 @@ export class BookingsService {
         message: 'Only pending or confirmed bookings can be cancelled',
       });
     }
+
+    this.assertNotPastBookingDateTime(booking.bookingDate, booking.bookingTime);
 
     return this.prisma.booking.update({
       where: { id: booking.id },
@@ -208,6 +220,8 @@ export class BookingsService {
         id: true,
         status: true,
         doctorId: true,
+        bookingDate: true,
+        bookingTime: true,
       },
     });
 
@@ -227,6 +241,8 @@ export class BookingsService {
         message: 'Only pending or confirmed bookings can be rescheduled',
       });
     }
+
+    this.assertNotPastBookingDateTime(booking.bookingDate, booking.bookingTime);
 
     const nextBookingDate = new Date(dto.bookingDate);
     if (Number.isNaN(nextBookingDate.getTime())) {

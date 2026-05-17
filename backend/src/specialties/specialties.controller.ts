@@ -14,4 +14,3 @@ export class SpecialtiesController {
     return this.specialtiesService.list();
   }
 }
-
