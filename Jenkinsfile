@@ -8,7 +8,7 @@ pipeline {
   }
 
   environment {
-    GITEA_REGISTRY = "gitea.kltn.internal:80"
+    GITEA_REGISTRY = "gitea.healthcare.com"
     GITEA_OWNER = "kltn"
     GITEA_CREDS_ID = "gitea-token-admin"
 
@@ -17,7 +17,7 @@ pipeline {
 
     GIT_USER_NAME = "thanhdc"
     GIT_USER_EMAIL = "chithanh040804@gmail.com"
-    MANIFEST_REPO_URL = "http://gitea.kltn.internal/KLTN/healthcare-manifests.git"
+    MANIFEST_REPO_URL = "https://gitea.healthcare.com/KLTN/healthcare-manifests.git"
     MANIFEST_REPO_BRANCH = "main"
   }
 
@@ -241,7 +241,7 @@ pipeline {
                   git config user.name "${GIT_USER_NAME}"
                   git config user.email "${GIT_USER_EMAIL}"
                   git tag ${params.RELEASE_TAG}
-                  git push http://${GIT_USER_NAME}:\${TOKEN}@gitea.kltn.internal/kltn/healthcare.git ${params.RELEASE_TAG}
+                  git push http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare.git ${params.RELEASE_TAG}
                 """
               }
             }
@@ -277,7 +277,7 @@ pipeline {
                     "${RELEASE_TAG}" "${RELEASE_TAG}" "${RELEASE_TAG}")
 
                   curl --silent --show-error --fail-with-body \
-                    -X POST "http://gitea.kltn.internal/api/v1/repos/kltn/healthcare/releases" \
+                    -X POST "https://gitea.healthcare.com/api/v1/repos/KLTN/healthcare/releases" \
                     -H "accept: application/json" \
                     -H "Authorization: token ${TOKEN}" \
                     -H "Content-Type: application/json" \
@@ -363,7 +363,7 @@ def updateManifests(Map config) {
     withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
       sh """
         set -e
-        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.kltn.internal/kltn/healthcare-manifests.git"
+        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
         git clone "\${GIT_REPO_URL}" .
         git checkout ${config.branch}
       """
@@ -396,7 +396,7 @@ def createProductionPR(Map config) {
           exit 1
         fi
 
-        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.kltn.internal/kltn/healthcare-manifests.git"
+        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
         git clone "\${GIT_REPO_URL}" .
 
         TEMP_BRANCH="release-prod-${config.releaseTag}"
@@ -422,7 +422,7 @@ def createProductionPR(Map config) {
           "release-prod-${config.releaseTag}" "${config.releaseTag}" "${config.releaseTag}" "${config.imageTag}")
 
         curl --silent --show-error --fail-with-body \
-          -X POST "http://gitea.kltn.internal/api/v1/repos/kltn/healthcare-manifests/pulls" \
+          -X POST "https://gitea.healthcare.com/api/v1/repos/KLTN/healthcare-manifests/pulls" \
           -H "accept: application/json" \
           -H "Authorization: token \${TOKEN}" \
           -H "Content-Type: application/json" \
