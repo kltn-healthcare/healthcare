@@ -241,7 +241,7 @@ pipeline {
                   git config user.name "${GIT_USER_NAME}"
                   git config user.email "${GIT_USER_EMAIL}"
                   git tag ${params.RELEASE_TAG}
-                  git push http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare.git ${params.RELEASE_TAG}
+                  git push -c http.sslVerify=false https://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare.git ${params.RELEASE_TAG}
                 """
               }
             }
@@ -363,7 +363,7 @@ def updateManifests(Map config) {
     withCredentials([string(credentialsId: "${GITEA_CREDS_ID}", variable: 'TOKEN')]) {
       sh """
         set -e
-        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
+        GIT_REPO_URL="https://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
         git clone "\${GIT_REPO_URL}" .
         git checkout ${config.branch}
       """
@@ -381,7 +381,7 @@ def updateManifests(Map config) {
       sh "git add ."
       sh "git status --porcelain"
       sh "git -c user.name=\"${GIT_USER_NAME}\" -c user.email=\"${GIT_USER_EMAIL}\" commit -m \"${config.commitMessage}\" || echo 'No changes to commit'"
-      sh "git push origin ${config.branch}"
+      sh "git -c http.sslVerify=false push  origin ${config.branch}"
     }
   }
 }
@@ -396,7 +396,7 @@ def createProductionPR(Map config) {
           exit 1
         fi
 
-        GIT_REPO_URL="http://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
+        GIT_REPO_URL="https://${GIT_USER_NAME}:\${TOKEN}@gitea.healthcare.com/KLTN/healthcare-manifests.git"
         git clone "\${GIT_REPO_URL}" .
 
         TEMP_BRANCH="release-prod-${config.releaseTag}"
