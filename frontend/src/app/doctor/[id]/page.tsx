@@ -11,16 +11,21 @@ import { Calendar, User, MapPin, Star, Clock, Brain, Stethoscope, ChevronRight }
 import Link from "next/link"
 import { getDoctorReviews } from "@/api/reviews"
 import { format } from "date-fns"
+import { useParams } from "next/navigation"
 
-export default function DoctorDetailPage({ params }: { params: { id: string } }) {
+export default function DoctorDetailPage() {
+  const params = useParams<{ id: string }>()
+  const doctorId = params.id
+
   const doctorQuery = useQuery({
-    queryKey: ["doctorDetail", params.id],
-    queryFn: () => getDoctorDetail(params.id),
+    queryKey: ["doctorDetail", doctorId],
+    queryFn: () => getDoctorDetail(doctorId),
+    enabled: Boolean(doctorId),
   })
 
   const reviewsQuery = useQuery({
-    queryKey: ["doctorReviews", params.id],
-    queryFn: () => getDoctorReviews(params.id),
+    queryKey: ["doctorReviews", doctorId],
+    queryFn: () => getDoctorReviews(doctorId),
     enabled: !!doctorQuery.data,
   })
 

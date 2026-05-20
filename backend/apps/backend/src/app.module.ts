@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Local src/ modules (PrismaService, RedisService, MailService tokens must match)
 import { PrismaModule } from '../../../src/prisma/prisma.module';
@@ -20,10 +21,14 @@ import { ReviewsModule } from '../../../src/reviews/reviews.module';
 import { PackagesModule } from '../../../src/packages/packages.module';
 import { HealthModule } from '../../../src/health/health.module';
 import { AuthModule } from '../../../src/auth/auth.module';
+import { DynamoAppointmentsModule } from '../../../src/aws/dynamo-appointments.module';
+import { NotificationsModule } from '../../../src/notifications/notifications.module';
+import { RemindersModule } from '../../../src/reminders/reminders.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     MailModule,
@@ -37,6 +42,9 @@ import { AuthModule } from '../../../src/auth/auth.module';
     ReviewsModule,
     PackagesModule,
     AuthModule,
+    DynamoAppointmentsModule,
+    NotificationsModule,
+    RemindersModule,
   ],
   providers: [
     {

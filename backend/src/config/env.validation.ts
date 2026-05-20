@@ -79,6 +79,46 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
+
+  @IsString()
+  @IsOptional()
+  AWS_REGION?: string = 'us-east-1';
+
+  @IsString()
+  @IsOptional()
+  DYNAMODB_TABLE?: string;
+
+  @IsString()
+  @IsOptional()
+  DYNAMODB_TABLE_NAME?: string;
+
+  @IsString()
+  @IsOptional()
+  DYNAMODB_SYNC_ENABLED?: string = 'false';
+
+  @IsString()
+  @IsOptional()
+  AWS_ACCESS_KEY_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  AWS_SECRET_ACCESS_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  AWS_SESSION_TOKEN?: string;
+
+  @IsString()
+  @IsOptional()
+  aws_access_key_id?: string;
+
+  @IsString()
+  @IsOptional()
+  aws_secret_access_key?: string;
+
+  @IsString()
+  @IsOptional()
+  aws_session_token?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

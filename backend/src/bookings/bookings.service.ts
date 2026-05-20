@@ -1,14 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_CODES } from '../common/constants/error-codes';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(userId: string, dto: CreateBookingDto) {
     const clinic = await this.prisma.clinic.findUnique({
@@ -94,6 +98,14 @@ export class BookingsService {
       },
     });
 
+    await this.notificationsService.createNotification({
+      userId,
+      type: NotificationType.BOOKING_CREATED,
+      title: 'Booking request received',
+      body: `Your appointment request at ${booking.clinic.name} is waiting for confirmation.`,
+      data: this.bookingNotificationData(booking.id),
+    });
+
     return booking;
   }
 
@@ -164,9 +176,11 @@ export class BookingsService {
       },
       select: {
         id: true,
+        userId: true,
         status: true,
         bookingDate: true,
         bookingTime: true,
+        clinic: { select: { name: true } },
       },
     });
 
@@ -189,7 +203,7 @@ export class BookingsService {
 
     this.assertNotPastBookingDateTime(booking.bookingDate, booking.bookingTime);
 
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id: booking.id },
       data: {
         status: BookingStatus.CANCELLED,
@@ -204,6 +218,16 @@ export class BookingsService {
         updatedAt: true,
       },
     });
+
+    await this.notificationsService.createNotification({
+      userId: booking.userId,
+      type: NotificationType.BOOKING_CANCELLED,
+      title: 'Booking cancelled',
+      body: `Your appointment at ${booking.clinic.name} has been cancelled.`,
+      data: this.bookingNotificationData(booking.id),
+    });
+
+    return updated;
   }
 
   async rescheduleByPatient(
@@ -218,10 +242,12 @@ export class BookingsService {
       },
       select: {
         id: true,
+        userId: true,
         status: true,
         doctorId: true,
         bookingDate: true,
         bookingTime: true,
+        clinic: { select: { name: true } },
       },
     });
 
@@ -263,7 +289,7 @@ export class BookingsService {
       );
     }
 
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id: booking.id },
       data: {
         bookingDate: nextBookingDate,
@@ -280,6 +306,16 @@ export class BookingsService {
         updatedAt: true,
       },
     });
+
+    await this.notificationsService.createNotification({
+      userId: booking.userId,
+      type: NotificationType.BOOKING_CREATED,
+      title: 'Booking rescheduled',
+      body: `Your appointment at ${booking.clinic.name} was rescheduled and is waiting for confirmation.`,
+      data: this.bookingNotificationData(booking.id),
+    });
+
+    return updated;
   }
 
   private async ensureDoctorSlotAvailable(
@@ -337,5 +373,12 @@ export class BookingsService {
         message: 'Booking date/time cannot be in the past',
       });
     }
+  }
+
+  private bookingNotificationData(bookingId: string): Prisma.InputJsonObject {
+    return {
+      bookingId,
+      actionUrl: `/account?tab=appointments&bookingId=${bookingId}`,
+    };
   }
 }

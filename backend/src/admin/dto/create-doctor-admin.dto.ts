@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEmail, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateDoctorAdminDto {
   @ApiProperty()
@@ -14,6 +14,28 @@ export class CreateDoctorAdminDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor login email when creating a new account',
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor phone number when creating a new account',
+  })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Doctor login password when creating a new account',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  password?: string;
 
   @ApiProperty()
   @IsString()

@@ -4,7 +4,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const authUrl = process.env.AUTH_URL || 'http://healthcare-auth.staging.svc.cluster.local'
+    const authUrl = process.env.AUTH_URL || 'http://localhost:3001'
     const response = await fetch(`${authUrl}/v1/auth/verify-register-otp`, {
       method: 'POST',
       headers: {

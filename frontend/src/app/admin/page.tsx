@@ -865,8 +865,10 @@ function SystemAdminSectionV2() {
     const [clinicOpen, setClinicOpen] = useState(true)
     const [clinicSpecialtyIds, setClinicSpecialtyIds] = useState<string[]>([])
     const [editingClinic, setEditingClinic] = useState<AdminClinic | null>(null)
+    const [clinicDialogOpen, setClinicDialogOpen] = useState(false)
 
     const [editingDoctor, setEditingDoctor] = useState<AdminDoctor | null>(null)
+    const [doctorDialogOpen, setDoctorDialogOpen] = useState(false)
     const [doctorEditClinicId, setDoctorEditClinicId] = useState("")
     const [doctorEditSpecialtyId, setDoctorEditSpecialtyId] = useState("")
     const [doctorEditExperience, setDoctorEditExperience] = useState("0")
@@ -905,9 +907,7 @@ function SystemAdminSectionV2() {
     const articles = articlesQuery.data?.items ?? []
     const specialties = specialtiesQuery.data ?? []
 
-    const clinicSpecialtyOptions = editingDoctor
-        ? clinics.find((clinic) => clinic.id === doctorEditClinicId)?.specialties ?? []
-        : []
+    const clinicSpecialtyOptions = clinics.find((clinic) => clinic.id === doctorEditClinicId)?.specialties ?? []
 
     const createUserMutation = useMutation({
         mutationFn: createAdminUser,
@@ -935,7 +935,7 @@ function SystemAdminSectionV2() {
         mutationFn: createAdminClinic,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["admin", "clinics"] })
-            resetClinicCreateForm()
+            closeClinicDialog()
         },
     })
 
@@ -954,6 +954,15 @@ function SystemAdminSectionV2() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["admin", "clinics"] })
             queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+        },
+    })
+
+    const createDoctorMutation = useMutation({
+        mutationFn: createAdminDoctor,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+            queryClient.invalidateQueries({ queryKey: ["admin", "users"] })
+            closeDoctorDialog()
         },
     })
 
@@ -1018,6 +1027,12 @@ function SystemAdminSectionV2() {
         setClinicSpecialtyIds([])
     }
 
+    function openCreateClinicDialog() {
+        setEditingClinic(null)
+        resetClinicCreateForm()
+        setClinicDialogOpen(true)
+    }
+
     function openClinicDialog(clinic: AdminClinic) {
         setEditingClinic(clinic)
         setClinicName(clinic.name)
@@ -1030,10 +1045,12 @@ function SystemAdminSectionV2() {
         setClinicOpeningHours(clinic.openingHours ?? "")
         setClinicOpen(clinic.isOpen)
         setClinicSpecialtyIds(clinic.specialties?.map((item) => item.id) ?? [])
+        setClinicDialogOpen(true)
     }
 
     function closeClinicDialog() {
         setEditingClinic(null)
+        setClinicDialogOpen(false)
         resetClinicCreateForm()
     }
 
@@ -1071,16 +1088,41 @@ function SystemAdminSectionV2() {
 
     function openDoctorDialog(doctor: AdminDoctor) {
         setEditingDoctor(doctor)
+        setDoctorName(doctor.name)
+        setDoctorEmail(doctor.user?.email ?? "")
+        setDoctorPhone(doctor.user?.phone ?? "")
+        setDoctorPassword("")
         setDoctorEditClinicId(doctor.clinic.id)
         setDoctorEditSpecialtyId(doctor.specialty.id)
         setDoctorEditExperience(String(doctor.experience ?? 0))
         setDoctorEditAvatar(doctor.avatar ?? "")
         setDoctorEditBio(doctor.bio ?? "")
         setDoctorEditAvailable(doctor.isAvailable)
+        setDoctorDialogOpen(true)
+    }
+
+    function openCreateDoctorDialog() {
+        setEditingDoctor(null)
+        setDoctorName("")
+        setDoctorEmail("")
+        setDoctorPhone("")
+        setDoctorPassword("")
+        setDoctorEditClinicId("")
+        setDoctorEditSpecialtyId("")
+        setDoctorEditExperience("0")
+        setDoctorEditAvatar("")
+        setDoctorEditBio("")
+        setDoctorEditAvailable(true)
+        setDoctorDialogOpen(true)
     }
 
     function closeDoctorDialog() {
         setEditingDoctor(null)
+        setDoctorDialogOpen(false)
+        setDoctorName("")
+        setDoctorEmail("")
+        setDoctorPhone("")
+        setDoctorPassword("")
         setDoctorEditClinicId("")
         setDoctorEditSpecialtyId("")
         setDoctorEditExperience("0")
@@ -1090,6 +1132,7 @@ function SystemAdminSectionV2() {
     }
 
     const doctorPayload = {
+        name: doctorName.trim(),
         clinicId: doctorEditClinicId,
         specialtyId: doctorEditSpecialtyId,
         experience: Number(doctorEditExperience) || 0,
@@ -1104,6 +1147,7 @@ function SystemAdminSectionV2() {
                 JSON.stringify({
                     clinicId: editingDoctor.clinic.id,
                     specialtyId: editingDoctor.specialty.id,
+                    name: editingDoctor.name,
                     experience: editingDoctor.experience ?? 0,
                     avatar: editingDoctor.avatar || undefined,
                     bio: editingDoctor.bio || undefined,
@@ -1129,10 +1173,12 @@ function SystemAdminSectionV2() {
         setArticleImage(article.image ?? "")
     }
 
-    const canCreateDoctorAccount = Boolean(doctorName.trim() && doctorEmail.trim() && doctorPassword)
+    const canCreateDoctorAccount = Boolean(
+        doctorName.trim() && doctorEmail.trim() && doctorPassword && doctorEditClinicId && doctorEditSpecialtyId,
+    )
     const canCreateClinic = Boolean(clinicName.trim() && clinicAddress.trim())
     const canUpdateClinic = Boolean(canCreateClinic && isClinicChanged)
-    const canUpdateDoctor = Boolean(editingDoctor && doctorEditClinicId && doctorEditSpecialtyId && isDoctorChanged)
+    const canUpdateDoctor = Boolean(editingDoctor && doctorName.trim() && doctorEditClinicId && doctorEditSpecialtyId && isDoctorChanged)
 
     return (
         <div className="space-y-4">
@@ -1211,46 +1257,12 @@ function SystemAdminSectionV2() {
 
                 <TabsContent value="clinics" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Thêm phòng khám</CardTitle>
-                            <CardDescription>Chọn một hoặc nhiều chuyên khoa mà phòng khám cung cấp.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Tên phòng khám" />
-                                <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} placeholder="Địa chỉ" />
-                                <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} placeholder="Số điện thoại" />
-                                <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} placeholder="Email" />
-                                <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} placeholder="Website" />
-                                <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} placeholder="Giờ mở cửa" />
-                                <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} placeholder="Link ảnh phòng khám" className="md:col-span-2" />
+                        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle>Danh sách phòng khám</CardTitle>
+                                <CardDescription>Bấm Sửa để chỉnh thông tin bằng popup.</CardDescription>
                             </div>
-                            <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} placeholder="Mô tả phòng khám" />
-                            <div className="space-y-2">
-                                <Label>Chuyên khoa</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {specialties.map((specialty) => (
-                                        <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
-                                            <input type="checkbox" checked={clinicSpecialtyIds.includes(specialty.id)} onChange={() => toggleClinicSpecialty(specialty.id)} />
-                                            {specialty.name}
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Switch checked={clinicOpen} onCheckedChange={setClinicOpen} />
-                                <Label>Đang mở cửa</Label>
-                            </div>
-                            <Button disabled={createClinicMutation.isPending || !canCreateClinic} onClick={() => createClinicMutation.mutate(getClinicPayload())}>
-                                {createClinicMutation.isPending ? "Đang thêm..." : "Thêm phòng khám"}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Danh sách phòng khám</CardTitle>
-                            <CardDescription>Bấm Sửa để chỉnh thông tin bằng popup.</CardDescription>
+                            <Button onClick={openCreateClinicDialog}>Thêm phòng khám</Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1291,27 +1303,12 @@ function SystemAdminSectionV2() {
 
                 <TabsContent value="doctors" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Tạo tài khoản bác sĩ</CardTitle>
-                            <CardDescription>Tài khoản bác sĩ được tạo ở đây, hồ sơ chuyên môn chỉnh trong popup Sửa ở danh sách bác sĩ.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="grid gap-3 md:grid-cols-4">
-                                <Input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} placeholder="Họ tên bác sĩ" />
-                                <Input value={doctorEmail} onChange={(event) => setDoctorEmail(event.target.value)} placeholder="Email đăng nhập" />
-                                <Input value={doctorPhone} onChange={(event) => setDoctorPhone(event.target.value)} placeholder="Số điện thoại" />
-                                <Input value={doctorPassword} onChange={(event) => setDoctorPassword(event.target.value)} type="password" placeholder="Mật khẩu" />
+                        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle>Danh sách bác sĩ</CardTitle>
+                                <CardDescription>Tạo mới, sửa hồ sơ, tạm nghỉ hoặc xóa bác sĩ.</CardDescription>
                             </div>
-                            <Button disabled={createUserMutation.isPending || !canCreateDoctorAccount} onClick={() => createUserMutation.mutate({ name: doctorName.trim(), email: doctorEmail.trim(), phone: doctorPhone.trim() || undefined, password: doctorPassword, role: "DOCTOR" })}>
-                                {createUserMutation.isPending ? "Đang tạo..." : "Tạo tài khoản bác sĩ"}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Danh sách bác sĩ</CardTitle>
-                            <CardDescription>Sửa hồ sơ, tạm nghỉ hoặc xóa bác sĩ.</CardDescription>
+                            <Button onClick={openCreateDoctorDialog}>Tạo tài khoản bác sĩ</Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1428,30 +1425,57 @@ function SystemAdminSectionV2() {
                 </TabsContent>
             </Tabs>
 
-            <Dialog open={Boolean(editingClinic)} onOpenChange={(open) => !open && closeClinicDialog()}>
+            <Dialog open={clinicDialogOpen} onOpenChange={(open) => !open && closeClinicDialog()}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle>Sửa phòng khám</DialogTitle>
-                        <DialogDescription>Cập nhật thông tin và danh sách chuyên khoa của phòng khám.</DialogDescription>
+                        <DialogTitle>{editingClinic ? "Sửa phòng khám" : "Thêm phòng khám"}</DialogTitle>
+                        <DialogDescription>Nhập đầy đủ thông tin phòng khám và các chuyên khoa đang cung cấp.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid gap-3 md:grid-cols-2">
-                            <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} placeholder="Tên phòng khám" />
-                            <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} placeholder="Địa chỉ" />
-                            <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} placeholder="Số điện thoại" />
-                            <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} placeholder="Email" />
-                            <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} placeholder="Website" />
-                            <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} placeholder="Giờ mở cửa" />
-                            <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} placeholder="Link ảnh phòng khám" className="md:col-span-2" />
+                            <div className="space-y-2">
+                                <Label>Tên phòng khám</Label>
+                                <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Địa chỉ</Label>
+                                <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Số điện thoại</Label>
+                                <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email</Label>
+                                <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Website</Label>
+                                <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Giờ mở cửa</Label>
+                                <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>Link ảnh phòng khám</Label>
+                                <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} />
+                            </div>
                         </div>
-                        <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} placeholder="Mô tả phòng khám" />
-                        <div className="flex flex-wrap gap-2">
-                            {specialties.map((specialty) => (
-                                <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
-                                    <input type="checkbox" checked={clinicSpecialtyIds.includes(specialty.id)} onChange={() => toggleClinicSpecialty(specialty.id)} />
-                                    {specialty.name}
-                                </label>
-                            ))}
+                        <div className="space-y-2">
+                            <Label>Mô tả phòng khám</Label>
+                            <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Chuyên khoa</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {specialties.map((specialty) => (
+                                    <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                                        <input type="checkbox" checked={clinicSpecialtyIds.includes(specialty.id)} onChange={() => toggleClinicSpecialty(specialty.id)} />
+                                        {specialty.name}
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Switch checked={clinicOpen} onCheckedChange={setClinicOpen} />
@@ -1460,52 +1484,109 @@ function SystemAdminSectionV2() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={closeClinicDialog}>Đóng</Button>
-                        <Button disabled={updateClinicMutation.isPending || !canUpdateClinic} onClick={() => editingClinic && updateClinicMutation.mutate({ id: editingClinic.id, payload: getClinicPayload() })}>
-                            {updateClinicMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
-                        </Button>
+                        {editingClinic ? (
+                            <Button disabled={updateClinicMutation.isPending || !canUpdateClinic} onClick={() => updateClinicMutation.mutate({ id: editingClinic.id, payload: getClinicPayload() })}>
+                                {updateClinicMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                            </Button>
+                        ) : (
+                            <Button disabled={createClinicMutation.isPending || !canCreateClinic} onClick={() => createClinicMutation.mutate(getClinicPayload())}>
+                                {createClinicMutation.isPending ? "Đang thêm..." : "Thêm phòng khám"}
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(editingDoctor)} onOpenChange={(open) => !open && closeDoctorDialog()}>
-                <DialogContent className="max-w-2xl">
+            <Dialog open={doctorDialogOpen} onOpenChange={(open) => !open && closeDoctorDialog()}>
+                <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle>Sửa hồ sơ bác sĩ</DialogTitle>
-                        <DialogDescription>Chuyên khoa chỉ lấy từ danh sách chuyên khoa đã thiết lập cho phòng khám.</DialogDescription>
+                        <DialogTitle>{editingDoctor ? "Sửa hồ sơ bác sĩ" : "Tạo tài khoản bác sĩ"}</DialogTitle>
+                        <DialogDescription>Tài khoản đăng nhập và hồ sơ chuyên môn được lưu cùng lúc để bác sĩ xuất hiện ngay trong danh sách.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>Phòng khám</Label>
-                                <Select value={doctorEditClinicId} onValueChange={(value) => { setDoctorEditClinicId(value); setDoctorEditSpecialtyId("") }}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn phòng khám" /></SelectTrigger>
-                                    <SelectContent>{clinics.map((clinic) => <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>)}</SelectContent>
-                                </Select>
+                    <div className="space-y-5">
+                        <div className="space-y-3">
+                            <div className="text-sm font-medium">Thông tin tài khoản</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Họ tên bác sĩ</Label>
+                                    <Input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email đăng nhập</Label>
+                                    <Input value={doctorEmail} onChange={(event) => setDoctorEmail(event.target.value)} disabled={Boolean(editingDoctor)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Số điện thoại</Label>
+                                    <Input value={doctorPhone} onChange={(event) => setDoctorPhone(event.target.value)} disabled={Boolean(editingDoctor)} />
+                                </div>
+                                {!editingDoctor ? (
+                                    <div className="space-y-2">
+                                        <Label>Mật khẩu</Label>
+                                        <Input value={doctorPassword} onChange={(event) => setDoctorPassword(event.target.value)} type="password" />
+                                    </div>
+                                ) : null}
                             </div>
-                            <div className="space-y-2">
-                                <Label>Chuyên khoa</Label>
-                                <Select value={doctorEditSpecialtyId} onValueChange={setDoctorEditSpecialtyId} disabled={!doctorEditClinicId}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn chuyên khoa" /></SelectTrigger>
-                                    <SelectContent>{clinicSpecialtyOptions.map((specialty) => <SelectItem key={specialty.id} value={specialty.id}>{specialty.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                            <Input type="number" min={0} value={doctorEditExperience} onChange={(event) => setDoctorEditExperience(event.target.value)} placeholder="Số năm kinh nghiệm" />
-                            <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} placeholder="Link ảnh đại diện" />
                         </div>
-                        <Textarea value={doctorEditBio} onChange={(event) => setDoctorEditBio(event.target.value)} placeholder="Giới thiệu bác sĩ" />
-                        <div className="flex items-center gap-2">
-                            <Switch checked={doctorEditAvailable} onCheckedChange={setDoctorEditAvailable} />
-                            <Label>Active</Label>
+
+                        <div className="space-y-3">
+                            <div className="text-sm font-medium">Thông tin chuyên môn</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Phòng khám</Label>
+                                    <Select value={doctorEditClinicId} onValueChange={(value) => { setDoctorEditClinicId(value); setDoctorEditSpecialtyId("") }}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn phòng khám" /></SelectTrigger>
+                                        <SelectContent>{clinics.map((clinic) => <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Chuyên khoa</Label>
+                                    <Select value={doctorEditSpecialtyId} onValueChange={setDoctorEditSpecialtyId} disabled={!doctorEditClinicId}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn chuyên khoa" /></SelectTrigger>
+                                        <SelectContent>{clinicSpecialtyOptions.map((specialty) => <SelectItem key={specialty.id} value={specialty.id}>{specialty.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Số năm kinh nghiệm</Label>
+                                    <Input type="number" min={0} value={doctorEditExperience} onChange={(event) => setDoctorEditExperience(event.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Link ảnh đại diện</Label>
+                                    <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Giới thiệu bác sĩ</Label>
+                                <Textarea value={doctorEditBio} onChange={(event) => setDoctorEditBio(event.target.value)} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Switch checked={doctorEditAvailable} onCheckedChange={setDoctorEditAvailable} />
+                                <Label>Sẵn sàng nhận lịch</Label>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={closeDoctorDialog}>Đóng</Button>
-                        <Button disabled={updateDoctorMutation.isPending || !canUpdateDoctor} onClick={() => editingDoctor && updateDoctorMutation.mutate({ id: editingDoctor.id, payload: doctorPayload })}>
-                            {updateDoctorMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
-                        </Button>
+                        {editingDoctor ? (
+                            <Button disabled={updateDoctorMutation.isPending || !canUpdateDoctor} onClick={() => updateDoctorMutation.mutate({ id: editingDoctor.id, payload: doctorPayload })}>
+                                {updateDoctorMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                            </Button>
+                        ) : (
+                            <Button
+                                disabled={createDoctorMutation.isPending || !canCreateDoctorAccount}
+                                onClick={() => createDoctorMutation.mutate({
+                                    ...doctorPayload,
+                                    email: doctorEmail.trim(),
+                                    phone: doctorPhone.trim() || undefined,
+                                    password: doctorPassword,
+                                })}
+                            >
+                                {createDoctorMutation.isPending ? "Đang tạo..." : "Tạo tài khoản bác sĩ"}
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
         </div>
     )
 }
@@ -1651,6 +1732,7 @@ function SystemAdminSection() { // NOSONAR
         onSuccess: () => {
             resetDoctorForm()
             queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] })
+            queryClient.invalidateQueries({ queryKey: ["admin", "users"] })
         },
     })
 

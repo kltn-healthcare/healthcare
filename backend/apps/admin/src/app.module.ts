@@ -13,6 +13,8 @@ import { RolesGuard } from '../../../src/auth/guards/roles.guard';
 import { AdminModule as CoreAdminModule } from '../../../src/admin/admin.module';
 import { DoctorAdminModule } from '../../../src/doctor-admin/doctor-admin.module';
 import { AuthModule } from '../../../src/auth/auth.module';
+import { DynamoAppointmentsModule } from '../../../src/aws/dynamo-appointments.module';
+import { NotificationsModule } from '../../../src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { AuthModule } from '../../../src/auth/auth.module';
     CoreAdminModule,
     DoctorAdminModule,
     AuthModule,
+    DynamoAppointmentsModule,
+    NotificationsModule,
   ],
   providers: [
     {

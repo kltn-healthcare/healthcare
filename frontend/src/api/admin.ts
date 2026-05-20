@@ -36,7 +36,7 @@ export type AdminDoctor = {
     isAvailable: boolean
     clinic: { id: string; name: string }
     specialty: { id: string; name: string }
-    user?: { id: string; email: string } | null
+    user?: { id: string; name?: string; email: string; phone?: string | null } | null
 }
 
 export type AdminArticle = {
@@ -137,6 +137,9 @@ export async function createAdminDoctor(input: {
     clinicId: string
     specialtyId: string
     userId?: string
+    email?: string
+    phone?: string
+    password?: string
     name: string
     experience?: number
     avatar?: string

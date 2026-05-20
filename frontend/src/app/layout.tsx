@@ -1,15 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { LanguageProvider, QueryProvider, ThemeProvider } from "@/shared/provider"
 import "./globals.css"
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
-})
 
 export const metadata: Metadata = {
   title: "HealthCare - Đặt Lịch Phòng Khám",
@@ -41,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <QueryProvider>
             <LanguageProvider>{children}</LanguageProvider>

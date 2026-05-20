@@ -333,7 +333,7 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-        user: { select: { id: true, email: true } },
+        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
 
@@ -343,17 +343,56 @@ export class AdminService {
   async createDoctor(dto: CreateDoctorAdminDto) {
     await this.assertClinicHasSpecialty(dto.clinicId, dto.specialtyId);
 
-    const doctor = await this.prisma.doctor.create({
-      data: {
-        clinicId: dto.clinicId,
-        specialtyId: dto.specialtyId,
-        userId: dto.userId,
-        name: dto.name,
-        experience: dto.experience ?? 0,
-        avatar: dto.avatar,
-        bio: dto.bio,
-        isAvailable: dto.isAvailable ?? true,
-      },
+    const email = dto.email?.trim().toLowerCase();
+    if (!dto.userId && (!email || !dto.password)) {
+      throw new BadRequestException({
+        code: 'DOCTOR_ACCOUNT_REQUIRED',
+        message: 'Doctor email and password are required when userId is not provided',
+      });
+    }
+
+    const doctor = await this.prisma.$transaction(async (tx) => {
+      let userId = dto.userId;
+
+      if (!userId && email && dto.password) {
+        const existing = await tx.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+
+        if (existing) {
+          throw new ConflictException({
+            code: 'EMAIL_ALREADY_EXISTS',
+            message: 'Email already exists',
+          });
+        }
+
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+        const user = await tx.user.create({
+          data: {
+            name: dto.name.trim(),
+            email,
+            phone: dto.phone?.trim(),
+            role: UserRole.DOCTOR,
+            passwordHash,
+            emailVerified: true,
+          },
+          select: { id: true },
+        });
+        userId = user.id;
+      }
+
+      return tx.doctor.create({
+        data: {
+          clinicId: dto.clinicId,
+          specialtyId: dto.specialtyId,
+          userId,
+          name: dto.name.trim(),
+          experience: dto.experience ?? 0,
+          avatar: dto.avatar,
+          bio: dto.bio,
+          isAvailable: dto.isAvailable ?? true,
+        },
       select: {
         id: true,
         name: true,
@@ -363,8 +402,9 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-        user: { select: { id: true, email: true } },
+          user: { select: { id: true, name: true, email: true, phone: true } },
       },
+      });
     });
 
     return doctor;
@@ -428,7 +468,7 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-        user: { select: { id: true, email: true } },
+        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
 

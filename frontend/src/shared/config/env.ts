@@ -12,6 +12,14 @@ export const env = {
     enableAnalytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
     enableAuth: process.env.NEXT_PUBLIC_ENABLE_AUTH === "true",
 
+    // Firebase Web Push
+    firebaseApiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    firebaseAuthDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    firebaseProjectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    firebaseMessagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    firebaseAppId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    firebaseVapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+
     // Environment
     isDevelopment: process.env.NODE_ENV === "development",
     isProduction: process.env.NODE_ENV === "production",

@@ -30,6 +30,82 @@ export class MailService {
     });
   }
 
+  async sendBookingConfirmedEmail(params: {
+    email: string;
+    patientName: string;
+    clinicName: string;
+    doctorName?: string | null;
+    appointmentAt: string;
+  }): Promise<void> {
+    const doctorLine = params.doctorName
+      ? `Doctor: ${params.doctorName}`
+      : 'Doctor: To be updated';
+
+    return this.sendEmail({
+      to: params.email,
+      subject: 'Your healthcare appointment is confirmed',
+      text: [
+        `Hello ${params.patientName},`,
+        '',
+        'Your appointment has been confirmed.',
+        `Clinic: ${params.clinicName}`,
+        doctorLine,
+        `Time: ${params.appointmentAt}`,
+        '',
+        'Please arrive a little early and bring your required documents.',
+      ].join('\n'),
+      html: `
+        <p>Hello <b>${this.escapeHtml(params.patientName)}</b>,</p>
+        <p>Your appointment has been confirmed.</p>
+        <ul>
+          <li><b>Clinic:</b> ${this.escapeHtml(params.clinicName)}</li>
+          <li><b>Doctor:</b> ${this.escapeHtml(params.doctorName || 'To be updated')}</li>
+          <li><b>Time:</b> ${this.escapeHtml(params.appointmentAt)}</li>
+        </ul>
+        <p>Please arrive a little early and bring your required documents.</p>
+      `,
+      logLabel: 'booking confirmation',
+    });
+  }
+
+  async sendBookingReminderEmail(params: {
+    email: string;
+    patientName: string;
+    clinicName: string;
+    doctorName?: string | null;
+    appointmentAt: string;
+  }): Promise<void> {
+    return this.sendEmail({
+      to: params.email,
+      subject: 'Reminder: upcoming healthcare appointment',
+      text: [
+        `Hello ${params.patientName},`,
+        '',
+        `This is a reminder that you have an appointment at ${params.clinicName}.`,
+        params.doctorName ? `Doctor: ${params.doctorName}` : undefined,
+        `Time: ${params.appointmentAt}`,
+        '',
+        'Please arrive on time. Thank you.',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      html: `
+        <p>Hello <b>${this.escapeHtml(params.patientName)}</b>,</p>
+        <p>This is a reminder that you have an appointment at <b>${this.escapeHtml(params.clinicName)}</b>.</p>
+        <ul>
+          ${
+            params.doctorName
+              ? `<li><b>Doctor:</b> ${this.escapeHtml(params.doctorName)}</li>`
+              : ''
+          }
+          <li><b>Time:</b> ${this.escapeHtml(params.appointmentAt)}</li>
+        </ul>
+        <p>Please arrive on time. Thank you.</p>
+      `,
+      logLabel: 'booking reminder',
+    });
+  }
+
   private getSmtpConfig() {
     const host = this.configService.get<string>('SMTP_HOST')?.trim();
     const port = this.configService.get<number>('SMTP_PORT') ?? 587;
@@ -95,5 +171,46 @@ export class MailService {
       );
       throw new InternalServerErrorException('Failed to send OTP email');
     }
+  }
+
+  private async sendEmail(params: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+    logLabel: string;
+  }): Promise<void> {
+    const smtp = this.getSmtpConfig();
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: smtp.auth,
+      });
+
+      await transporter.sendMail({
+        from: smtp.from,
+        to: params.to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send ${params.logLabel} email to ${params.to}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new InternalServerErrorException('Failed to send email');
+    }
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
   }
 }

@@ -138,9 +138,9 @@ cd frontend
 Tạo file `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
-NEXT_PUBLIC_AUTH_BASE_URL=http://localhost:3001
-NEXT_PUBLIC_ADMIN_BASE_URL=http://localhost:3002
+BACKEND_URL=http://localhost:8080
+AUTH_URL=http://localhost:3001
+ADMIN_URL=http://localhost:3002
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=HealthCare
 ```

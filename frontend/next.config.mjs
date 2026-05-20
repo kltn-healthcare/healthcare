@@ -1,8 +1,13 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
+  turbopack: {
+    root: rootDir,
   },
   images: {
     unoptimized: true,
@@ -11,7 +16,7 @@ const nextConfig = {
     // Use server-side env vars (runtime) — NOT NEXT_PUBLIC_ (build-time only)
     const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8080';
     const authUrl = process.env.AUTH_URL ?? 'http://localhost:3001';
-    const adminUrl = process.env.ADMIN_URL ?? 'http://healthcare-admin.staging.svc.cluster.local';
+    const adminUrl = process.env.ADMIN_URL ?? 'http://localhost:3002';
     return [
       {
         source: '/api/auth/:path*',

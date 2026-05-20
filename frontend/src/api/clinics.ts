@@ -18,7 +18,12 @@ type ClinicsListResponse = {
   total: number
 }
 
-export async function getClinics(params?: { q?: string; page?: number; limit?: number }) {
+export async function getClinics(params?: { q?: string; page?: number; limit?: number }): Promise<{
+  items: Clinic[]
+  page: number
+  limit: number
+  total: number
+}> {
   const res = await apiClient.get<ClinicsListResponse>('/v1/clinics', { params })
   const data = res.data as any
   

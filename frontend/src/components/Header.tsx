@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/shared/ui/button"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
+import { NotificationBell } from "@/components/NotificationBell"
 import { useTranslation } from "react-i18next"
 import { Logo } from "@/components/Logo"
 import { useAuthStore } from "@/store"
@@ -62,6 +63,7 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
+          <NotificationBell enabled={auth.isAuthenticated} />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

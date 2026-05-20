@@ -26,6 +26,30 @@ enum Gender {
   OTHER
 }
 
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+}
+
+enum ReminderChannel {
+  EMAIL
+  IN_WEB
+  WEB_PUSH
+}
+
+enum ReminderType {
+  BEFORE_APPOINTMENT
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model User {
   id            String   @id @default(uuid())
   name          String
@@ -43,10 +67,46 @@ model User {
   doctorProfile Doctor?
   bookings      Booking[]
   reviews       Review[]
+  deviceTokens  UserDeviceToken[]
+  notifications Notification[]
 
   @@map("users")
   @@index([role])
   @@index([createdAt])
+}
+
+model UserDeviceToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique @db.Text
+  platform   String   @default("WEB") @db.VarChar(20)
+  userAgent  String?  @map("user_agent") @db.Text
+  isActive   Boolean  @default(true) @map("is_active")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_device_tokens")
+  @@index([userId, isActive])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String           @db.Text
+  data      Json?
+  readAt    DateTime?        @map("read_at") @db.Timestamptz
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 model Clinic {
@@ -160,11 +220,33 @@ model Booking {
   healthPackage HealthPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
 
   review Review?
+  reminderLogs BookingReminderLog[]
 
   @@map("bookings")
   @@index([userId, createdAt])
   @@index([clinicId, bookingDate])
   @@index([status])
+  @@index([status, bookingDate])
+}
+
+model BookingReminderLog {
+  id           String          @id @default(uuid())
+  bookingId    String          @map("booking_id")
+  channel      ReminderChannel
+  reminderType ReminderType    @default(BEFORE_APPOINTMENT) @map("reminder_type")
+  scheduledFor DateTime        @map("scheduled_for") @db.Timestamptz
+  status       ReminderStatus  @default(PENDING)
+  sentAt       DateTime?       @map("sent_at") @db.Timestamptz
+  attemptCount Int             @default(0) @map("attempt_count")
+  error        String?         @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_reminder_logs")
+  @@unique([bookingId, channel, reminderType])
+  @@index([status, scheduledFor])
 }
 
 model Article {

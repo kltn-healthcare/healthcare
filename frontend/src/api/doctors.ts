@@ -1,7 +1,13 @@
 import { apiClient } from '@/shared/lib/apiClient'
 import type { Doctor } from '@/shared/types'
 
-export async function getDoctors(params?: { clinicId?: string; specialtyId?: string; q?: string }) {
+export async function getDoctors(params?: {
+  clinicId?: string
+  specialtyId?: string
+  q?: string
+  page?: number
+  limit?: number
+}) {
   const res = await apiClient.get<{ items: Doctor[] }>('/v1/doctors', { params })
   const items = Array.isArray(res.data) ? res.data : (res.data?.items || [])
   return { items }

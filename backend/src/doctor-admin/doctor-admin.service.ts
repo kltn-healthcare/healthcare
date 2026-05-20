@@ -2,10 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingStatus, Prisma } from '@prisma/client';
+import { BookingStatus, NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DynamoAppointmentsService } from '../aws/dynamo-appointments.service';
+import { MailService } from '../common/mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { QueryDoctorBookingsDto } from './dto/query-doctor-bookings.dto';
 import { UpdateDoctorBookingStatusDto } from './dto/update-doctor-booking-status.dto';
 import { UpsertDoctorScheduleDto } from './dto/upsert-doctor-schedule.dto';
@@ -23,7 +27,14 @@ type DoctorAdminSettings = {
 
 @Injectable()
 export class DoctorAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(DoctorAdminService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dynamoAppointmentsService: DynamoAppointmentsService,
+    private readonly mailService: MailService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async myBookings(userId: string, query: QueryDoctorBookingsDto) {
     const doctor = await this.getDoctorByUserId(userId);
@@ -78,10 +89,17 @@ export class DoctorAdminService {
       where: { id: bookingId },
       select: {
         id: true,
+        userId: true,
         doctorId: true,
         status: true,
         bookingDate: true,
         bookingTime: true,
+        patientName: true,
+        patientEmail: true,
+        patientPhone: true,
+        clinicId: true,
+        clinic: { select: { name: true } },
+        doctor: { select: { name: true } },
       },
     });
 
@@ -135,7 +153,7 @@ export class DoctorAdminService {
       });
     }
 
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id: booking.id },
       data: {
         status: dto.status,
@@ -153,6 +171,11 @@ export class DoctorAdminService {
         updatedAt: true,
       },
     });
+
+    await this.notifyBookingStatusChanged(booking, dto.status);
+    await this.syncDynamoBookingStatus(booking, dto.status);
+
+    return updated;
   }
 
   async getSettings(userId: string) {
@@ -296,5 +319,114 @@ export class DoctorAdminService {
         qualifications: true,
       },
     });
+  }
+
+  private async notifyBookingStatusChanged(
+    booking: {
+      id: string;
+      userId: string;
+      patientName: string;
+      patientEmail: string;
+      patientPhone: string;
+      clinicId: string;
+      doctorId: string | null;
+      bookingDate: Date;
+      bookingTime: string;
+      clinic: { name: string };
+      doctor: { name: string } | null;
+    },
+    status: BookingStatus,
+  ) {
+    const appointmentAt = this.formatAppointmentLabel(
+      booking.bookingDate,
+      booking.bookingTime,
+    );
+    const data: Prisma.InputJsonObject = {
+      bookingId: booking.id,
+      status,
+      actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
+    };
+
+    if (status === BookingStatus.CONFIRMED) {
+      await this.notificationsService.createNotification({
+        userId: booking.userId,
+        type: NotificationType.BOOKING_CONFIRMED,
+        title: 'Appointment confirmed',
+        body: `Your appointment at ${booking.clinic.name} has been confirmed for ${appointmentAt}.`,
+        data,
+        push: true,
+        actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
+      });
+
+      try {
+        await this.mailService.sendBookingConfirmedEmail({
+          email: booking.patientEmail,
+          patientName: booking.patientName,
+          clinicName: booking.clinic.name,
+          doctorName: booking.doctor?.name,
+          appointmentAt,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Booking confirmation email failed for ${booking.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    if (status === BookingStatus.CANCELLED) {
+      await this.notificationsService.createNotification({
+        userId: booking.userId,
+        type: NotificationType.BOOKING_CANCELLED,
+        title: 'Appointment cancelled',
+        body: `Your appointment at ${booking.clinic.name} has been cancelled.`,
+        data,
+        push: true,
+        actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
+      });
+    }
+  }
+
+  private formatAppointmentLabel(bookingDate: Date, bookingTime: string) {
+    const [hoursRaw, minutesRaw] = bookingTime.split(':');
+    const date = new Date(bookingDate);
+    date.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0);
+
+    return new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(date);
+  }
+
+  private async syncDynamoBookingStatus(
+    booking: {
+      id: string;
+      userId: string;
+      clinicId: string;
+      doctorId: string | null;
+      patientName: string;
+      patientEmail: string;
+      patientPhone: string;
+      bookingDate: Date;
+      bookingTime: string;
+      clinic: { name: string };
+      doctor: { name: string } | null;
+    },
+    status: BookingStatus,
+  ) {
+    if (status === BookingStatus.CONFIRMED) {
+      await this.dynamoAppointmentsService.syncConfirmedBooking({
+        ...booking,
+        status,
+      });
+      return;
+    }
+
+    if (status === BookingStatus.CANCELLED) {
+      await this.dynamoAppointmentsService.syncBookingStatus(
+        booking.id,
+        status,
+      );
+    }
   }
 }
