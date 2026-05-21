@@ -95,23 +95,26 @@ pipeline {
       }
     }
 
-    // stage('Build & Push Images') {
-    //   when {
-    //     expression { return env.CHANGED_SERVICES?.trim() }
-    //   }
-    //   steps {
-    //     script {
-    //       buildAndPush(
-    //         services: env.CHANGED_SERVICES,
-    //         imageTag: env.COMMIT_TAG,
-    //         registry: env.GITEA_REGISTRY,
-    //         owner: env.GITEA_OWNER,
-    //         credsId: env.GITEA_CREDS_ID
-    //       )
-    //     }
-    //   }
-    // }
-
+    stage('Deploy Staging') {
+      when {
+          expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
+      }
+      steps {
+        script {
+          echo "🚢 Đang chuẩn bị cập nhật cấu hình cho STAGING..."
+          
+          def commitMsg = "Deploy Staging: Cập nhật [${env.CHANGED_SERVICES}] với tag [${env.DEPLOY_TAG}]"
+          
+          // Khai báo rõ ràng đường dẫn script của dự án này
+          def deployScript = "./scripts/update-k8s-manifest.sh"
+          
+          withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
+              // Truyền deployScript vào làm tham số đầu tiên
+              deployManifest(deployScript, 'staging', env.CHANGED_SERVICES, env.DEPLOY_TAG, commitMsg)
+          }
+        }
+      }
+    }
     // stage('Deploy to Staging') {
     //   when {
     //     allOf {
