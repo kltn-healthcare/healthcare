@@ -60,29 +60,24 @@ pipeline {
           env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, env.GIT_COMMIT)
           
           echo "Changed services detected: ${env.CHANGED_SERVICES ?: 'none'}"
-          printSystemInfo()
         }
       }
     }
-    // stage('Detect Changes') {
-    //   steps {
-    //     checkout scm
-    //     script {
-    //       env.SHORT_SHA = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
-    //       def changedServices = detectMonorepoChanges(
-    //         allServices: ['frontend', 'auth', 'backend', 'admin'],
-    //         baseCommit: env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT,
-    //         currentCommit: env.GIT_COMMIT
-    //       )
-    //       env.CHANGED_SERVICES = changedServices.join(',')
-    //       env.COMMIT_TAG = env.SHORT_SHA
 
-    //       echo "Changed services: ${env.CHANGED_SERVICES ?: 'none'}"
-    //       echo "Commit tag: ${env.COMMIT_TAG}"
-    //     }
-    //   }
-    // }
-
+    stage('Security Scan') {
+    // Jenkins sẽ tự động BỎ QUA stage này nếu không có service nào thay đổi
+      when {
+          expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
+      }
+      steps {
+          script {
+              echo "🔍 Bắt đầu quét bảo mật (SonarQube, Hadolint, Trivy) cho: ${env.CHANGED_SERVICES}"
+              
+              // Truyền danh sách service (VD: "admin,frontend") và tên project gốc ("healthcare") vào
+              scanSecurity(env.CHANGED_SERVICES, "healthcare")
+          }
+      }
+    }
     // stage('Security Scan') {
     //   steps {
     //     scanSecurity(
