@@ -78,7 +78,7 @@ export function ServicesSection() {
 
                             return (
                                 <CarouselItem key={specialty.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                                    <Link href={ROUTES.CLINICS} className="h-full block">
+                                    <Link href={`${ROUTES.CLINICS}?specialtyId=${specialty.id}`} className="h-full block">
                                         <Card className="group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full border-none shadow-sm">
                                             <CardHeader>
                                                 <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110 ${colors.split(' ')[0]} ${colors.split(' ')[1]}`}>

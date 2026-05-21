@@ -96,7 +96,9 @@ export const clinicService = {
             return response
         } catch (error) {
             const filtered = MOCK_CLINICS.filter((clinic) =>
-                clinic.specialties?.includes(specialty)
+                clinic.specialties?.some((item) =>
+                    typeof item === "string" ? item === specialty : item.id === specialty || item.name === specialty,
+                )
             )
             return {
                 data: filtered,

@@ -12,14 +12,19 @@ export class ClinicsService {
     const limit = dto.limit ?? 12;
     const skip = (page - 1) * limit;
 
-    const where = dto.q
-      ? {
-          OR: [
-            { name: { contains: dto.q, mode: 'insensitive' as const } },
-            { address: { contains: dto.q, mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(dto.q
+        ? {
+            OR: [
+              { name: { contains: dto.q, mode: 'insensitive' as const } },
+              { address: { contains: dto.q, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+      ...(dto.specialtyId
+        ? { specialties: { some: { specialtyId: dto.specialtyId } } }
+        : {}),
+    };
 
     const [items, total] = await Promise.all([
       this.prisma.clinic.findMany({
@@ -40,13 +45,21 @@ export class ClinicsService {
           image: true,
           isOpen: true,
           openingHours: true,
+          specialties: {
+            select: { specialty: { select: { id: true, name: true } } },
+            orderBy: { specialty: { name: 'asc' } },
+          },
         },
       }),
       this.prisma.clinic.count({ where }),
     ]);
 
     return {
-      items: items.map((c) => ({ ...c, rating: c.rating.toString() })),
+      items: items.map((c) => ({
+        ...c,
+        rating: c.rating.toString(),
+        specialties: c.specialties.map((row) => row.specialty),
+      })),
       page,
       limit,
       total,
@@ -80,6 +93,31 @@ export class ClinicsService {
           },
           take: 12,
         },
+        specialties: {
+          select: { specialty: { select: { id: true, name: true } } },
+          orderBy: { specialty: { name: 'asc' } },
+        },
+        healthPackages: {
+          where: { isActive: true },
+          orderBy: [{ isPopular: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            id: true,
+            name: true,
+            shortDescription: true,
+            description: true,
+            price: true,
+            promotionalPrice: true,
+            currency: true,
+            category: true,
+            isPopular: true,
+            features: true,
+            imageUrl: true,
+            clinicId: true,
+            specialtyId: true,
+            specialty: { select: { id: true, name: true } },
+          },
+          take: 8,
+        },
       },
     });
     if (!clinic) {
@@ -88,6 +126,15 @@ export class ClinicsService {
         message: 'Clinic not found',
       });
     }
-    return { ...clinic, rating: clinic.rating.toString() };
+    return {
+      ...clinic,
+      rating: clinic.rating.toString(),
+      specialties: clinic.specialties.map((row) => row.specialty),
+      healthPackages: clinic.healthPackages.map((item) => ({
+        ...item,
+        price: item.price.toString(),
+        promotionalPrice: item.promotionalPrice?.toString() ?? null,
+      })),
+    };
   }
 }

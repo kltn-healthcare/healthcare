@@ -83,6 +83,9 @@ import {
 } from "@/api/doctor-admin"
 import { getSpecialties } from "@/api/specialties"
 import { ARTICLE_DEFAULTS, ARTICLE_QUERY_KEYS } from "@/shared/constants"
+import { ClinicAdminPanel } from "./ClinicAdminPanel"
+import { PackageAdminPanel } from "./PackageAdminPanel"
+import { ADMIN_DAY_OPTIONS, ADMIN_TEXT } from "./admin.constants"
 
 type RoleFilter = "ALL" | AdminRole
 type BookingFilter = "ALL" | DoctorBookingStatus
@@ -99,15 +102,8 @@ type SpecialtyOption = {
     name: string
 }
 
-const dayOptions = [
-    { value: 0, label: "Chủ nhật" },
-    { value: 1, label: "Thứ 2" },
-    { value: 2, label: "Thứ 3" },
-    { value: 3, label: "Thứ 4" },
-    { value: 4, label: "Thứ 5" },
-    { value: 5, label: "Thứ 6" },
-    { value: 6, label: "Thứ 7" },
-]
+const dayOptions = ADMIN_DAY_OPTIONS
+const text = ADMIN_TEXT
 
 function normalizeRole(role?: string) {
     const normalized = String(role || "").toUpperCase()
@@ -120,26 +116,28 @@ function normalizeRole(role?: string) {
 function getRoleLabel(role: string | undefined) {
     switch (normalizeRole(role)) {
         case "ADMIN":
-            return "Quản trị viên"
+            return text.roles.admin
         case "DOCTOR":
-            return "Bác sĩ"
+            return text.roles.doctor
+        case "CLINIC_ADMIN":
+            return text.roles.clinicAdmin
         case "PATIENT":
-            return "Bệnh nhân"
+            return text.roles.patient
         default:
-            return role || "Không xác định"
+            return role || text.roles.unknown
     }
 }
 
 function getBookingStatusLabel(status: DoctorBookingStatus) {
     switch (status) {
         case "PENDING":
-            return "Chờ xác nhận"
+            return text.bookingStatus.pending
         case "CONFIRMED":
-            return "Đã xác nhận"
+            return text.bookingStatus.confirmed
         case "COMPLETED":
-            return "Đã khám"
+            return text.bookingStatus.completed
         case "CANCELLED":
-            return "Đã hủy"
+            return text.bookingStatus.cancelled
         default:
             return status
     }
@@ -216,7 +214,7 @@ export default function AdminPage() {
     }, [auth.isAuthenticated, auth.isLoading, router])
 
     if (auth.isLoading) {
-        return <div className="p-8 text-center">Đang tải...</div>
+        return <div className="p-8 text-center">{text.common.loading}</div>
     }
 
     if (!auth.isAuthenticated) {
@@ -228,17 +226,17 @@ export default function AdminPage() {
             <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
                 <Card className="w-full max-w-xl border-rose-200">
                     <CardHeader>
-                        <CardTitle>403 - Không có quyền truy cập</CardTitle>
+                        <CardTitle>{text.accessDenied.title}</CardTitle>
                         <CardDescription>
-                            Tài khoản bệnh nhân không thể truy cập trang quản trị.
+                            {text.accessDenied.description}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex gap-3">
                         <Link href="/">
-                            <Button>Về trang chủ</Button>
+                            <Button>{text.common.backHome}</Button>
                         </Link>
                         <Link href="/account">
-                            <Button variant="outline">Đến trang tài khoản</Button>
+                            <Button variant="outline">{text.common.goAccount}</Button>
                         </Link>
                     </CardContent>
                 </Card>
@@ -255,7 +253,7 @@ export default function AdminPage() {
                     onLogout={() => auth.logout()}
                 />
 
-                {role === "DOCTOR" ? <DoctorAdminSection /> : <SystemAdminSectionV2 />}
+                {role === "DOCTOR" ? <DoctorAdminSection /> : role === "CLINIC_ADMIN" ? <ClinicAdminPanel /> : <SystemAdminSectionV2 />}
             </div>
         </main>
     )
@@ -276,10 +274,10 @@ function AdminTopBar({
                 <div>
                     <div className="mb-2 flex items-center gap-2">
                         <ShieldCheck className="h-5 w-5 text-primary" />
-                        <h1 className="text-xl font-semibold">Trung tâm quản trị Healthcare</h1>
+                        <h1 className="text-xl font-semibold">{text.topBar.title}</h1>
                     </div>
                     <p className="text-sm text-muted-foreground">{email}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Vai trò: {getRoleLabel(role)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{text.common.rolePrefix}: {getRoleLabel(role)}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -287,7 +285,7 @@ function AdminTopBar({
                         {getRoleLabel(role)}
                     </Badge>
                     <Button variant="outline" onClick={onLogout}>
-                        Đăng xuất
+                        {text.common.logout}
                     </Button>
                 </div>
             </div>
@@ -297,6 +295,7 @@ function AdminTopBar({
 
 function DoctorAdminSection() {
     const queryClient = useQueryClient()
+    const doctorText = text.doctorAdmin
 
     const pendingBookingsQuery = useQuery({
         queryKey: ["doctor-admin", "bookings", "pending"],
@@ -391,7 +390,7 @@ function DoctorAdminSection() {
             }))
 
         if (!workingHours.length) {
-            setScheduleError("Cần chọn ít nhất 1 ngày làm việc trong tuần.")
+            setScheduleError(doctorText.scheduleError)
             return
         }
 
@@ -435,37 +434,37 @@ function DoctorAdminSection() {
     return (
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <StatCard icon={CalendarClock} title="Tổng lịch khám" value={String(bookingStats.total)} />
-                <StatCard icon={Activity} title="Chờ xác nhận" value={String(bookingStats.pending)} />
-                <StatCard icon={CalendarCheck2} title="Đã xác nhận" value={String(bookingStats.confirmed)} />
-                <StatCard icon={UserRoundCheck} title="Đã hoàn tất" value={String(bookingStats.completed)} />
+                <StatCard icon={CalendarClock} title={doctorText.stats.total} value={String(bookingStats.total)} />
+                <StatCard icon={Activity} title={doctorText.stats.pending} value={String(bookingStats.pending)} />
+                <StatCard icon={CalendarCheck2} title={doctorText.stats.confirmed} value={String(bookingStats.confirmed)} />
+                <StatCard icon={UserRoundCheck} title={doctorText.stats.completed} value={String(bookingStats.completed)} />
             </div>
 
             <Tabs defaultValue="bookings" className="space-y-4">
                 <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted p-1">
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="bookings">
-                        Lịch khám bệnh nhân
+                        {doctorText.tabs.bookings}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="schedule">
-                        Lịch làm việc
+                        {doctorText.tabs.schedule}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="services">
-                        Dịch vụ và giá
+                        {doctorText.tabs.services}
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="bookings" className="space-y-4">
                     <Card className="border-amber-200 bg-amber-50/60">
                         <CardHeader>
-                            <CardTitle>Xác nhận lịch khám đang chờ</CardTitle>
+                            <CardTitle>{doctorText.pendingCard.title}</CardTitle>
                             <CardDescription>
-                                Bệnh nhân đặt lịch sẽ ở trạng thái chờ. Bác sĩ xác nhận thì lịch mới hoàn tất.
+                                {doctorText.pendingCard.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <BookingTable
                                 items={pendingBookings}
-                                emptyText="Hiện không có lịch nào đang chờ xác nhận."
+                                emptyText={doctorText.pendingCard.empty}
                                 renderActions={(item) => (
                                     <div className="space-x-2">
                                         <Button
@@ -475,7 +474,7 @@ function DoctorAdminSection() {
                                                 updateBookingStatusMutation.mutate({ id: item.id, status: "CONFIRMED" })
                                             }
                                         >
-                                            Xác nhận
+                                            {doctorText.pendingCard.confirm}
                                         </Button>
                                         <Button
                                             size="sm"
@@ -483,7 +482,7 @@ function DoctorAdminSection() {
                                             disabled={updateBookingStatusMutation.isPending}
                                             onClick={() => requestCancelBooking(item)}
                                         >
-                                            Từ chối
+                                            {doctorText.pendingCard.reject}
                                         </Button>
                                     </div>
                                 )}
@@ -494,21 +493,21 @@ function DoctorAdminSection() {
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <CardTitle>Tất cả lịch khám</CardTitle>
-                                <CardDescription>Theo dõi toàn bộ trạng thái lịch khám của bạn</CardDescription>
+                                <CardTitle>{doctorText.allCard.title}</CardTitle>
+                                <CardDescription>{doctorText.allCard.description}</CardDescription>
                             </div>
 
                             <div className="w-full md:w-56">
                                 <Select value={bookingFilter} onValueChange={(v) => setBookingFilter(v as BookingFilter)}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Lọc trạng thái" />
+                                        <SelectValue placeholder={doctorText.allCard.filterPlaceholder} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                                        <SelectItem value="PENDING">Chờ xác nhận</SelectItem>
-                                        <SelectItem value="CONFIRMED">Đã xác nhận</SelectItem>
-                                        <SelectItem value="COMPLETED">Đã hoàn tất</SelectItem>
-                                        <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                                        <SelectItem value="ALL">{doctorText.allCard.filters.all}</SelectItem>
+                                        <SelectItem value="PENDING">{doctorText.allCard.filters.pending}</SelectItem>
+                                        <SelectItem value="CONFIRMED">{doctorText.allCard.filters.confirmed}</SelectItem>
+                                        <SelectItem value="COMPLETED">{doctorText.allCard.filters.completed}</SelectItem>
+                                        <SelectItem value="CANCELLED">{doctorText.allCard.filters.cancelled}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -516,7 +515,7 @@ function DoctorAdminSection() {
                         <CardContent>
                             <BookingTable
                                 items={filteredBookings}
-                                emptyText="Không có dữ liệu lịch khám phù hợp bộ lọc."
+                                emptyText={doctorText.allCard.empty}
                                 renderActions={(item) => (
                                     <div className="space-x-2">
                                         <Button
@@ -527,7 +526,7 @@ function DoctorAdminSection() {
                                                 updateBookingStatusMutation.mutate({ id: item.id, status: "CONFIRMED" })
                                             }
                                         >
-                                            Xác nhận
+                                            {doctorText.allCard.confirm}
                                         </Button>
                                         <Button
                                             size="sm"
@@ -537,7 +536,7 @@ function DoctorAdminSection() {
                                                 updateBookingStatusMutation.mutate({ id: item.id, status: "COMPLETED" })
                                             }
                                         >
-                                            Hoàn tất
+                                            {doctorText.allCard.complete}
                                         </Button>
                                         <Button
                                             size="sm"
@@ -549,7 +548,7 @@ function DoctorAdminSection() {
                                             }
                                             onClick={() => requestCancelBooking(item)}
                                         >
-                                            Hủy
+                                            {doctorText.allCard.cancel}
                                         </Button>
                                     </div>
                                 )}
@@ -561,20 +560,21 @@ function DoctorAdminSection() {
                 <TabsContent value="schedule">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Thiết lập lịch khám theo ngày trong tuần</CardTitle>
+                            <CardTitle>{doctorText.scheduleCard.title}</CardTitle>
                             <CardDescription>
-                                Bạn có thể bật/tắt từng ngày, điều chỉnh giờ bắt đầu - kết thúc và thời lượng mỗi slot.
+                                {doctorText.scheduleCard.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-5">
                             <div className="max-w-xs space-y-2">
-                                <Label>Thời lượng mỗi slot (phút)</Label>
+                                <Label>{doctorText.scheduleCard.slotDurationLabel}</Label>
                                 <Input
                                     type="number"
                                     min={5}
                                     max={180}
                                     value={slotDurationMinutes}
-                                    onChange={(e) => setSlotDurationMinutes(Number(e.target.value) || 30)}
+                                    disabled
+                                    readOnly
                                 />
                             </div>
 
@@ -582,10 +582,10 @@ function DoctorAdminSection() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Ngày</TableHead>
-                                            <TableHead>Bật lịch</TableHead>
-                                            <TableHead>Giờ bắt đầu</TableHead>
-                                            <TableHead>Giờ kết thúc</TableHead>
+                                            <TableHead>{doctorText.scheduleCard.headers.day}</TableHead>
+                                            <TableHead>{doctorText.scheduleCard.headers.enabled}</TableHead>
+                                            <TableHead>{doctorText.scheduleCard.headers.start}</TableHead>
+                                            <TableHead>{doctorText.scheduleCard.headers.end}</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -640,7 +640,7 @@ function DoctorAdminSection() {
                             ) : null}
 
                             <Button disabled={saveScheduleMutation.isPending} onClick={handleSaveSchedule}>
-                                {saveScheduleMutation.isPending ? "Đang lưu..." : "Lưu lịch làm việc"}
+                                {saveScheduleMutation.isPending ? text.common.saving : doctorText.scheduleCard.save}
                             </Button>
                         </CardContent>
                     </Card>
@@ -649,24 +649,24 @@ function DoctorAdminSection() {
                 <TabsContent value="services">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Dịch vụ khám và giá</CardTitle>
+                            <CardTitle>{doctorText.servicesCard.title}</CardTitle>
                             <CardDescription>
-                                Cập nhật danh sách dịch vụ để bệnh nhân xem trước khi đặt lịch.
+                                {doctorText.servicesCard.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {services.length === 0 ? (
                                 <div className="rounded-md border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                    Chưa có dịch vụ nào. Hãy thêm dịch vụ đầu tiên.
+                                    {doctorText.servicesCard.empty}
                                 </div>
                             ) : null}
 
                             {services.map((service, idx) => (
                                 <div key={idx} className="grid items-end gap-3 rounded-md border p-4 md:grid-cols-12 bg-slate-50/50">
                                     <div className="space-y-1.5 md:col-span-5">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">Tên dịch vụ</Label>
+                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.nameLabel}</Label>
                                         <Input
-                                            placeholder="VD: Khám tổng quát, Siêu âm..."
+                                            placeholder={doctorText.servicesCard.namePlaceholder}
                                             value={service.name}
                                             onChange={(e) => {
                                                 const next = [...services]
@@ -676,11 +676,11 @@ function DoctorAdminSection() {
                                         />
                                     </div>
                                     <div className="space-y-1.5 md:col-span-3">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">Giá dịch vụ</Label>
+                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.priceLabel}</Label>
                                         <Input
                                             type="number"
                                             min={0}
-                                            placeholder="Nhập giá tiền..."
+                                            placeholder={doctorText.servicesCard.pricePlaceholder}
                                             value={service.price === 0 ? "" : service.price}
                                             onChange={(e) => {
                                                 const next = [...services]
@@ -690,9 +690,9 @@ function DoctorAdminSection() {
                                         />
                                     </div>
                                     <div className="space-y-1.5 md:col-span-2">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">Tiền tệ</Label>
+                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.currencyLabel}</Label>
                                         <Input
-                                            placeholder="VND"
+                                            placeholder={doctorText.servicesCard.currencyPlaceholder}
                                             value={service.currency}
                                             onChange={(e) => {
                                                 const next = [...services]
@@ -707,7 +707,7 @@ function DoctorAdminSection() {
                                             className="w-full"
                                             onClick={() => setServices(services.filter((_, i) => i !== idx))}
                                         >
-                                            Xóa dịch vụ
+                                            {doctorText.servicesCard.remove}
                                         </Button>
                                     </div>
                                 </div>
@@ -720,13 +720,13 @@ function DoctorAdminSection() {
                                         setServices([...services, { name: "", price: 0, currency: "VND" }])
                                     }
                                 >
-                                    Thêm dịch vụ
+                                    {doctorText.servicesCard.add}
                                 </Button>
                                 <Button
                                     disabled={saveServicesMutation.isPending || services.length === 0}
                                     onClick={() => saveServicesMutation.mutate({ services })}
                                 >
-                                    {saveServicesMutation.isPending ? "Đang lưu..." : "Lưu bảng giá"}
+                                    {saveServicesMutation.isPending ? text.common.saving : doctorText.servicesCard.save}
                                 </Button>
                             </div>
                         </CardContent>
@@ -745,28 +745,28 @@ function DoctorAdminSection() {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Xác nhận hủy lịch hẹn</DialogTitle>
+                        <DialogTitle>{doctorText.cancelDialog.title}</DialogTitle>
                         <DialogDescription>
-                            Hành động này sẽ hủy lịch của bệnh nhân{" "}
+                            {doctorText.cancelDialog.descriptionPrefix}{" "}
                             <span className="font-medium text-foreground">
                                 {cancelBookingTarget?.patientName}
                             </span>
-                            . Vui lòng kiểm tra kỹ trước khi xác nhận.
+                            {doctorText.cancelDialog.descriptionSuffix}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-3">
                         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                            <div>Ngày khám: {cancelBookingTarget ? formatDate(cancelBookingTarget.bookingDate) : ""}</div>
-                            <div>Giờ khám: {cancelBookingTarget?.bookingTime}</div>
+                            <div>{doctorText.cancelDialog.dateLabel}: {cancelBookingTarget ? formatDate(cancelBookingTarget.bookingDate) : ""}</div>
+                            <div>{doctorText.cancelDialog.timeLabel}: {cancelBookingTarget?.bookingTime}</div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="doctor-cancel-reason">Lý do hủy (không bắt buộc)</Label>
+                            <Label htmlFor="doctor-cancel-reason">{doctorText.cancelDialog.reasonLabel}</Label>
                             <Textarea
                                 id="doctor-cancel-reason"
                                 value={cancelReason}
                                 onChange={(event) => setCancelReason(event.target.value)}
-                                placeholder="Nhập lý do để bệnh nhân nắm thông tin..."
+                                placeholder={doctorText.cancelDialog.reasonPlaceholder}
                             />
                         </div>
                     </div>
@@ -779,14 +779,14 @@ function DoctorAdminSection() {
                                 setCancelReason("")
                             }}
                         >
-                            Quay lại
+                            {doctorText.cancelDialog.back}
                         </Button>
                         <Button
                             variant="destructive"
                             disabled={updateBookingStatusMutation.isPending}
                             onClick={confirmCancelBooking}
                         >
-                            {updateBookingStatusMutation.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+                            {updateBookingStatusMutation.isPending ? doctorText.cancelDialog.confirming : doctorText.cancelDialog.confirm}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -812,11 +812,11 @@ function BookingTable({
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Bệnh nhân</TableHead>
-                    <TableHead>Ngày khám</TableHead>
-                    <TableHead>Giờ khám</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead>Thao tác</TableHead>
+                    <TableHead>{text.bookingTable.patient}</TableHead>
+                    <TableHead>{text.bookingTable.date}</TableHead>
+                    <TableHead>{text.bookingTable.time}</TableHead>
+                    <TableHead>{text.bookingTable.status}</TableHead>
+                    <TableHead>{text.bookingTable.actions}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -846,13 +846,19 @@ function BookingTable({
 
 function SystemAdminSectionV2() {
     const queryClient = useQueryClient()
+    const systemText = text.systemAdminV2
 
-    const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "PATIENT" | "DOCTOR">("ALL")
+    const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "PATIENT" | "DOCTOR" | "CLINIC_ADMIN">("ALL")
     const [userKeyword, setUserKeyword] = useState("")
     const [doctorName, setDoctorName] = useState("")
     const [doctorEmail, setDoctorEmail] = useState("")
     const [doctorPhone, setDoctorPhone] = useState("")
     const [doctorPassword, setDoctorPassword] = useState("")
+    const [clinicAdminName, setClinicAdminName] = useState("")
+    const [clinicAdminEmail, setClinicAdminEmail] = useState("")
+    const [clinicAdminPhone, setClinicAdminPhone] = useState("")
+    const [clinicAdminPassword, setClinicAdminPassword] = useState("")
+    const [clinicAdminClinicId, setClinicAdminClinicId] = useState("")
 
     const [clinicName, setClinicName] = useState("")
     const [clinicAddress, setClinicAddress] = useState("")
@@ -917,6 +923,11 @@ function SystemAdminSectionV2() {
             setDoctorEmail("")
             setDoctorPhone("")
             setDoctorPassword("")
+            setClinicAdminName("")
+            setClinicAdminEmail("")
+            setClinicAdminPhone("")
+            setClinicAdminPassword("")
+            setClinicAdminClinicId("")
         },
     })
 
@@ -1071,19 +1082,19 @@ function SystemAdminSectionV2() {
 
     const isClinicChanged = Boolean(
         editingClinic &&
-            JSON.stringify(getClinicPayload()) !==
-                JSON.stringify({
-                    name: editingClinic.name,
-                    address: editingClinic.address,
-                    description: editingClinic.description || undefined,
-                    phone: editingClinic.phone || undefined,
-                    email: editingClinic.email || undefined,
-                    website: editingClinic.website || undefined,
-                    image: editingClinic.image || undefined,
-                    openingHours: editingClinic.openingHours || undefined,
-                    isOpen: editingClinic.isOpen,
-                    specialtyIds: editingClinic.specialties?.map((item) => item.id) ?? [],
-                }),
+        JSON.stringify(getClinicPayload()) !==
+        JSON.stringify({
+            name: editingClinic.name,
+            address: editingClinic.address,
+            description: editingClinic.description || undefined,
+            phone: editingClinic.phone || undefined,
+            email: editingClinic.email || undefined,
+            website: editingClinic.website || undefined,
+            image: editingClinic.image || undefined,
+            openingHours: editingClinic.openingHours || undefined,
+            isOpen: editingClinic.isOpen,
+            specialtyIds: editingClinic.specialties?.map((item) => item.id) ?? [],
+        }),
     )
 
     function openDoctorDialog(doctor: AdminDoctor) {
@@ -1143,16 +1154,16 @@ function SystemAdminSectionV2() {
 
     const isDoctorChanged = Boolean(
         editingDoctor &&
-            JSON.stringify(doctorPayload) !==
-                JSON.stringify({
-                    clinicId: editingDoctor.clinic.id,
-                    specialtyId: editingDoctor.specialty.id,
-                    name: editingDoctor.name,
-                    experience: editingDoctor.experience ?? 0,
-                    avatar: editingDoctor.avatar || undefined,
-                    bio: editingDoctor.bio || undefined,
-                    isAvailable: editingDoctor.isAvailable,
-                }),
+        JSON.stringify(doctorPayload) !==
+        JSON.stringify({
+            clinicId: editingDoctor.clinic.id,
+            specialtyId: editingDoctor.specialty.id,
+            name: editingDoctor.name,
+            experience: editingDoctor.experience ?? 0,
+            avatar: editingDoctor.avatar || undefined,
+            bio: editingDoctor.bio || undefined,
+            isAvailable: editingDoctor.isAvailable,
+        }),
     )
 
     function resetArticleForm() {
@@ -1183,34 +1194,73 @@ function SystemAdminSectionV2() {
     return (
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard icon={Users} title="Tài khoản" value={String(users.length)} />
-                <StatCard icon={Stethoscope} title="Tài khoản bác sĩ" value={String(users.filter((user) => user.role === "DOCTOR").length)} />
-                <StatCard icon={Building2} title="Phòng khám mở" value={String(clinics.filter((clinic) => clinic.isOpen).length)} />
-                <StatCard icon={Newspaper} title="Bài cẩm nang" value={String(articles.length)} />
+                <StatCard icon={Users} title={systemText.stats.users} value={String(users.length)} />
+                <StatCard icon={Stethoscope} title={systemText.stats.doctors} value={String(users.filter((user) => user.role === "DOCTOR").length)} />
+                <StatCard icon={Building2} title={systemText.stats.openClinics} value={String(clinics.filter((clinic) => clinic.isOpen).length)} />
+                <StatCard icon={Newspaper} title={systemText.stats.articles} value={String(articles.length)} />
             </div>
 
             <Tabs defaultValue="users" className="space-y-4">
-                <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-muted p-1">
-                    <TabsTrigger value="users" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Người dùng</TabsTrigger>
-                    <TabsTrigger value="clinics" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Phòng khám</TabsTrigger>
-                    <TabsTrigger value="doctors" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Bác sĩ</TabsTrigger>
-                    <TabsTrigger value="news" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">Cẩm nang</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 md:grid-cols-5">
+                    <TabsTrigger value="users" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">{systemText.tabs.users}</TabsTrigger>
+                    <TabsTrigger value="clinics" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">{systemText.tabs.clinics}</TabsTrigger>
+                    <TabsTrigger value="doctors" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">{systemText.tabs.doctors}</TabsTrigger>
+                    <TabsTrigger value="packages" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">{systemText.tabs.packages}</TabsTrigger>
+                    <TabsTrigger value="news" className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white">{systemText.tabs.news}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="users" className="space-y-4">
                     <Card>
+                        <CardHeader>
+                            <CardTitle>{systemText.users.title}</CardTitle>
+                            <CardDescription>{systemText.users.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 md:grid-cols-3">
+                            <Input value={clinicAdminName} onChange={(event) => setClinicAdminName(event.target.value)} placeholder={systemText.users.placeholders.name} />
+                            <Input value={clinicAdminEmail} onChange={(event) => setClinicAdminEmail(event.target.value)} placeholder={systemText.users.placeholders.email} />
+                            <Input value={clinicAdminPhone} onChange={(event) => setClinicAdminPhone(event.target.value)} placeholder={systemText.users.placeholders.phone} />
+                            <Input value={clinicAdminPassword} onChange={(event) => setClinicAdminPassword(event.target.value)} placeholder={systemText.users.placeholders.password} type="password" />
+                            <Select value={clinicAdminClinicId} onValueChange={setClinicAdminClinicId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={systemText.users.selectClinicPlaceholder} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {clinics.map((clinic) => (
+                                        <SelectItem key={clinic.id} value={clinic.id}>
+                                            {clinic.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                disabled={!clinicAdminName || !clinicAdminEmail || !clinicAdminPassword || !clinicAdminClinicId || createUserMutation.isPending}
+                                onClick={() => createUserMutation.mutate({
+                                    name: clinicAdminName,
+                                    email: clinicAdminEmail,
+                                    phone: clinicAdminPhone || undefined,
+                                    password: clinicAdminPassword,
+                                    role: "CLINIC_ADMIN",
+                                    clinicId: clinicAdminClinicId,
+                                })}
+                            >
+                                {systemText.users.createButton}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                    <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <CardTitle>Danh sách người dùng</CardTitle>
+                                <CardTitle>{systemText.users.listTitle}</CardTitle>
                             </div>
                             <div className="flex flex-col gap-2 md:flex-row">
-                                <Input value={userKeyword} onChange={(event) => setUserKeyword(event.target.value)} placeholder="Tìm theo tên, email, SĐT" />
-                                <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "ALL" | "PATIENT" | "DOCTOR")}>
+                                <Input value={userKeyword} onChange={(event) => setUserKeyword(event.target.value)} placeholder={systemText.users.searchPlaceholder} />
+                                <Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "ALL" | "PATIENT" | "DOCTOR" | "CLINIC_ADMIN")}>
                                     <SelectTrigger className="md:w-44"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">Tất cả vai trò</SelectItem>
-                                        <SelectItem value="PATIENT">Bệnh nhân</SelectItem>
-                                        <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
+                                        <SelectItem value="ALL">{systemText.users.roleFilters.all}</SelectItem>
+                                        <SelectItem value="PATIENT">{systemText.users.roleFilters.patient}</SelectItem>
+                                        <SelectItem value="DOCTOR">{systemText.users.roleFilters.doctor}</SelectItem>
+                                        <SelectItem value="CLINIC_ADMIN">{systemText.users.roleFilters.clinicAdmin}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1219,12 +1269,12 @@ function SystemAdminSectionV2() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Họ tên</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Điện thoại</TableHead>
-                                        <TableHead>Vai trò</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.users.headers.name}</TableHead>
+                                        <TableHead>{systemText.users.headers.email}</TableHead>
+                                        <TableHead>{systemText.users.headers.phone}</TableHead>
+                                        <TableHead>{systemText.users.headers.role}</TableHead>
+                                        <TableHead>{systemText.users.headers.status}</TableHead>
+                                        <TableHead>{systemText.users.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1236,15 +1286,15 @@ function SystemAdminSectionV2() {
                                             <TableCell><Badge variant="outline">{getRoleLabel(user.role)}</Badge></TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={user.isActive ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
-                                                    {user.isActive ? "Đang hoạt động" : "Đã khóa"}
+                                                    {user.isActive ? systemText.users.status.active : systemText.users.status.locked}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="space-x-2">
                                                 <Button size="sm" variant="outline" onClick={() => updateUserMutation.mutate({ id: user.id, payload: { isActive: !user.isActive } })}>
-                                                    {user.isActive ? "Khóa" : "Mở"}
+                                                    {user.isActive ? systemText.users.actions.lock : systemText.users.actions.unlock}
                                                 </Button>
                                                 <Button size="sm" variant="destructive" onClick={() => deleteUserMutation.mutate(user.id)}>
-                                                    Xóa
+                                                    {systemText.users.actions.delete}
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -1259,20 +1309,20 @@ function SystemAdminSectionV2() {
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <CardTitle>Danh sách phòng khám</CardTitle>
-                                <CardDescription>Bấm Sửa để chỉnh thông tin bằng popup.</CardDescription>
+                                <CardTitle>{systemText.clinics.listTitle}</CardTitle>
+                                <CardDescription>{systemText.clinics.listDescription}</CardDescription>
                             </div>
-                            <Button onClick={openCreateClinicDialog}>Thêm phòng khám</Button>
+                            <Button onClick={openCreateClinicDialog}>{systemText.clinics.addButton}</Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Phòng khám</TableHead>
-                                        <TableHead>Chuyên khoa</TableHead>
-                                        <TableHead>Liên hệ</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.clinics.headers.clinic}</TableHead>
+                                        <TableHead>{systemText.clinics.headers.specialty}</TableHead>
+                                        <TableHead>{systemText.clinics.headers.contact}</TableHead>
+                                        <TableHead>{systemText.clinics.headers.status}</TableHead>
+                                        <TableHead>{systemText.clinics.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1282,16 +1332,16 @@ function SystemAdminSectionV2() {
                                                 <div className="font-medium">{clinic.name}</div>
                                                 <div className="text-xs text-muted-foreground">{clinic.address}</div>
                                             </TableCell>
-                                            <TableCell>{clinic.specialties?.map((item) => item.name).join(", ") || "Chưa thiết lập"}</TableCell>
+                                            <TableCell>{clinic.specialties?.map((item) => item.name).join(", ") || systemText.clinics.specialtyFallback}</TableCell>
                                             <TableCell>{clinic.phone || clinic.email || "-"}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={clinic.isOpen ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
-                                                    {clinic.isOpen ? "Đang mở" : "Tạm đóng"}
+                                                    {clinic.isOpen ? systemText.clinics.status.open : systemText.clinics.status.closed}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="space-x-2">
-                                                <Button size="sm" variant="outline" onClick={() => openClinicDialog(clinic)}>Sửa</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => deleteClinicMutation.mutate(clinic.id)}>Xóa</Button>
+                                                <Button size="sm" variant="outline" onClick={() => openClinicDialog(clinic)}>{text.common.edit}</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteClinicMutation.mutate(clinic.id)}>{text.common.delete}</Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -1305,22 +1355,22 @@ function SystemAdminSectionV2() {
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <CardTitle>Danh sách bác sĩ</CardTitle>
-                                <CardDescription>Tạo mới, sửa hồ sơ, tạm nghỉ hoặc xóa bác sĩ.</CardDescription>
+                                <CardTitle>{systemText.doctors.listTitle}</CardTitle>
+                                <CardDescription>{systemText.doctors.listDescription}</CardDescription>
                             </div>
-                            <Button onClick={openCreateDoctorDialog}>Tạo tài khoản bác sĩ</Button>
+                            <Button onClick={openCreateDoctorDialog}>{systemText.doctors.addButton}</Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Ảnh</TableHead>
-                                        <TableHead>Bác sĩ</TableHead>
-                                        <TableHead>Phòng khám</TableHead>
-                                        <TableHead>Chuyên khoa</TableHead>
-                                        <TableHead>Kinh nghiệm</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.doctors.headers.avatar}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.doctor}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.clinic}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.specialty}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.experience}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.status}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1338,22 +1388,22 @@ function SystemAdminSectionV2() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="font-medium">{doctor.name}</div>
-                                                <div className="text-xs text-muted-foreground">{doctor.user?.email || "Chưa liên kết account"}</div>
+                                                <div className="text-xs text-muted-foreground">{doctor.user?.email || systemText.doctors.accountFallback}</div>
                                             </TableCell>
                                             <TableCell>{doctor.clinic.name}</TableCell>
                                             <TableCell>{doctor.specialty.name}</TableCell>
-                                            <TableCell>{doctor.experience} năm</TableCell>
+                                            <TableCell>{doctor.experience} {systemText.doctors.experienceSuffix}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={doctor.isAvailable ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-700"}>
-                                                    {doctor.isAvailable ? "Sẵn sàng" : "Tạm nghỉ"}
+                                                    {doctor.isAvailable ? systemText.doctors.status.available : systemText.doctors.status.off}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="space-x-2">
-                                                <Button size="sm" variant="outline" onClick={() => openDoctorDialog(doctor)}>Sửa</Button>
+                                                <Button size="sm" variant="outline" onClick={() => openDoctorDialog(doctor)}>{systemText.doctors.actions.edit}</Button>
                                                 <Button size="sm" variant="outline" onClick={() => toggleDoctorAvailabilityMutation.mutate({ id: doctor.id, isAvailable: !doctor.isAvailable })}>
-                                                    {doctor.isAvailable ? "Tạm nghỉ" : "Mở khám"}
+                                                    {doctor.isAvailable ? systemText.doctors.actions.disable : systemText.doctors.actions.enable}
                                                 </Button>
-                                                <Button size="sm" variant="destructive" onClick={() => deleteDoctorMutation.mutate(doctor.id)}>Xóa</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteDoctorMutation.mutate(doctor.id)}>{systemText.doctors.actions.delete}</Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -1363,20 +1413,24 @@ function SystemAdminSectionV2() {
                     </Card>
                 </TabsContent>
 
+                <TabsContent value="packages" className="space-y-4">
+                    <PackageAdminPanel />
+                </TabsContent>
+
                 <TabsContent value="news" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>{editingArticleId ? "Cập nhật bài cẩm nang" : "Thêm bài cẩm nang"}</CardTitle>
-                            <CardDescription>Quản lý nội dung cẩm nang sức khỏe trên website.</CardDescription>
+                            <CardTitle>{editingArticleId ? systemText.news.titleUpdate : systemText.news.titleCreate}</CardTitle>
+                            <CardDescription>{systemText.news.description}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid gap-2 md:grid-cols-2">
-                                <Input value={articleTitle} onChange={(event) => setArticleTitle(event.target.value)} placeholder="Tiêu đề" />
-                                <Input value={articleCategory} onChange={(event) => setArticleCategory(event.target.value)} placeholder="Chuyên mục" />
-                                <Input value={articleReadTime} onChange={(event) => setArticleReadTime(event.target.value)} placeholder="Thời gian đọc" />
-                                <Input value={articleImage} onChange={(event) => setArticleImage(event.target.value)} placeholder="Link ảnh đại diện" />
+                                <Input value={articleTitle} onChange={(event) => setArticleTitle(event.target.value)} placeholder={systemText.news.placeholders.title} />
+                                <Input value={articleCategory} onChange={(event) => setArticleCategory(event.target.value)} placeholder={systemText.news.placeholders.category} />
+                                <Input value={articleReadTime} onChange={(event) => setArticleReadTime(event.target.value)} placeholder={systemText.news.placeholders.readTime} />
+                                <Input value={articleImage} onChange={(event) => setArticleImage(event.target.value)} placeholder={systemText.news.placeholders.image} />
                             </div>
-                            <Textarea value={articleDescription} onChange={(event) => setArticleDescription(event.target.value)} placeholder="Mô tả nội dung" />
+                            <Textarea value={articleDescription} onChange={(event) => setArticleDescription(event.target.value)} placeholder={systemText.news.placeholders.description} />
                             <div className="flex gap-2">
                                 <Button
                                     disabled={(!editingArticleId && createArticleMutation.isPending) || Boolean(editingArticleId && updateArticleMutation.isPending) || !articleTitle || !articleDescription}
@@ -1386,24 +1440,24 @@ function SystemAdminSectionV2() {
                                         else createArticleMutation.mutate(payload)
                                     }}
                                 >
-                                    {editingArticleId ? "Cập nhật bài viết" : "Thêm bài viết"}
+                                    {editingArticleId ? systemText.news.updateButton : systemText.news.createButton}
                                 </Button>
-                                {editingArticleId ? <Button variant="outline" onClick={resetArticleForm}>Hủy chỉnh sửa</Button> : null}
+                                {editingArticleId ? <Button variant="outline" onClick={resetArticleForm}>{text.common.cancelEdit}</Button> : null}
                             </div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Danh sách cẩm nang</CardTitle>
+                            <CardTitle>{systemText.news.listTitle}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Tiêu đề</TableHead>
-                                        <TableHead>Chuyên mục</TableHead>
-                                        <TableHead>Thời gian đọc</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.news.headers.title}</TableHead>
+                                        <TableHead>{systemText.news.headers.category}</TableHead>
+                                        <TableHead>{systemText.news.headers.readTime}</TableHead>
+                                        <TableHead>{systemText.news.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1413,8 +1467,8 @@ function SystemAdminSectionV2() {
                                             <TableCell>{article.category}</TableCell>
                                             <TableCell>{article.readTime}</TableCell>
                                             <TableCell className="space-x-2">
-                                                <Button size="sm" variant="outline" onClick={() => fillArticleForm(article)}>Sửa</Button>
-                                                <Button size="sm" variant="destructive" onClick={() => deleteArticleMutation.mutate(article.id)}>Xóa</Button>
+                                                <Button size="sm" variant="outline" onClick={() => fillArticleForm(article)}>{text.common.edit}</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => deleteArticleMutation.mutate(article.id)}>{text.common.delete}</Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -1428,46 +1482,46 @@ function SystemAdminSectionV2() {
             <Dialog open={clinicDialogOpen} onOpenChange={(open) => !open && closeClinicDialog()}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle>{editingClinic ? "Sửa phòng khám" : "Thêm phòng khám"}</DialogTitle>
-                        <DialogDescription>Nhập đầy đủ thông tin phòng khám và các chuyên khoa đang cung cấp.</DialogDescription>
+                        <DialogTitle>{editingClinic ? systemText.clinicDialog.titleUpdate : systemText.clinicDialog.titleCreate}</DialogTitle>
+                        <DialogDescription>{systemText.clinicDialog.description}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid gap-3 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label>Tên phòng khám</Label>
+                                <Label>{systemText.clinicDialog.labels.name}</Label>
                                 <Input value={clinicName} onChange={(event) => setClinicName(event.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Địa chỉ</Label>
+                                <Label>{systemText.clinicDialog.labels.address}</Label>
                                 <Input value={clinicAddress} onChange={(event) => setClinicAddress(event.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Số điện thoại</Label>
+                                <Label>{systemText.clinicDialog.labels.phone}</Label>
                                 <Input value={clinicPhone} onChange={(event) => setClinicPhone(event.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Email</Label>
+                                <Label>{systemText.clinicDialog.labels.email}</Label>
                                 <Input value={clinicEmail} onChange={(event) => setClinicEmail(event.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Website</Label>
+                                <Label>{systemText.clinicDialog.labels.website}</Label>
                                 <Input value={clinicWebsite} onChange={(event) => setClinicWebsite(event.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Giờ mở cửa</Label>
+                                <Label>{systemText.clinicDialog.labels.openingHours}</Label>
                                 <Input value={clinicOpeningHours} onChange={(event) => setClinicOpeningHours(event.target.value)} />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <Label>Link ảnh phòng khám</Label>
+                                <Label>{systemText.clinicDialog.labels.image}</Label>
                                 <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Mô tả phòng khám</Label>
+                            <Label>{systemText.clinicDialog.labels.description}</Label>
                             <Textarea value={clinicDescription} onChange={(event) => setClinicDescription(event.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label>Chuyên khoa</Label>
+                            <Label>{systemText.clinicDialog.labels.specialty}</Label>
                             <div className="flex flex-wrap gap-2">
                                 {specialties.map((specialty) => (
                                     <label key={specialty.id} className="flex cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
@@ -1479,18 +1533,18 @@ function SystemAdminSectionV2() {
                         </div>
                         <div className="flex items-center gap-2">
                             <Switch checked={clinicOpen} onCheckedChange={setClinicOpen} />
-                            <Label>Đang mở cửa</Label>
+                            <Label>{systemText.clinicDialog.labels.open}</Label>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={closeClinicDialog}>Đóng</Button>
+                        <Button variant="outline" onClick={closeClinicDialog}>{text.common.close}</Button>
                         {editingClinic ? (
                             <Button disabled={updateClinicMutation.isPending || !canUpdateClinic} onClick={() => updateClinicMutation.mutate({ id: editingClinic.id, payload: getClinicPayload() })}>
-                                {updateClinicMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                                {updateClinicMutation.isPending ? text.common.updating : text.common.update}
                             </Button>
                         ) : (
                             <Button disabled={createClinicMutation.isPending || !canCreateClinic} onClick={() => createClinicMutation.mutate(getClinicPayload())}>
-                                {createClinicMutation.isPending ? "Đang thêm..." : "Thêm phòng khám"}
+                                {createClinicMutation.isPending ? text.common.adding : systemText.clinicDialog.buttons.create}
                             </Button>
                         )}
                     </DialogFooter>
@@ -1500,28 +1554,28 @@ function SystemAdminSectionV2() {
             <Dialog open={doctorDialogOpen} onOpenChange={(open) => !open && closeDoctorDialog()}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle>{editingDoctor ? "Sửa hồ sơ bác sĩ" : "Tạo tài khoản bác sĩ"}</DialogTitle>
-                        <DialogDescription>Tài khoản đăng nhập và hồ sơ chuyên môn được lưu cùng lúc để bác sĩ xuất hiện ngay trong danh sách.</DialogDescription>
+                        <DialogTitle>{editingDoctor ? systemText.doctorDialog.titleUpdate : systemText.doctorDialog.titleCreate}</DialogTitle>
+                        <DialogDescription>{systemText.doctorDialog.description}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5">
                         <div className="space-y-3">
-                            <div className="text-sm font-medium">Thông tin tài khoản</div>
+                            <div className="text-sm font-medium">{systemText.doctorDialog.sections.account}</div>
                             <div className="grid gap-3 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>Họ tên bác sĩ</Label>
+                                    <Label>{systemText.doctorDialog.labels.name}</Label>
                                     <Input value={doctorName} onChange={(event) => setDoctorName(event.target.value)} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Email đăng nhập</Label>
+                                    <Label>{systemText.doctorDialog.labels.email}</Label>
                                     <Input value={doctorEmail} onChange={(event) => setDoctorEmail(event.target.value)} disabled={Boolean(editingDoctor)} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Số điện thoại</Label>
+                                    <Label>{systemText.doctorDialog.labels.phone}</Label>
                                     <Input value={doctorPhone} onChange={(event) => setDoctorPhone(event.target.value)} disabled={Boolean(editingDoctor)} />
                                 </div>
                                 {!editingDoctor ? (
                                     <div className="space-y-2">
-                                        <Label>Mật khẩu</Label>
+                                        <Label>{systemText.doctorDialog.labels.password}</Label>
                                         <Input value={doctorPassword} onChange={(event) => setDoctorPassword(event.target.value)} type="password" />
                                     </div>
                                 ) : null}
@@ -1529,46 +1583,46 @@ function SystemAdminSectionV2() {
                         </div>
 
                         <div className="space-y-3">
-                            <div className="text-sm font-medium">Thông tin chuyên môn</div>
+                            <div className="text-sm font-medium">{systemText.doctorDialog.sections.profile}</div>
                             <div className="grid gap-3 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>Phòng khám</Label>
+                                    <Label>{systemText.doctorDialog.labels.clinic}</Label>
                                     <Select value={doctorEditClinicId} onValueChange={(value) => { setDoctorEditClinicId(value); setDoctorEditSpecialtyId("") }}>
-                                        <SelectTrigger><SelectValue placeholder="Chọn phòng khám" /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder={systemText.doctorDialog.placeholders.clinic} /></SelectTrigger>
                                         <SelectContent>{clinics.map((clinic) => <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Chuyên khoa</Label>
+                                    <Label>{systemText.doctorDialog.labels.specialty}</Label>
                                     <Select value={doctorEditSpecialtyId} onValueChange={setDoctorEditSpecialtyId} disabled={!doctorEditClinicId}>
-                                        <SelectTrigger><SelectValue placeholder="Chọn chuyên khoa" /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder={systemText.doctorDialog.placeholders.specialty} /></SelectTrigger>
                                         <SelectContent>{clinicSpecialtyOptions.map((specialty) => <SelectItem key={specialty.id} value={specialty.id}>{specialty.name}</SelectItem>)}</SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Số năm kinh nghiệm</Label>
+                                    <Label>{systemText.doctorDialog.labels.experience}</Label>
                                     <Input type="number" min={0} value={doctorEditExperience} onChange={(event) => setDoctorEditExperience(event.target.value)} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Link ảnh đại diện</Label>
+                                    <Label>{systemText.doctorDialog.labels.avatar}</Label>
                                     <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Giới thiệu bác sĩ</Label>
+                                <Label>{systemText.doctorDialog.labels.bio}</Label>
                                 <Textarea value={doctorEditBio} onChange={(event) => setDoctorEditBio(event.target.value)} />
                             </div>
                             <div className="flex items-center gap-2">
                                 <Switch checked={doctorEditAvailable} onCheckedChange={setDoctorEditAvailable} />
-                                <Label>Sẵn sàng nhận lịch</Label>
+                                <Label>{systemText.doctorDialog.labels.available}</Label>
                             </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={closeDoctorDialog}>Đóng</Button>
+                        <Button variant="outline" onClick={closeDoctorDialog}>{text.common.close}</Button>
                         {editingDoctor ? (
                             <Button disabled={updateDoctorMutation.isPending || !canUpdateDoctor} onClick={() => updateDoctorMutation.mutate({ id: editingDoctor.id, payload: doctorPayload })}>
-                                {updateDoctorMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
+                                {updateDoctorMutation.isPending ? text.common.updating : text.common.update}
                             </Button>
                         ) : (
                             <Button
@@ -1580,7 +1634,7 @@ function SystemAdminSectionV2() {
                                     password: doctorPassword,
                                 })}
                             >
-                                {createDoctorMutation.isPending ? "Đang tạo..." : "Tạo tài khoản bác sĩ"}
+                                {createDoctorMutation.isPending ? systemText.doctorDialog.createPending : systemText.doctorDialog.buttons.create}
                             </Button>
                         )}
                     </DialogFooter>
@@ -1593,6 +1647,8 @@ function SystemAdminSectionV2() {
 
 function SystemAdminSection() { // NOSONAR
     const queryClient = useQueryClient()
+    const legacyText = text.systemAdminLegacy
+    const systemText = text.systemAdminV2
 
     const [userRoleFilter, setUserRoleFilter] = useState<RoleFilter>("ALL")
     const [userKeyword, setUserKeyword] = useState("")
@@ -1855,58 +1911,58 @@ function SystemAdminSection() { // NOSONAR
     const totalDoctors = users.filter((user) => user.role === "DOCTOR").length
     const openClinics = clinics.filter((clinic) => clinic.isOpen).length
 
-    let clinicSubmitLabel = "Thêm phòng khám"
+    let clinicSubmitLabel: string = systemText.clinicDialog.buttons.create
     if (editingClinicId) {
-        clinicSubmitLabel = updateClinicMutation.isPending ? "Đang cập nhật..." : "Cập nhật phòng khám"
+        clinicSubmitLabel = updateClinicMutation.isPending ? text.common.updating : legacyText.clinics.titleUpdate
     } else if (createClinicMutation.isPending) {
-        clinicSubmitLabel = "Đang thêm..."
+        clinicSubmitLabel = text.common.adding
     }
 
-    let doctorSubmitLabel = "Thêm bác sĩ"
+    let doctorSubmitLabel: string = legacyText.doctors.submitCreate
     if (editingDoctorId) {
-        doctorSubmitLabel = updateDoctorMutation.isPending ? "Đang cập nhật..." : "Cập nhật bác sĩ"
+        doctorSubmitLabel = updateDoctorMutation.isPending ? text.common.updating : legacyText.doctors.submitUpdate
     } else if (createDoctorMutation.isPending) {
-        doctorSubmitLabel = "Đang thêm..."
+        doctorSubmitLabel = text.common.adding
     }
 
-    let articleSubmitLabel = "Thêm bài viết"
+    let articleSubmitLabel: string = systemText.news.createButton
     if (editingArticleId) {
-        articleSubmitLabel = updateArticleMutation.isPending ? "Đang cập nhật..." : "Cập nhật bài viết"
+        articleSubmitLabel = updateArticleMutation.isPending ? text.common.updating : systemText.news.updateButton
     } else if (createArticleMutation.isPending) {
-        articleSubmitLabel = "Đang thêm..."
+        articleSubmitLabel = text.common.adding
     }
 
     return (
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard icon={Users} title="Tổng tài khoản" value={String(users.length)} />
-                <StatCard icon={Stethoscope} title="Tài khoản bác sĩ" value={String(totalDoctors)} />
-                <StatCard icon={Building2} title="Phòng khám mở" value={String(openClinics)} />
-                <StatCard icon={Newspaper} title="Bài cẩm nang" value={String(articles.length)} />
+                <StatCard icon={Users} title={legacyText.stats.totalUsers} value={String(users.length)} />
+                <StatCard icon={Stethoscope} title={legacyText.stats.doctors} value={String(totalDoctors)} />
+                <StatCard icon={Building2} title={legacyText.stats.openClinics} value={String(openClinics)} />
+                <StatCard icon={Newspaper} title={legacyText.stats.articles} value={String(articles.length)} />
             </div>
 
             <Tabs defaultValue="users" className="space-y-4">
                 <TabsList className="grid h-auto w-full grid-cols-4 gap-1 bg-muted p-1">
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="users">
-                        Người dùng
+                        {legacyText.tabs.users}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="clinics">
-                        Phòng khám
+                        {legacyText.tabs.clinics}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="doctors">
-                        Bác sĩ
+                        {legacyText.tabs.doctors}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="news">
-                        Cẩm nang
+                        {legacyText.tabs.news}
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="users" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Tạo tài khoản bác sĩ</CardTitle>
+                            <CardTitle>{legacyText.users.createDoctorTitle}</CardTitle>
                             <CardDescription>
-                                Tài khoản bệnh nhân tự đăng ký ở trang người dùng. Tại đây chỉ tạo tài khoản bác sĩ.
+                                {legacyText.users.createDoctorDescription}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -1914,23 +1970,23 @@ function SystemAdminSection() { // NOSONAR
                                 <Input
                                     value={doctorAccountName}
                                     onChange={(e) => setDoctorAccountName(e.target.value)}
-                                    placeholder="Họ tên bác sĩ"
+                                    placeholder={systemText.doctorDialog.labels.name}
                                 />
                                 <Input
                                     value={doctorAccountEmail}
                                     onChange={(e) => setDoctorAccountEmail(e.target.value)}
-                                    placeholder="Email đăng nhập"
+                                    placeholder={systemText.doctorDialog.labels.email}
                                 />
                                 <Input
                                     value={doctorAccountPhone}
                                     onChange={(e) => setDoctorAccountPhone(e.target.value)}
-                                    placeholder="Số điện thoại"
+                                    placeholder={systemText.doctorDialog.labels.phone}
                                 />
                                 <Input
                                     type="password"
                                     value={doctorAccountPassword}
                                     onChange={(e) => setDoctorAccountPassword(e.target.value)}
-                                    placeholder="Mật khẩu"
+                                    placeholder={systemText.doctorDialog.labels.password}
                                 />
                             </div>
 
@@ -1951,7 +2007,7 @@ function SystemAdminSection() { // NOSONAR
                                     })
                                 }
                             >
-                                {createUserMutation.isPending ? "Đang tạo..." : "Tạo tài khoản bác sĩ"}
+                                {createUserMutation.isPending ? systemText.doctorDialog.createPending : legacyText.users.createDoctorButton}
                             </Button>
                         </CardContent>
                     </Card>
@@ -1959,25 +2015,25 @@ function SystemAdminSection() { // NOSONAR
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <CardTitle>Danh sách người dùng</CardTitle>
-                                <CardDescription>Quản lý trạng thái hoạt động của tài khoản.</CardDescription>
+                                <CardTitle>{systemText.users.listTitle}</CardTitle>
+                                <CardDescription>{legacyText.users.listDescription}</CardDescription>
                             </div>
 
                             <div className="grid w-full gap-2 md:w-[420px] md:grid-cols-2">
                                 <Input
                                     value={userKeyword}
                                     onChange={(e) => setUserKeyword(e.target.value)}
-                                    placeholder="Tìm theo tên, email, SĐT"
+                                    placeholder={systemText.users.searchPlaceholder}
                                 />
                                 <Select value={userRoleFilter} onValueChange={(v) => setUserRoleFilter(v as RoleFilter)}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Lọc vai trò" />
+                                        <SelectValue placeholder={legacyText.users.filterPlaceholder} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">Tất cả vai trò</SelectItem>
-                                        <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
-                                        <SelectItem value="PATIENT">Bệnh nhân</SelectItem>
-                                        <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                                        <SelectItem value="ALL">{legacyText.users.roleFilters.all}</SelectItem>
+                                        <SelectItem value="DOCTOR">{legacyText.users.roleFilters.doctor}</SelectItem>
+                                        <SelectItem value="PATIENT">{legacyText.users.roleFilters.patient}</SelectItem>
+                                        <SelectItem value="ADMIN">{legacyText.users.roleFilters.admin}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1986,19 +2042,19 @@ function SystemAdminSection() { // NOSONAR
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Họ tên</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Điện thoại</TableHead>
-                                        <TableHead>Vai trò</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.users.headers.name}</TableHead>
+                                        <TableHead>{systemText.users.headers.email}</TableHead>
+                                        <TableHead>{systemText.users.headers.phone}</TableHead>
+                                        <TableHead>{systemText.users.headers.role}</TableHead>
+                                        <TableHead>{systemText.users.headers.status}</TableHead>
+                                        <TableHead>{systemText.users.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredUsers.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                                                Không có người dùng phù hợp.
+                                                {legacyText.users.empty}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -2019,7 +2075,7 @@ function SystemAdminSection() { // NOSONAR
                                                                 : "border-rose-200 bg-rose-100 text-rose-700"
                                                         }
                                                     >
-                                                        {user.isActive ? "Đang hoạt động" : "Đã khóa"}
+                                                        {user.isActive ? systemText.users.status.active : systemText.users.status.locked}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="space-x-2">
@@ -2033,14 +2089,14 @@ function SystemAdminSection() { // NOSONAR
                                                             })
                                                         }
                                                     >
-                                                        {user.isActive ? "Khóa" : "Mở"}
+                                                        {user.isActive ? systemText.users.actions.lock : systemText.users.actions.unlock}
                                                     </Button>
                                                     <Button
                                                         variant="destructive"
                                                         size="sm"
                                                         onClick={() => deleteUserMutation.mutate(user.id)}
                                                     >
-                                                        Xóa
+                                                        {systemText.users.actions.delete}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -2056,10 +2112,10 @@ function SystemAdminSection() { // NOSONAR
                     <Card>
                         <CardHeader>
                             <CardTitle>
-                                {editingClinicId ? "Cập nhật phòng khám" : "Thêm phòng khám mới"}
+                                {editingClinicId ? legacyText.clinics.titleUpdate : legacyText.clinics.titleCreate}
                             </CardTitle>
                             <CardDescription>
-                                Bổ sung đủ thông tin hiển thị cho bệnh nhân: ảnh, địa chỉ, giờ hoạt động, liên hệ.
+                                {legacyText.clinics.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -2067,48 +2123,48 @@ function SystemAdminSection() { // NOSONAR
                                 <Input
                                     value={clinicName}
                                     onChange={(e) => setClinicName(e.target.value)}
-                                    placeholder="Tên phòng khám"
+                                    placeholder={legacyText.clinics.placeholders.name}
                                 />
                                 <Input
                                     value={clinicAddress}
                                     onChange={(e) => setClinicAddress(e.target.value)}
-                                    placeholder="Địa chỉ"
+                                    placeholder={legacyText.clinics.placeholders.address}
                                 />
                                 <Input
                                     value={clinicPhone}
                                     onChange={(e) => setClinicPhone(e.target.value)}
-                                    placeholder="Số điện thoại"
+                                    placeholder={legacyText.clinics.placeholders.phone}
                                 />
                                 <Input
                                     value={clinicEmail}
                                     onChange={(e) => setClinicEmail(e.target.value)}
-                                    placeholder="Email"
+                                    placeholder={legacyText.clinics.placeholders.email}
                                 />
                                 <Input
                                     value={clinicWebsite}
                                     onChange={(e) => setClinicWebsite(e.target.value)}
-                                    placeholder="Website"
+                                    placeholder={legacyText.clinics.placeholders.website}
                                 />
                                 <Input
                                     value={clinicOpeningHours}
                                     onChange={(e) => setClinicOpeningHours(e.target.value)}
-                                    placeholder="Giờ làm việc (ví dụ: 08:00 - 17:00)"
+                                    placeholder={legacyText.clinics.placeholders.openingHours}
                                 />
                                 <Input
                                     value={clinicImage}
                                     onChange={(e) => setClinicImage(e.target.value)}
-                                    placeholder="Link ảnh đại diện phòng khám"
+                                    placeholder={legacyText.clinics.placeholders.image}
                                 />
                                 <div className="flex items-center gap-2 rounded-md border px-3">
                                     <Switch checked={clinicIsOpen} onCheckedChange={setClinicIsOpen} />
-                                    <span className="text-sm">Phòng khám đang mở</span>
+                                    <span className="text-sm">{legacyText.clinics.openLabel}</span>
                                 </div>
                             </div>
 
                             <Textarea
                                 value={clinicDescription}
                                 onChange={(e) => setClinicDescription(e.target.value)}
-                                placeholder="Mô tả ngắn phòng khám"
+                                placeholder={legacyText.clinics.placeholders.description}
                             />
 
                             <div className="flex flex-wrap gap-2">
@@ -2145,7 +2201,7 @@ function SystemAdminSection() { // NOSONAR
 
                                 {editingClinicId ? (
                                     <Button variant="outline" onClick={resetClinicForm}>
-                                        Hủy chỉnh sửa
+                                        {text.common.cancelEdit}
                                     </Button>
                                 ) : null}
                             </div>
@@ -2154,28 +2210,28 @@ function SystemAdminSection() { // NOSONAR
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Danh sách phòng khám</CardTitle>
+                            <CardTitle>{systemText.clinics.listTitle}</CardTitle>
                             <CardDescription>
-                                Bật/tắt hoạt động, chỉnh sửa thông tin hoặc xóa phòng khám.
+                                {legacyText.clinics.listDescription}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Ảnh</TableHead>
-                                        <TableHead>Tên phòng khám</TableHead>
-                                        <TableHead>Liên hệ</TableHead>
-                                        <TableHead>Giờ hoạt động</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.avatar}</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.name}</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.contact}</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.hours}</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.status}</TableHead>
+                                        <TableHead>{legacyText.clinics.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {clinics.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                                                Chưa có phòng khám nào.
+                                                {legacyText.clinics.empty}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -2213,7 +2269,7 @@ function SystemAdminSection() { // NOSONAR
                                                                 : "border-slate-200 bg-slate-100 text-slate-700"
                                                         }
                                                     >
-                                                        {clinic.isOpen ? "Đang mở" : "Đóng"}
+                                                        {clinic.isOpen ? systemText.clinics.status.open : legacyText.clinics.toggleClose}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="space-x-2">
@@ -2222,7 +2278,7 @@ function SystemAdminSection() { // NOSONAR
                                                         variant="outline"
                                                         onClick={() => fillClinicForm(clinic)}
                                                     >
-                                                        Sửa
+                                                        {text.common.edit}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -2234,14 +2290,14 @@ function SystemAdminSection() { // NOSONAR
                                                             })
                                                         }
                                                     >
-                                                        {clinic.isOpen ? "Đóng" : "Mở"}
+                                                        {clinic.isOpen ? legacyText.clinics.toggleClose : legacyText.clinics.toggleOpen}
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="destructive"
                                                         onClick={() => deleteClinicMutation.mutate(clinic.id)}
                                                     >
-                                                        Xóa
+                                                        {text.common.delete}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -2256,9 +2312,9 @@ function SystemAdminSection() { // NOSONAR
                 <TabsContent value="doctors" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>{editingDoctorId ? "Cập nhật hồ sơ bác sĩ" : "Thêm hồ sơ bác sĩ"}</CardTitle>
+                            <CardTitle>{editingDoctorId ? legacyText.doctors.titleUpdate : legacyText.doctors.titleCreate}</CardTitle>
                             <CardDescription>
-                                Hồ sơ bác sĩ gồm tài khoản, chuyên khoa, phòng khám, ảnh đại diện, mô tả kinh nghiệm.
+                                {legacyText.doctors.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -2266,12 +2322,12 @@ function SystemAdminSection() { // NOSONAR
                                 <Input
                                     value={doctorName}
                                     onChange={(e) => setDoctorName(e.target.value)}
-                                    placeholder="Tên bác sĩ"
+                                    placeholder={legacyText.doctors.placeholders.name}
                                 />
 
                                 <Select value={doctorUserId} onValueChange={setDoctorUserId}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Liên kết tài khoản doctor" />
+                                        <SelectValue placeholder={legacyText.doctors.placeholders.linkAccount} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {doctorUsers.map((user) => (
@@ -2284,7 +2340,7 @@ function SystemAdminSection() { // NOSONAR
 
                                 <Select value={doctorClinicId} onValueChange={setDoctorClinicId}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Chọn phòng khám" />
+                                        <SelectValue placeholder={legacyText.doctors.placeholders.clinic} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {clinics.map((clinic) => (
@@ -2297,7 +2353,7 @@ function SystemAdminSection() { // NOSONAR
 
                                 <Select value={doctorSpecialtyId} onValueChange={setDoctorSpecialtyId}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Chọn chuyên khoa" />
+                                        <SelectValue placeholder={legacyText.doctors.placeholders.specialty} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {specialties.map((specialty) => (
@@ -2313,25 +2369,25 @@ function SystemAdminSection() { // NOSONAR
                                     min={0}
                                     value={doctorExperience}
                                     onChange={(e) => setDoctorExperience(Number(e.target.value) || 0)}
-                                    placeholder="Số năm kinh nghiệm"
+                                    placeholder={legacyText.doctors.placeholders.experience}
                                 />
 
                                 <Input
                                     value={doctorAvatar}
                                     onChange={(e) => setDoctorAvatar(e.target.value)}
-                                    placeholder="Link ảnh đại diện bác sĩ"
+                                    placeholder={legacyText.doctors.placeholders.avatar}
                                 />
                             </div>
 
                             <Textarea
                                 value={doctorBio}
                                 onChange={(e) => setDoctorBio(e.target.value)}
-                                placeholder="Giới thiệu bác sĩ"
+                                placeholder={legacyText.doctors.placeholders.bio}
                             />
 
                             <div className="flex items-center gap-2">
                                 <Switch checked={doctorAvailable} onCheckedChange={setDoctorAvailable} />
-                                <span className="text-sm">Sẵn sàng nhận khám</span>
+                                <span className="text-sm">{legacyText.doctors.availableLabel}</span>
                             </div>
 
                             <div className="flex flex-wrap gap-2">
@@ -2368,7 +2424,7 @@ function SystemAdminSection() { // NOSONAR
 
                                 {editingDoctorId ? (
                                     <Button variant="outline" onClick={resetDoctorForm}>
-                                        Hủy chỉnh sửa
+                                        {text.common.cancelEdit}
                                     </Button>
                                 ) : null}
                             </div>
@@ -2377,27 +2433,27 @@ function SystemAdminSection() { // NOSONAR
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Danh sách bác sĩ</CardTitle>
-                            <CardDescription>Quản lý hồ sơ, chuyên khoa, phòng khám và trạng thái khám.</CardDescription>
+                            <CardTitle>{systemText.doctors.listTitle}</CardTitle>
+                            <CardDescription>{legacyText.doctors.listDescription}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Ảnh</TableHead>
-                                        <TableHead>Bác sĩ</TableHead>
-                                        <TableHead>Phòng khám</TableHead>
-                                        <TableHead>Chuyên khoa</TableHead>
-                                        <TableHead>Kinh nghiệm</TableHead>
-                                        <TableHead>Trạng thái</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.doctors.headers.avatar}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.doctor}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.clinic}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.specialty}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.experience}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.status}</TableHead>
+                                        <TableHead>{systemText.doctors.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {doctors.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                                                Chưa có hồ sơ bác sĩ.
+                                                {legacyText.doctors.empty}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -2419,11 +2475,11 @@ function SystemAdminSection() { // NOSONAR
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="font-medium">{doctor.name}</div>
-                                                    <div className="text-xs text-muted-foreground">{doctor.user?.email || "Chưa liên kết account"}</div>
+                                                    <div className="text-xs text-muted-foreground">{doctor.user?.email || systemText.doctors.accountFallback}</div>
                                                 </TableCell>
                                                 <TableCell>{doctor.clinic.name}</TableCell>
                                                 <TableCell>{doctor.specialty.name}</TableCell>
-                                                <TableCell>{doctor.experience} năm</TableCell>
+                                                <TableCell>{doctor.experience} {systemText.doctors.experienceSuffix}</TableCell>
                                                 <TableCell>
                                                     <Badge
                                                         variant="outline"
@@ -2433,12 +2489,12 @@ function SystemAdminSection() { // NOSONAR
                                                                 : "border-slate-200 bg-slate-100 text-slate-700"
                                                         }
                                                     >
-                                                        {doctor.isAvailable ? "Sẵn sàng" : "Tạm nghỉ"}
+                                                        {doctor.isAvailable ? systemText.doctors.status.available : systemText.doctors.status.off}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="space-x-2">
                                                     <Button size="sm" variant="outline" onClick={() => fillDoctorForm(doctor)}>
-                                                        Sửa
+                                                        {systemText.doctors.actions.edit}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -2450,14 +2506,14 @@ function SystemAdminSection() { // NOSONAR
                                                             })
                                                         }
                                                     >
-                                                        {doctor.isAvailable ? "Tạm nghỉ" : "Mở khám"}
+                                                        {doctor.isAvailable ? systemText.doctors.actions.disable : systemText.doctors.actions.enable}
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="destructive"
                                                         onClick={() => deleteDoctorMutation.mutate(doctor.id)}
                                                     >
-                                                        Xóa
+                                                        {systemText.doctors.actions.delete}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -2472,9 +2528,9 @@ function SystemAdminSection() { // NOSONAR
                 <TabsContent value="news" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>{editingArticleId ? "Cập nhật bài cẩm nang" : "Thêm bài cẩm nang"}</CardTitle>
+                            <CardTitle>{editingArticleId ? systemText.news.titleUpdate : systemText.news.titleCreate}</CardTitle>
                             <CardDescription>
-                                Bài viết cẩm nang để bệnh nhân đọc trước/sau khi đặt lịch khám.
+                                {legacyText.news.description}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -2482,29 +2538,29 @@ function SystemAdminSection() { // NOSONAR
                                 <Input
                                     value={articleTitle}
                                     onChange={(e) => setArticleTitle(e.target.value)}
-                                    placeholder="Tiêu đề"
+                                    placeholder={systemText.news.placeholders.title}
                                 />
                                 <Input
                                     value={articleCategory}
                                     onChange={(e) => setArticleCategory(e.target.value)}
-                                    placeholder="Chuyên mục"
+                                    placeholder={systemText.news.placeholders.category}
                                 />
                                 <Input
                                     value={articleReadTime}
                                     onChange={(e) => setArticleReadTime(e.target.value)}
-                                    placeholder="Thời gian đọc (ví dụ: 5 phút)"
+                                    placeholder={legacyText.news.placeholders.readTime}
                                 />
                                 <Input
                                     value={articleImage}
                                     onChange={(e) => setArticleImage(e.target.value)}
-                                    placeholder="Link ảnh đại diện bài viết"
+                                    placeholder={legacyText.news.placeholders.image}
                                 />
                             </div>
 
                             <Textarea
                                 value={articleDescription}
                                 onChange={(e) => setArticleDescription(e.target.value)}
-                                placeholder="Mô tả nội dung"
+                                placeholder={systemText.news.placeholders.description}
                             />
 
                             <div className="flex flex-wrap gap-2">
@@ -2537,7 +2593,7 @@ function SystemAdminSection() { // NOSONAR
 
                                 {editingArticleId ? (
                                     <Button variant="outline" onClick={resetArticleForm}>
-                                        Hủy chỉnh sửa
+                                        {text.common.cancelEdit}
                                     </Button>
                                 ) : null}
                             </div>
@@ -2546,26 +2602,26 @@ function SystemAdminSection() { // NOSONAR
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Danh sách cẩm nang</CardTitle>
-                            <CardDescription>Quản lý nội dung cẩm nang sức khỏe trên website.</CardDescription>
+                            <CardTitle>{systemText.news.listTitle}</CardTitle>
+                            <CardDescription>{systemText.news.description}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Ảnh</TableHead>
-                                        <TableHead>Tiêu đề</TableHead>
-                                        <TableHead>Chuyên mục</TableHead>
-                                        <TableHead>Thời gian đọc</TableHead>
-                                        <TableHead>Ngày đăng</TableHead>
-                                        <TableHead>Thao tác</TableHead>
+                                        <TableHead>{systemText.doctors.headers.avatar}</TableHead>
+                                        <TableHead>{systemText.news.headers.title}</TableHead>
+                                        <TableHead>{systemText.news.headers.category}</TableHead>
+                                        <TableHead>{systemText.news.headers.readTime}</TableHead>
+                                        <TableHead>{legacyText.news.headers.publishedAt}</TableHead>
+                                        <TableHead>{systemText.news.headers.actions}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {articles.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                                                Chưa có bài viết nào.
+                                                {legacyText.news.empty}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -2595,14 +2651,14 @@ function SystemAdminSection() { // NOSONAR
                                                         variant="outline"
                                                         onClick={() => fillArticleForm(article)}
                                                     >
-                                                        Sửa
+                                                        {text.common.edit}
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="destructive"
                                                         onClick={() => deleteArticleMutation.mutate(article.id)}
                                                     >
-                                                        Xóa
+                                                        {text.common.delete}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -2617,28 +2673,28 @@ function SystemAdminSection() { // NOSONAR
 
             <Card className="border-primary/20 bg-primary/5">
                 <CardHeader>
-                    <CardTitle>Tóm tắt vận hành</CardTitle>
+                    <CardTitle>{legacyText.summary.title}</CardTitle>
                     <CardDescription>
-                        Gợi ý luồng: tạo tài khoản doctor ở tab Users, sau đó tạo hồ sơ chuyên môn ở tab Doctors.
+                        {legacyText.summary.description}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-lg border bg-white p-4">
-                        <p className="mb-1 text-sm font-semibold">1. Tài khoản bác sĩ</p>
+                        <p className="mb-1 text-sm font-semibold">{legacyText.summary.steps.accountTitle}</p>
                         <p className="text-sm text-muted-foreground">
-                            Tạo email/mật khẩu để bác sĩ đăng nhập vào trang quản trị.
+                            {legacyText.summary.steps.accountDescription}
                         </p>
                     </div>
                     <div className="rounded-lg border bg-white p-4">
-                        <p className="mb-1 text-sm font-semibold">2. Hồ sơ bác sĩ</p>
+                        <p className="mb-1 text-sm font-semibold">{legacyText.summary.steps.profileTitle}</p>
                         <p className="text-sm text-muted-foreground">
-                            Gán bác sĩ vào phòng khám + chuyên khoa + ảnh đại diện + thông tin kinh nghiệm.
+                            {legacyText.summary.steps.profileDescription}
                         </p>
                     </div>
                     <div className="rounded-lg border bg-white p-4">
-                        <p className="mb-1 text-sm font-semibold">3. Bác sĩ nhận lịch</p>
+                        <p className="mb-1 text-sm font-semibold">{legacyText.summary.steps.workflowTitle}</p>
                         <p className="text-sm text-muted-foreground">
-                            Bác sĩ xác nhận lịch chờ và thiết lập lịch làm việc/giá dịch vụ trực tiếp trong tài khoản của họ.
+                            {legacyText.summary.steps.workflowDescription}
                         </p>
                     </div>
                 </CardContent>

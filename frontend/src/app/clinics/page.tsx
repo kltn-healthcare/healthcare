@@ -9,6 +9,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Search, Star, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { getClinics } from "@/api/clinics"
@@ -17,11 +18,13 @@ import { HOME_TEXTS } from "@/shared/constants/home"
 
 export default function ClinicsPage() {
   const { t } = useLanguage()
+  const searchParams = useSearchParams()
+  const specialtyId = searchParams.get("specialtyId") || undefined
   const [q, setQ] = useState("")
 
   const { data, isLoading } = useQuery({
-    queryKey: ["clinics", { q }],
-    queryFn: () => getClinics({ q: q || undefined }),
+    queryKey: ["clinics", { q, specialtyId }],
+    queryFn: () => getClinics({ q: q || undefined, specialtyId }),
   })
 
   const clinics = useMemo(() => data?.items ?? [], [data])
@@ -114,6 +117,15 @@ export default function ClinicsPage() {
                     <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="text-muted-foreground">{clinic.openingHours || "—"}</span>
                   </div>
+                  {Array.isArray(clinic.specialties) && clinic.specialties.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {clinic.specialties.slice(0, 3).map((specialty: any) => (
+                        <Badge key={specialty.id || specialty} variant="outline" className="text-xs">
+                          {specialty.name || specialty}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
                 <CardFooter className="gap-2 pb-5 pt-4 flex-none mt-auto">
                   <Link href={`/clinic/${clinic.id}`} className="flex-1">
@@ -121,7 +133,7 @@ export default function ClinicsPage() {
                       {t(HOME_TEXTS.PAGES.CLINICS.VIEW_DETAIL.vi, HOME_TEXTS.PAGES.CLINICS.VIEW_DETAIL.en)}
                     </Button>
                   </Link>
-                  <Link href={`/booking?clinicId=${clinic.id}`} className="flex-1">
+                  <Link href={`/booking?clinicId=${clinic.id}${specialtyId ? `&specialtyId=${specialtyId}` : ""}`} className="flex-1">
                     <Button className="w-full bg-primary">{t(HOME_TEXTS.PAGES.CLINICS.BOOK_NOW.vi, HOME_TEXTS.PAGES.CLINICS.BOOK_NOW.en)}</Button>
                   </Link>
                 </CardFooter>

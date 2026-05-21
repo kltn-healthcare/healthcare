@@ -32,7 +32,7 @@ export class UpdateAdminUserDto {
   password?: string;
 
   @ApiPropertyOptional({
-    enum: [UserRole.PATIENT, UserRole.DOCTOR, UserRole.ADMIN],
+    enum: [UserRole.PATIENT, UserRole.DOCTOR, UserRole.ADMIN, UserRole.CLINIC_ADMIN],
   })
   @IsOptional()
   @IsEnum(UserRole)

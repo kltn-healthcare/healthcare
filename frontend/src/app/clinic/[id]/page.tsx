@@ -22,6 +22,8 @@ export default function ClinicDetailPage() {
     queryFn: () => getClinicById(String(id)),
   })
 
+  const formatPrice = (price: number) => new Intl.NumberFormat("vi-VN").format(price) + "Ä‘"
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -112,6 +114,51 @@ export default function ClinicDetailPage() {
                 </CardContent>
               </Card>
 
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>GÃ³i KhÃ¡m Tại PhÃ²ng KhÃ¡m</CardTitle>
+                  <CardDescription>GiÃ¡ vÃ  ná»™i dung gÃ³i Ã¡p dá»¥ng riÃªng cho phÃ²ng khÃ¡m nÃ y.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!clinic?.healthPackages?.length ? (
+                    <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+                      PhÃ²ng khÃ¡m chÆ°a cÃ³ gÃ³i khÃ¡m Ä‘ang má»Ÿ bÃ¡n.
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {clinic.healthPackages.map((pkg) => (
+                        <div key={pkg.id} className="rounded-lg border bg-background p-4">
+                          <div className="mb-2 flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="font-semibold">{pkg.name}</h3>
+                              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{pkg.shortDescription || pkg.description}</p>
+                            </div>
+                            {pkg.isPopular ? <Badge className="shrink-0">Phá»• biáº¿n</Badge> : null}
+                          </div>
+                          <div className="mb-3 text-xl font-bold text-primary">
+                            {formatPrice(pkg.promotionalPrice || pkg.price)}
+                            {pkg.promotionalPrice ? (
+                              <span className="ml-2 text-sm font-normal text-muted-foreground line-through">{formatPrice(pkg.price)}</span>
+                            ) : null}
+                          </div>
+                          <ul className="mb-4 space-y-1.5 text-sm text-muted-foreground">
+                            {pkg.features.slice(0, 3).map((feature) => (
+                              <li key={feature} className="flex gap-2">
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <Link href={`/booking?clinicId=${clinic.id}&specialtyId=${pkg.specialtyId || ""}&packageId=${pkg.id}`}>
+                            <Button size="sm" className="w-full bg-primary">Äáº·t gÃ³i nÃ y</Button>
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Doctors */}
               <Card>
                 <CardHeader>
@@ -152,7 +199,7 @@ export default function ClinicDetailPage() {
                                 Xem Thông Tin
                               </Button>
                             </Link>
-                            <Link href={`/booking?doctorId=${d.id}&clinicId=${clinic.id}`}>
+                            <Link href={`/booking?doctorId=${d.id}&clinicId=${clinic.id}&specialtyId=${d.specialty.id}`}>
                               <Button size="sm" className="bg-primary" disabled={!d.isAvailable}>
                                 Đặt Khám
                               </Button>

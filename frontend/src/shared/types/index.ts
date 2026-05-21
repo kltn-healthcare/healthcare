@@ -20,20 +20,29 @@ export interface Clinic {
 
     openingHours: string
     website?: string
-    specialties?: string[]
+    specialties?: Array<{ id: string; name: string }> | string[]
     services?: string[]
     reviews?: Review[]
+    healthPackages?: HealthPackage[]
 }
 
 export interface HealthPackage {
     id: string
     name: string
+    shortDescription?: string | null
     description: string
+    promotionalPrice?: number | null
     price: number
     currency: string
     features: string[]
     isPopular?: boolean
-    category: "basic" | "comprehensive" | "premium"
+    isActive?: boolean
+    category: string
+    imageUrl?: string | null
+    clinicId?: string | null
+    clinic?: { id: string; name: string; address?: string | null; image?: string | null } | null
+    specialtyId?: string | null
+    specialty?: { id: string; name: string } | null
 }
 
 export interface Service {
@@ -58,7 +67,9 @@ export interface Article {
 export interface Booking {
     id: string
     clinicId: string
+    specialtyId?: string
     packageId?: string
+    bookingType?: "DOCTOR_CONSULTATION" | "HEALTH_PACKAGE"
     serviceId?: string
     date: Date
     time: string
@@ -82,7 +93,7 @@ export interface User {
     email: string
     phone?: string
     avatar?: string
-    role: "patient" | "doctor" | "admin" | "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN"
+    role: "patient" | "doctor" | "admin" | "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN" | "CLINIC_ADMIN"
 }
 
 export interface Review {

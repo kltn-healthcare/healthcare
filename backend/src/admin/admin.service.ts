@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { QueryAdminUsersDto } from './dto/query-admin-users.dto';
@@ -16,6 +16,8 @@ import { CreateDoctorAdminDto } from './dto/create-doctor-admin.dto';
 import { UpdateDoctorAdminDto } from './dto/update-doctor-admin.dto';
 import { CreateArticleAdminDto } from './dto/create-article-admin.dto';
 import { UpdateArticleAdminDto } from './dto/update-article-admin.dto';
+import { CreatePackageAdminDto } from './dto/create-package-admin.dto';
+import { UpdatePackageAdminDto } from './dto/update-package-admin.dto';
 
 const adminArticleSelect = {
   id: true,
@@ -31,6 +33,30 @@ const adminArticleSelect = {
 
 const DEFAULT_ARTICLE_CATEGORY = 'Cẩm nang';
 const DEFAULT_ARTICLE_READ_TIME = '5 phút';
+
+const adminPackageSelect = {
+  id: true,
+  name: true,
+  shortDescription: true,
+  description: true,
+  price: true,
+  promotionalPrice: true,
+  currency: true,
+  category: true,
+  targetGender: true,
+  targetAgeRange: true,
+  preparationNotes: true,
+  isPopular: true,
+  isActive: true,
+  features: true,
+  imageUrl: true,
+  clinicId: true,
+  clinic: { select: { id: true, name: true, address: true } },
+  specialtyId: true,
+  specialty: { select: { id: true, name: true } },
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 @Injectable()
 export class AdminService {
@@ -57,6 +83,13 @@ export class AdminService {
             isAvailable: true,
           },
         },
+        clinicAdminProfile: {
+          select: {
+            id: true,
+            clinicId: true,
+            clinic: { select: { id: true, name: true } },
+          },
+        },
       },
     });
 
@@ -64,10 +97,17 @@ export class AdminService {
   }
 
   async createUser(dto: CreateAdminUserDto) {
-    if (dto.role !== UserRole.DOCTOR) {
+    if (dto.role !== UserRole.DOCTOR && dto.role !== UserRole.CLINIC_ADMIN) {
       throw new BadRequestException({
-        code: 'ADMIN_USER_CREATE_ONLY_DOCTOR',
-        message: 'Admin can only create doctor accounts',
+        code: 'ADMIN_USER_CREATE_ROLE_NOT_ALLOWED',
+        message: 'Admin can only create doctor or clinic admin accounts',
+      });
+    }
+
+    if (dto.role === UserRole.CLINIC_ADMIN && !dto.clinicId) {
+      throw new BadRequestException({
+        code: 'CLINIC_ADMIN_CLINIC_REQUIRED',
+        message: 'clinicId is required when creating a clinic admin account',
       });
     }
 
@@ -87,23 +127,40 @@ export class AdminService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    return this.prisma.user.create({
-      data: {
-        name: dto.name.trim(),
-        email,
-        phone: dto.phone?.trim(),
-        role: dto.role,
-        passwordHash,
-        emailVerified: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        isActive: true,
-      },
+    if (dto.clinicId) {
+      await this.assertClinicExists(dto.clinicId);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name: dto.name.trim(),
+          email,
+          phone: dto.phone?.trim(),
+          role: dto.role,
+          passwordHash,
+          emailVerified: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+        },
+      });
+
+      if (dto.role === UserRole.CLINIC_ADMIN && dto.clinicId) {
+        await tx.clinicAdmin.create({
+          data: {
+            userId: user.id,
+            clinicId: dto.clinicId,
+          },
+        });
+      }
+
+      return user;
     });
   }
 
@@ -635,6 +692,174 @@ export class AdminService {
 
     await this.prisma.article.delete({ where: { id } });
     return { id };
+  }
+
+  async listPackages() {
+    const items = await this.prisma.healthPackage.findMany({
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+      take: 500,
+      select: adminPackageSelect,
+    });
+
+    return { items: items.map((item) => this.serializePackage(item)) };
+  }
+
+  async createPackage(dto: CreatePackageAdminDto) {
+    await this.assertClinicExists(dto.clinicId);
+    await this.assertClinicHasSpecialty(dto.clinicId, dto.specialtyId);
+
+    const item = await this.prisma.healthPackage.create({
+      data: this.buildPackageCreateData(dto),
+      select: adminPackageSelect,
+    });
+
+    return this.serializePackage(item);
+  }
+
+  async updatePackage(id: string, dto: UpdatePackageAdminDto) {
+    const current = await this.prisma.healthPackage.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException({
+        code: 'PACKAGE_NOT_FOUND',
+        message: 'Health package not found',
+      });
+    }
+
+    if (dto.clinicId !== undefined) {
+      await this.assertClinicExists(dto.clinicId);
+    }
+
+    if (dto.clinicId !== undefined || dto.specialtyId !== undefined) {
+      const currentPackage = await this.prisma.healthPackage.findUnique({
+        where: { id },
+        select: { clinicId: true, specialtyId: true },
+      });
+      const nextClinicId = dto.clinicId ?? currentPackage?.clinicId;
+      const nextSpecialtyId = dto.specialtyId ?? currentPackage?.specialtyId;
+      if (nextClinicId && nextSpecialtyId) {
+        await this.assertClinicHasSpecialty(nextClinicId, nextSpecialtyId);
+      }
+    }
+
+    const item = await this.prisma.healthPackage.update({
+      where: { id },
+      data: this.buildPackageUpdateData(dto),
+      select: adminPackageSelect,
+    });
+
+    return this.serializePackage(item);
+  }
+
+  async deletePackage(id: string) {
+    const current = await this.prisma.healthPackage.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException({
+        code: 'PACKAGE_NOT_FOUND',
+        message: 'Health package not found',
+      });
+    }
+
+    await this.prisma.healthPackage.delete({ where: { id } });
+    return { id };
+  }
+
+  private buildPackageCreateData(dto: CreatePackageAdminDto) {
+    return {
+      clinicId: dto.clinicId,
+      specialtyId: dto.specialtyId,
+      name: dto.name.trim(),
+      shortDescription: dto.shortDescription?.trim() || undefined,
+      description: dto.description.trim(),
+      price: new Prisma.Decimal(dto.price),
+      promotionalPrice:
+        dto.promotionalPrice !== undefined && dto.promotionalPrice !== null
+          ? new Prisma.Decimal(dto.promotionalPrice)
+          : undefined,
+      currency: dto.currency?.trim() || 'VND',
+      category: dto.category?.trim() || 'general',
+      targetGender: dto.targetGender?.trim() || undefined,
+      targetAgeRange: dto.targetAgeRange?.trim() || undefined,
+      preparationNotes: dto.preparationNotes?.trim() || undefined,
+      isPopular: dto.isPopular ?? false,
+      isActive: dto.isActive ?? true,
+      features: this.normalizePackageFeatures(dto.features),
+      imageUrl: dto.imageUrl?.trim() || undefined,
+    };
+  }
+
+  private buildPackageUpdateData(dto: UpdatePackageAdminDto) {
+    const data: Record<string, unknown> = {};
+
+    if (dto.clinicId !== undefined) data.clinicId = dto.clinicId;
+    if (dto.specialtyId !== undefined) data.specialtyId = dto.specialtyId;
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.shortDescription !== undefined) {
+      data.shortDescription = dto.shortDescription.trim() || null;
+    }
+    if (dto.description !== undefined) data.description = dto.description.trim();
+    if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price);
+    if (dto.promotionalPrice !== undefined) {
+      data.promotionalPrice =
+        dto.promotionalPrice === null
+          ? null
+          : new Prisma.Decimal(dto.promotionalPrice);
+    }
+    if (dto.currency !== undefined) data.currency = dto.currency.trim() || 'VND';
+    if (dto.category !== undefined) data.category = dto.category.trim() || 'general';
+    if (dto.targetGender !== undefined) {
+      data.targetGender = dto.targetGender.trim() || null;
+    }
+    if (dto.targetAgeRange !== undefined) {
+      data.targetAgeRange = dto.targetAgeRange.trim() || null;
+    }
+    if (dto.preparationNotes !== undefined) {
+      data.preparationNotes = dto.preparationNotes.trim() || null;
+    }
+    if (dto.isPopular !== undefined) data.isPopular = dto.isPopular;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.features !== undefined) {
+      data.features = this.normalizePackageFeatures(dto.features);
+    }
+    if (dto.imageUrl !== undefined) data.imageUrl = dto.imageUrl.trim() || null;
+
+    return data;
+  }
+
+  private normalizePackageFeatures(features?: string[]) {
+    return (features ?? []).map((item) => item.trim()).filter(Boolean);
+  }
+
+  private async assertClinicExists(clinicId: string) {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { id: true },
+    });
+
+    if (!clinic) {
+      throw new BadRequestException({
+        code: 'PACKAGE_CLINIC_INVALID',
+        message: 'Selected clinic does not exist',
+      });
+    }
+  }
+
+  private serializePackage<T extends {
+    price: { toString(): string };
+    promotionalPrice: { toString(): string } | null;
+  }>(item: T) {
+    return {
+      ...item,
+      price: item.price.toString(),
+      promotionalPrice: item.promotionalPrice?.toString() ?? null,
+    };
   }
 
   private async generateUniqueArticleSlug(

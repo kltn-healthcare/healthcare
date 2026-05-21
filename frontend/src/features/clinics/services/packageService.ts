@@ -17,6 +17,7 @@ function normalizePackage(pkg: HealthPackage): HealthPackage {
     return {
         ...pkg,
         price: Number(pkg.price || 0),
+        promotionalPrice: pkg.promotionalPrice == null ? null : Number(pkg.promotionalPrice),
     }
 }
 
@@ -40,12 +41,16 @@ export const packageService = {
     /**
      * Get all health packages
      */
-    async getAll(): Promise<ApiResponse<HealthPackage[]>> {
-        const response = await apiClient.get<PackagePayload>("/v1/packages")
+    async getAll(params?: { clinicId?: string; specialtyId?: string; category?: string; isPopular?: boolean; limit?: number }): Promise<ApiResponse<HealthPackage[]>> {
+        const response = await apiClient.get<PackagePayload>("/v1/packages", { params })
         return {
             data: toPackageList(response),
             success: true,
         }
+    },
+
+    async getByClinic(clinicId: string): Promise<ApiResponse<HealthPackage[]>> {
+        return this.getAll({ clinicId })
     },
 
     /**
@@ -68,5 +73,9 @@ export const packageService = {
             data: toPackageList(response),
             success: true,
         }
+    },
+
+    async getAvailability(id: string, date: string): Promise<any> {
+        return apiClient.get(`/v1/packages/${id}/availability`, { params: { date } })
     },
 }

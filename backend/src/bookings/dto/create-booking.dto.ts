@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Gender } from '@prisma/client';
+import { BookingType, Gender } from '@prisma/client';
 import {
   IsDateString,
   IsEmail,
@@ -19,6 +19,21 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   doctorId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  specialtyId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  packageId?: string;
+
+  @ApiPropertyOptional({ enum: BookingType })
+  @IsOptional()
+  @IsEnum(BookingType)
+  bookingType?: BookingType;
 
   @ApiProperty()
   @IsString()

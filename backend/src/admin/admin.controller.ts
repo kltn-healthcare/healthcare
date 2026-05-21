@@ -21,6 +21,8 @@ import { CreateDoctorAdminDto } from './dto/create-doctor-admin.dto';
 import { UpdateDoctorAdminDto } from './dto/update-doctor-admin.dto';
 import { CreateArticleAdminDto } from './dto/create-article-admin.dto';
 import { UpdateArticleAdminDto } from './dto/update-article-admin.dto';
+import { CreatePackageAdminDto } from './dto/create-package-admin.dto';
+import { UpdatePackageAdminDto } from './dto/update-package-admin.dto';
 
 @ApiTags('System Admin')
 @ApiBearerAuth('JWT')
@@ -107,5 +109,25 @@ export class AdminController {
   @Delete('articles/:id')
   deleteArticle(@Param('id') id: string) {
     return this.adminService.deleteArticle(id);
+  }
+
+  @Get('packages')
+  listPackages() {
+    return this.adminService.listPackages();
+  }
+
+  @Post('packages')
+  createPackage(@Body() dto: CreatePackageAdminDto) {
+    return this.adminService.createPackage(dto);
+  }
+
+  @Patch('packages/:id')
+  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageAdminDto) {
+    return this.adminService.updatePackage(id, dto);
+  }
+
+  @Delete('packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.adminService.deletePackage(id);
   }
 }

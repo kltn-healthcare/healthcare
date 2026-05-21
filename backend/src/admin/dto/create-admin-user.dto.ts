@@ -27,7 +27,12 @@ export class CreateAdminUserDto {
   @IsString()
   password: string;
 
-  @ApiProperty({ enum: [UserRole.DOCTOR] })
+  @ApiProperty({ enum: [UserRole.DOCTOR, UserRole.CLINIC_ADMIN] })
   @IsEnum(UserRole)
   role: UserRole;
+
+  @ApiPropertyOptional({ description: 'Required when role is CLINIC_ADMIN' })
+  @IsOptional()
+  @IsString()
+  clinicId?: string;
 }

@@ -26,7 +26,7 @@ export function Header() {
   const auth = useAuthStore()
   const rawRole = String(auth.user?.role || "").toUpperCase()
   const role = rawRole === "SUPER_ADMIN" ? "ADMIN" : rawRole
-  const canAccessAdmin = role === "ADMIN" || role === "DOCTOR"
+  const canAccessAdmin = role === "ADMIN" || role === "DOCTOR" || role === "CLINIC_ADMIN"
 
   const handleLogout = () => {
     auth.logout()

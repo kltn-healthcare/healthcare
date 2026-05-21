@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { BookingStatus, NotificationType, Prisma } from '@prisma/client';
+import {
+  BookingStatus,
+  BookingType,
+  NotificationType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ERROR_CODES } from '../common/constants/error-codes';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -15,6 +20,11 @@ export class BookingsService {
   ) {}
 
   async create(userId: string, dto: CreateBookingDto) {
+    const bookingType =
+      dto.bookingType ??
+      (dto.packageId
+        ? BookingType.HEALTH_PACKAGE
+        : BookingType.DOCTOR_CONSULTATION);
     const clinic = await this.prisma.clinic.findUnique({
       where: { id: dto.clinicId },
       select: { id: true, isOpen: true },
@@ -33,17 +43,72 @@ export class BookingsService {
       });
     }
 
-    if (dto.doctorId) {
+    let specialtyId = dto.specialtyId;
+
+    if (bookingType === BookingType.HEALTH_PACKAGE) {
+      if (!dto.packageId) {
+        throw new BadRequestException({
+          code: ERROR_CODES.PACKAGE_NOT_FOUND,
+          message: 'packageId is required for health package bookings',
+        });
+      }
+
+      const healthPackage = await this.prisma.healthPackage.findUnique({
+        where: { id: dto.packageId },
+        select: { id: true, clinicId: true, isActive: true, specialtyId: true },
+      });
+
+      if (
+        !healthPackage ||
+        !healthPackage.isActive ||
+        healthPackage.clinicId !== dto.clinicId
+      ) {
+        throw new BadRequestException({
+          code: ERROR_CODES.PACKAGE_NOT_FOUND,
+          message: 'Invalid packageId for this clinic',
+        });
+      }
+
+      specialtyId = healthPackage.specialtyId ?? specialtyId;
+
+      if (!specialtyId) {
+        throw new BadRequestException({
+          code: 'PACKAGE_SPECIALTY_REQUIRED',
+          message: 'Selected package is not linked to a specialty',
+        });
+      }
+
+      if (dto.doctorId) {
+        throw new BadRequestException({
+          code: 'PACKAGE_BOOKING_DOCTOR_NOT_ALLOWED',
+          message: 'Health package booking must not include doctorId',
+        });
+      }
+    }
+
+    if (bookingType === BookingType.DOCTOR_CONSULTATION) {
+      if (!dto.doctorId) {
+        throw new BadRequestException({
+          code: ERROR_CODES.INVALID_DOCTOR,
+          message: 'doctorId is required for doctor consultation bookings',
+        });
+      }
+
       const doctor = await this.prisma.doctor.findUnique({
         where: { id: dto.doctorId },
-        select: { id: true, clinicId: true },
+        select: { id: true, clinicId: true, specialtyId: true },
       });
-      if (!doctor || doctor?.clinicId !== dto.clinicId) {
+      if (
+        !doctor ||
+        doctor?.clinicId !== dto.clinicId ||
+        (specialtyId && doctor.specialtyId !== specialtyId)
+      ) {
         throw new BadRequestException({
           code: ERROR_CODES.INVALID_DOCTOR,
           message: 'Invalid doctorId for this clinic',
         });
       }
+      specialtyId = doctor.specialtyId;
     }
 
     const bookingDate = new Date(dto.bookingDate);
@@ -57,9 +122,17 @@ export class BookingsService {
     this.assertNotPastBookingDateTime(bookingDate, dto.bookingTime);
 
     // Slot is considered locked when another patient already has a pending/confirmed booking.
-    if (dto.doctorId) {
+    if (bookingType === BookingType.DOCTOR_CONSULTATION && dto.doctorId) {
       await this.ensureDoctorSlotAvailable(
         dto.doctorId,
+        bookingDate,
+        dto.bookingTime,
+      );
+    }
+
+    if (bookingType === BookingType.HEALTH_PACKAGE && dto.packageId) {
+      await this.ensurePackageSlotAvailable(
+        dto.packageId,
         bookingDate,
         dto.bookingTime,
       );
@@ -77,13 +150,22 @@ export class BookingsService {
       data: {
         userId,
         clinicId: dto.clinicId,
-        doctorId: dto.doctorId,
+        doctorId:
+          bookingType === BookingType.DOCTOR_CONSULTATION
+            ? dto.doctorId
+            : undefined,
+        specialtyId,
+        bookingType,
         patientName: dto.patientName,
         patientEmail: dto.patientEmail,
         patientPhone: dto.patientPhone,
         patientDob,
         patientGender: dto.patientGender,
         notes: dto.notes,
+        packageId:
+          bookingType === BookingType.HEALTH_PACKAGE
+            ? dto.packageId
+            : undefined,
         bookingDate,
         bookingTime: dto.bookingTime,
       },
@@ -94,6 +176,8 @@ export class BookingsService {
         bookingTime: true,
         clinic: { select: { id: true, name: true } },
         doctor: { select: { id: true, name: true } },
+        specialty: { select: { id: true, name: true } },
+        healthPackage: { select: { id: true, name: true, price: true } },
         createdAt: true,
       },
     });
@@ -122,6 +206,8 @@ export class BookingsService {
         patientName: true,
         clinic: { select: { id: true, name: true, address: true } },
         doctor: { select: { id: true, name: true } },
+        specialty: { select: { id: true, name: true } },
+        healthPackage: { select: { id: true, name: true, price: true } },
         createdAt: true,
       },
     });
@@ -149,6 +235,8 @@ export class BookingsService {
         cancelledAt: true,
         clinic: { select: { id: true, name: true, address: true } },
         doctor: { select: { id: true, name: true } },
+        specialty: { select: { id: true, name: true } },
+        healthPackage: { select: { id: true, name: true, price: true } },
         createdAt: true,
         updatedAt: true,
       },
@@ -324,6 +412,64 @@ export class BookingsService {
     bookingTime: string,
     excludeBookingId?: string,
   ) {
+    const dayOfWeek = bookingDate.getUTCDay();
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: {
+        id: true,
+        clinicId: true,
+        specialtyId: true,
+        qualifications: true,
+      },
+    });
+    const settings = doctor
+      ? this.extractDoctorAdminSettings(doctor.qualifications)
+      : {};
+    const workingHour = (settings.workingHours ?? []).find(
+      (row) => row.dayOfWeek === dayOfWeek,
+    );
+    const specialtySchedules = doctor
+      ? await this.prisma.clinicSpecialtySchedule.findMany({
+          where: {
+            clinicId: doctor.clinicId,
+            specialtyId: doctor.specialtyId,
+            dayOfWeek,
+            isActive: true,
+          },
+          orderBy: { startTime: 'asc' },
+        })
+      : [];
+
+    if (!doctor || !workingHour || !specialtySchedules.length) {
+      throw new BadRequestException({
+        code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
+        message: 'Doctor is not available on this date',
+      });
+    }
+
+    const slots = specialtySchedules.flatMap((schedule) => {
+      const start = Math.max(
+        this.timeToMinutes(workingHour.startTime),
+        this.timeToMinutes(schedule.startTime),
+      );
+      const end = Math.min(
+        this.timeToMinutes(workingHour.endTime),
+        this.timeToMinutes(schedule.endTime),
+      );
+      return this.buildTimeSlots(
+        this.minutesToTime(start),
+        this.minutesToTime(end),
+        schedule.slotDurationMinutes,
+      );
+    });
+
+    if (!slots.includes(bookingTime)) {
+      throw new BadRequestException({
+        code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
+        message: 'This booking slot is outside doctor schedule',
+      });
+    }
+
     const existingBooking = await this.prisma.booking.findFirst({
       where: {
         doctorId,
@@ -341,6 +487,125 @@ export class BookingsService {
       throw new BadRequestException({
         code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
         message: 'This booking slot is not available',
+      });
+    }
+  }
+
+  private extractDoctorAdminSettings(qualifications: Prisma.JsonValue | null): {
+    workingHours?: Array<{
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+    }>;
+  } {
+    if (
+      !qualifications ||
+      typeof qualifications !== 'object' ||
+      Array.isArray(qualifications)
+    ) {
+      return {};
+    }
+
+    const root = qualifications as Record<string, unknown>;
+    const settings = root.adminSettings;
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      return {};
+    }
+
+    return settings as {
+      workingHours?: Array<{
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      }>;
+    };
+  }
+
+  private async ensurePackageSlotAvailable(
+    packageId: string,
+    bookingDate: Date,
+    bookingTime: string,
+  ) {
+    const dayOfWeek = bookingDate.getUTCDay();
+    const healthPackage = await this.prisma.healthPackage.findUnique({
+      where: { id: packageId },
+      select: {
+        id: true,
+        clinicId: true,
+        specialtyId: true,
+        clinic: {
+          select: {
+            workingHours: {
+              where: { dayOfWeek, isOpen: true },
+              take: 1,
+            },
+          },
+        },
+        availabilities: {
+          where: { dayOfWeek, isActive: true },
+          take: 1,
+        },
+      },
+    });
+
+    const availability = healthPackage?.availabilities[0];
+    const clinicHour = healthPackage?.clinic?.workingHours[0];
+    const specialtySchedules =
+      healthPackage?.clinicId && healthPackage.specialtyId
+        ? await this.prisma.clinicSpecialtySchedule.findMany({
+            where: {
+              clinicId: healthPackage.clinicId,
+              specialtyId: healthPackage.specialtyId,
+              dayOfWeek,
+              isActive: true,
+            },
+            orderBy: { startTime: 'asc' },
+          })
+        : [];
+    const source = availability ?? specialtySchedules[0] ?? clinicHour;
+
+    if (!source) {
+      throw new BadRequestException({
+        code: 'PACKAGE_SLOT_UNAVAILABLE',
+        message: 'Selected package is not available on this date',
+      });
+    }
+
+    const slotDurationMinutes =
+      'slotDurationMinutes' in source ? source.slotDurationMinutes : 30;
+    const capacity = 'capacity' in source ? source.capacity : 1;
+    const slots = availability
+      ? this.buildTimeSlots(source.startTime, source.endTime, slotDurationMinutes)
+      : specialtySchedules.length
+        ? specialtySchedules.flatMap((schedule) =>
+            this.buildTimeSlots(
+              schedule.startTime,
+              schedule.endTime,
+              schedule.slotDurationMinutes,
+            ),
+          )
+        : this.buildTimeSlots(source.startTime, source.endTime, slotDurationMinutes);
+
+    if (!slots.includes(bookingTime)) {
+      throw new BadRequestException({
+        code: 'PACKAGE_SLOT_UNAVAILABLE',
+        message: 'Selected package slot is outside working hours',
+      });
+    }
+
+    const bookedCount = await this.prisma.booking.count({
+      where: {
+        packageId,
+        bookingDate,
+        bookingTime,
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      },
+    });
+
+    if (bookedCount >= capacity) {
+      throw new BadRequestException({
+        code: 'PACKAGE_SLOT_UNAVAILABLE',
+        message: 'Selected package slot is full',
       });
     }
   }
@@ -373,6 +638,43 @@ export class BookingsService {
         message: 'Booking date/time cannot be in the past',
       });
     }
+  }
+
+  private buildTimeSlots(
+    startTime: string,
+    endTime: string,
+    slotMinutes: number,
+  ) {
+    const start = this.timeToMinutes(startTime);
+    const end = this.timeToMinutes(endTime);
+
+    if (end <= start) {
+      return [];
+    }
+
+    const slots: string[] = [];
+    for (
+      let cursor = start;
+      cursor + slotMinutes <= end;
+      cursor += slotMinutes
+    ) {
+      slots.push(this.minutesToTime(cursor));
+    }
+
+    return slots;
+  }
+
+  private timeToMinutes(value: string) {
+    const [hourRaw, minuteRaw] = value.split(':');
+    return Number(hourRaw) * 60 + Number(minuteRaw);
+  }
+
+  private minutesToTime(totalMinutes: number): string {
+    const hour = Math.floor(totalMinutes / 60)
+      .toString()
+      .padStart(2, '0');
+    const minute = (totalMinutes % 60).toString().padStart(2, '0');
+    return `${hour}:${minute}`;
   }
 
   private bookingNotificationData(bookingId: string): Prisma.InputJsonObject {

@@ -203,7 +203,7 @@ export default function DoctorDetailPage() {
                     </div>
                   </div>
 
-                  <Link href={`/booking?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}`}>
+                  <Link href={`/booking?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`}>
                     <Button className="w-full bg-primary text-base h-12">
                       Đặt Lịch Ngay
                     </Button>

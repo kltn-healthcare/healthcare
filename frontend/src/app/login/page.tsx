@@ -28,7 +28,7 @@ function resolveLoginRedirect(role: string, nextPath: string | null) {
     return "/admin"
   }
 
-  if (role === "ADMIN" || role === "DOCTOR") {
+  if (role === "ADMIN" || role === "DOCTOR" || role === "CLINIC_ADMIN") {
     return safeNext ?? "/admin"
   }
 

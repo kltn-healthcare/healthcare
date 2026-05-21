@@ -8,6 +8,11 @@ export class QueryClinicsDto {
   @IsString()
   q?: string;
 
+  @ApiPropertyOptional({ description: 'Filter clinics by specialty' })
+  @IsOptional()
+  @IsString()
+  specialtyId?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)

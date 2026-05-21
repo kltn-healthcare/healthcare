@@ -181,26 +181,50 @@ export class DoctorAdminService {
   async getSettings(userId: string) {
     const doctor = await this.getDoctorByUserId(userId);
     const settings = this.extractAdminSettings(doctor.qualifications);
+    const specialtySchedules = await this.getActiveSpecialtySchedules(
+      doctor.clinicId,
+      doctor.specialtyId,
+    );
+    const defaultSlotDurationMinutes =
+      specialtySchedules[0]?.slotDurationMinutes ?? settings.slotDurationMinutes ?? 30;
 
     return {
       doctor: {
         id: doctor.id,
         name: doctor.name,
         clinicId: doctor.clinicId,
+        specialtyId: doctor.specialtyId,
       },
       settings: {
-        slotDurationMinutes: settings.slotDurationMinutes ?? 30,
+        slotDurationMinutes: defaultSlotDurationMinutes,
         workingHours: settings.workingHours ?? [],
         services: settings.services ?? [],
+        specialtySchedules,
       },
     };
   }
 
   async upsertSchedule(userId: string, dto: UpsertDoctorScheduleDto) {
     const doctor = await this.getDoctorByUserId(userId);
+    const specialtySchedules = await this.getActiveSpecialtySchedules(
+      doctor.clinicId,
+      doctor.specialtyId,
+    );
+    if (!specialtySchedules.length) {
+      throw new BadRequestException({
+        code: 'SPECIALTY_SCHEDULE_REQUIRED',
+        message: 'Clinic admin must configure this specialty schedule first',
+      });
+    }
+
+    dto.workingHours.forEach((row) =>
+      this.assertWithinSpecialtySchedules(row, specialtySchedules),
+    );
+
+    const defaultSlotDurationMinutes = specialtySchedules[0].slotDurationMinutes;
 
     const updated = await this.updateDoctorAdminSettings(doctor.id, {
-      slotDurationMinutes: dto.slotDurationMinutes,
+      slotDurationMinutes: defaultSlotDurationMinutes,
       workingHours: dto.workingHours,
     });
 
@@ -236,6 +260,7 @@ export class DoctorAdminService {
         id: true,
         userId: true,
         clinicId: true,
+        specialtyId: true,
         name: true,
         qualifications: true,
       },
@@ -278,6 +303,53 @@ export class DoctorAdminService {
     bookingDateTime.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0);
 
     return bookingDateTime.getTime() < Date.now();
+  }
+
+  private async getActiveSpecialtySchedules(
+    clinicId: string,
+    specialtyId: string,
+  ) {
+    return this.prisma.clinicSpecialtySchedule.findMany({
+      where: { clinicId, specialtyId, isActive: true },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+  }
+
+  private assertWithinSpecialtySchedules(
+    row: { dayOfWeek: number; startTime: string; endTime: string },
+    schedules: Array<{
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+    }>,
+  ) {
+    if (this.timeToMinutes(row.endTime) <= this.timeToMinutes(row.startTime)) {
+      throw new BadRequestException({
+        code: 'INVALID_TIME_RANGE',
+        message: 'endTime must be later than startTime',
+      });
+    }
+
+    const start = this.timeToMinutes(row.startTime);
+    const end = this.timeToMinutes(row.endTime);
+    const isCovered = schedules.some(
+      (schedule) =>
+        schedule.dayOfWeek === row.dayOfWeek &&
+        start >= this.timeToMinutes(schedule.startTime) &&
+        end <= this.timeToMinutes(schedule.endTime),
+    );
+
+    if (!isCovered) {
+      throw new BadRequestException({
+        code: 'OUTSIDE_SPECIALTY_SCHEDULE',
+        message: 'Doctor working hours must stay within clinic specialty schedule',
+      });
+    }
+  }
+
+  private timeToMinutes(value: string) {
+    const [hourRaw, minuteRaw] = value.split(':');
+    return Number(hourRaw) * 60 + Number(minuteRaw);
   }
 
   private async updateDoctorAdminSettings(

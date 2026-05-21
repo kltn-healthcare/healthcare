@@ -21,14 +21,25 @@ export function PackagesSection() {
     const { t } = useTranslation("home")
     const { t: tp } = useTranslation("packages")
     const packagesQuery = useQuery({
-        queryKey: ["packages", "all"],
-        queryFn: () => packageService.getAll(),
+        queryKey: ["packages", "featured"],
+        queryFn: () => packageService.getAll({ limit: 6 }),
     })
 
-    const packages = packagesQuery.data?.data ?? []
+    const packages = (packagesQuery.data?.data ?? []).filter((pkg, index, items) => {
+        if (!pkg.specialtyId) return true
+        return items.findIndex((item) => item.specialtyId === pkg.specialtyId) === index
+    })
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat("vi-VN").format(price) + "đ"
+    }
+
+    const getBookingHref = (pkg: typeof packages[number]) => {
+        const params = new URLSearchParams({ packageId: pkg.id })
+        const clinicId = pkg.clinicId || pkg.clinic?.id
+        if (clinicId) params.set("clinicId", clinicId)
+        if (pkg.specialtyId) params.set("specialtyId", pkg.specialtyId)
+        return `${ROUTES.BOOKING}?${params.toString()}`
     }
 
     return (
@@ -74,11 +85,17 @@ export function PackagesSection() {
                                                 </div>
                                             )}
                                             <CardTitle className="text-xl group-hover:text-primary transition-colors mt-2">{pkg.name}</CardTitle>
-                                            <CardDescription className="line-clamp-2 min-h-[40px] mt-1">{pkg.description}</CardDescription>
+                                            <CardDescription className="line-clamp-2 min-h-[40px] mt-1">{pkg.shortDescription || pkg.description}</CardDescription>
+                                            {pkg.clinic?.name ? (
+                                                <div className="mt-3 text-xs font-medium text-primary">{pkg.clinic.name}</div>
+                                            ) : null}
                                         </CardHeader>
                                         <CardContent className="space-y-4 flex-1 pt-6 px-6">
                                             <div className="text-3xl font-bold text-primary">
-                                                {formatPrice(pkg.price)} <span className="text-sm font-normal text-muted-foreground">{tp("per_person")}</span>
+                                                {formatPrice(pkg.promotionalPrice || pkg.price)} <span className="text-sm font-normal text-muted-foreground">{tp("per_person")}</span>
+                                                {pkg.promotionalPrice ? (
+                                                    <div className="mt-1 text-sm font-normal text-muted-foreground line-through">{formatPrice(pkg.price)}</div>
+                                                ) : null}
                                             </div>
 
                                             <ul className="space-y-3">
@@ -96,7 +113,7 @@ export function PackagesSection() {
                                             </ul>
                                         </CardContent>
                                         <CardFooter className="mt-auto pt-4 pb-6 px-6">
-                                            <Link href={ROUTES.BOOKING} className="w-full">
+                                            <Link href={getBookingHref(pkg)} className="w-full">
                                                 <Button variant={pkg.isPopular ? "default" : "outline"} className={`w-full group-hover:shadow-md transition-all ${!pkg.isPopular && 'border-primary/20 text-primary hover:bg-primary hover:text-white'}`}>
                                                     {tp("book_now")}
                                                 </Button>

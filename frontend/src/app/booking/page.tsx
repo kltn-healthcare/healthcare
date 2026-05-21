@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { postBooking } from "@/api/bookings"
 import { getDoctors, getDoctorAvailability, getDoctorDetail } from "@/api/doctors"
 import { getClinics } from "@/api/clinics"
+import { packageService } from "@/features/clinics/services/packageService"
 import { useAuthStore } from "@/store"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar } from "@/shared/ui/calendar"
@@ -70,13 +71,16 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
-      router.push(`/login?next=/booking`)
+      const query = searchParams.toString()
+      router.push(`/login?next=${encodeURIComponent(`/booking${query ? `?${query}` : ""}`)}`)
     }
-  }, [auth.isAuthenticated, router])
-  
+  }, [auth.isAuthenticated, router, searchParams])
+
   const [clinicId, setClinicId] = useState(searchParams.get("clinicId") || "")
+  const [specialtyId, setSpecialtyId] = useState(searchParams.get("specialtyId") || "")
   const [doctorId, setDoctorId] = useState(searchParams.get("doctorId") || "")
-  
+  const [packageId, setPackageId] = useState(searchParams.get("packageId") || "")
+
   const [date, setDate] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState("")
 
@@ -99,9 +103,9 @@ export default function BookingPage() {
 
   // Lấy danh sách bác sĩ theo phòng khám đã chọn
   const doctorsQuery = useQuery({
-    queryKey: ["doctors", clinicId],
+    queryKey: ["doctors", clinicId, specialtyId],
     enabled: !!clinicId,
-    queryFn: () => getDoctors({ clinicId }),
+    queryFn: () => getDoctors({ clinicId, specialtyId: specialtyId || undefined }),
   })
 
   const doctorDetailQuery = useQuery({
@@ -110,18 +114,51 @@ export default function BookingPage() {
     queryFn: () => getDoctorDetail(doctorId),
   })
 
+  const packageQuery = useQuery({
+    queryKey: ["package", packageId],
+    enabled: !!packageId,
+    queryFn: () => packageService.getById(packageId),
+  })
+
+  const selectedPackage = packageQuery.data?.data
+  const isPackageBooking = Boolean(packageId)
+  const selectedClinic = (clinicsQuery.data?.items ?? []).find((clinic: any) => clinic.id === clinicId)
+  const specialtyOptions = selectedClinic?.specialties ?? []
+
   // Nếu doctorId thay đổi và có dữ liệu detail, tự động set clinicId
   useEffect(() => {
     if (doctorDetailQuery.data && doctorDetailQuery.data.clinic) {
       setClinicId(doctorDetailQuery.data.clinic.id)
+      setSpecialtyId(doctorDetailQuery.data.specialty?.id || "")
     }
   }, [doctorDetailQuery.data])
 
-  const availQuery = useQuery({
+  useEffect(() => {
+    const packageClinicId = selectedPackage?.clinicId || selectedPackage?.clinic?.id
+    if (packageClinicId) {
+      setClinicId(packageClinicId)
+    }
+    if (selectedPackage?.specialtyId) {
+      setSpecialtyId(selectedPackage.specialtyId)
+    }
+    if (selectedPackage) {
+      setDoctorId("")
+    }
+  }, [selectedPackage])
+
+  const doctorAvailQuery = useQuery({
     queryKey: ["availability", doctorId, format(date, "yyyy-MM-dd")],
-    enabled: !!doctorId && !!date && step >= 2,
+    enabled: !isPackageBooking && !!doctorId && !!date && step >= 2,
     queryFn: () => getDoctorAvailability(doctorId, format(date, "yyyy-MM-dd")),
   })
+
+  const packageAvailQuery = useQuery({
+    queryKey: ["packageAvailability", packageId, format(date, "yyyy-MM-dd")],
+    enabled: isPackageBooking && !!packageId && !!date && step >= 2,
+    queryFn: () => packageService.getAvailability(packageId, format(date, "yyyy-MM-dd")),
+  })
+
+  const availQuery = isPackageBooking ? packageAvailQuery : doctorAvailQuery
 
   const timeSlots = useMemo<TimeSlot[]>(() => {
     const res = availQuery.data as any
@@ -157,8 +194,9 @@ export default function BookingPage() {
 
   const createBookingMutation = useMutation({
     mutationFn: postBooking,
-    onSuccess: () => {
-      router.push("/account")
+    onSuccess: (booking: any) => {
+      const bookingId = booking?.id ? `&bookingId=${booking.id}` : ""
+      router.push(`/account?tab=appointments${bookingId}`)
     },
   })
 
@@ -179,9 +217,8 @@ export default function BookingPage() {
               {[1, 2, 3].map((s) => (
                 <div key={s} className="flex flex-1 items-center">
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                      s <= step ? "bg-primary text-white" : "bg-muted text-muted-foreground"
-                    }`}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${s <= step ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                      }`}
                   >
                     {s < step ? <CheckCircle2 className="h-5 w-5" /> : s}
                   </div>
@@ -199,7 +236,7 @@ export default function BookingPage() {
             {step === 1 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Thông tin người đặt & Bác sĩ</CardTitle>
+                  <CardTitle>{isPackageBooking ? "Thông tin người đặt & Gói khám" : "Thông tin người đặt & Bác sĩ"}</CardTitle>
                   <CardDescription>Kiểm tra thông tin trước khi chọn lịch</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -239,13 +276,15 @@ export default function BookingPage() {
 
                   <div className="mt-6 border-t pt-6 space-y-4">
                     <Label className="text-base font-semibold">Chọn Cơ sở & Bác sĩ</Label>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Phòng khám</Label>
                         <Select value={clinicId} onValueChange={(val) => {
                           setClinicId(val)
+                          setSpecialtyId("")
                           setDoctorId("") // Reset doctor when clinic changes
+                          setPackageId("")
                         }}>
                           <SelectTrigger className="bg-white border-gray-200">
                             <SelectValue placeholder="Chọn phòng khám" />
@@ -262,10 +301,10 @@ export default function BookingPage() {
 
                       <div className="space-y-2">
                         <Label>Bác sĩ</Label>
-                        <Select 
-                          value={doctorId} 
+                        <Select
+                          value={doctorId}
                           onValueChange={setDoctorId}
-                          disabled={!clinicId || doctorsQuery.isLoading}
+                          disabled={isPackageBooking || !clinicId || doctorsQuery.isLoading}
                         >
                           <SelectTrigger className="bg-white border-gray-200">
                             <SelectValue placeholder={doctorsQuery.isLoading ? "Đang tải..." : "Chọn bác sĩ"} />
@@ -281,12 +320,35 @@ export default function BookingPage() {
                       </div>
                     </div>
 
+                    <div className="rounded-xl border bg-white p-4">
+                      <div className="mb-2 text-sm font-medium text-muted-foreground">Chuyên khoa</div>
+                      <Select
+                        value={specialtyId}
+                        onValueChange={(val) => {
+                          setSpecialtyId(val)
+                          setDoctorId("")
+                        }}
+                        disabled={!clinicId || isPackageBooking}
+                      >
+                        <SelectTrigger className="bg-white border-gray-200">
+                          <SelectValue placeholder="Chọn chuyên khoa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {specialtyOptions.map((specialty: any) => (
+                            <SelectItem key={specialty.id || specialty} value={specialty.id || specialty}>
+                              {specialty.name || specialty}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {doctorId && doctorDetailQuery.data && (
                       <div className="flex bg-primary/5 p-4 rounded-xl items-center gap-4 border border-primary/10 animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
                         <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white shadow-sm bg-background">
-                          <img 
-                            src={doctorDetailQuery.data.avatar || "/modern-clinic-.jpg"} 
-                            alt={doctorDetailQuery.data.name} 
+                          <img
+                            src={doctorDetailQuery.data.avatar || "/modern-clinic-.jpg"}
+                            alt={doctorDetailQuery.data.name}
                             className="h-full w-full object-cover"
                           />
                         </div>
@@ -298,17 +360,32 @@ export default function BookingPage() {
                         </div>
                       </div>
                     )}
+
+                    {selectedPackage ? (
+                      <div className="rounded-xl border border-primary/10 bg-primary/5 p-4">
+                        <div className="text-sm text-muted-foreground">Gói khám đã chọn</div>
+                        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-bold text-gray-900">{selectedPackage.name}</div>
+                            <div className="text-xs text-muted-foreground">{selectedPackage.clinic?.name}</div>
+                          </div>
+                          <div className="text-base font-semibold text-primary">
+                            {new Intl.NumberFormat("vi-VN").format(selectedPackage.promotionalPrice || selectedPackage.price)}đ
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button 
+                    <Button
                       onClick={() => {
-                        if (!patientName || !patientPhone || !patientEmail || !doctorId) {
+                        if (!patientName || !patientPhone || !patientEmail || !clinicId || !specialtyId || (!isPackageBooking && !doctorId)) {
                           alert("Vui lòng điền đầy đủ thông tin bắt buộc (*)")
                           return
                         }
                         setStep(2)
-                      }} 
+                      }}
                       className="bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95 px-8"
                     >
                       Tiếp Theo: Chọn Thời Gian
@@ -324,10 +401,10 @@ export default function BookingPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Chọn Ngày và Giờ Khám</CardTitle>
-                  <CardDescription>Lịch trống thực tế của Bác sĩ</CardDescription>
+                  <CardDescription>{isPackageBooking ? "Lịch trống thực tế của gói khám" : "Lịch trống thực tế của bác sĩ"}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  
+
                   <div className="grid gap-8 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Chọn Ngày</Label>
@@ -354,7 +431,7 @@ export default function BookingPage() {
                         <div className="text-sm text-muted-foreground italic">Đang tải lịch trống...</div>
                       ) : timeSlots.length === 0 ? (
                         <div className="text-sm text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-200">
-                          Bác sĩ không có lịch làm việc ngày này. Vui lòng chọn ngày khác.
+                          {isPackageBooking ? "Gói khám không có slot ngày này. Vui lòng chọn ngày khác." : "Bác sĩ không có lịch làm việc ngày này. Vui lòng chọn ngày khác."}
                         </div>
                       ) : (
                         <div className="space-y-4">
@@ -362,7 +439,7 @@ export default function BookingPage() {
                             {timeSlots.map((slot, idx) => {
                               const timeValue = slot.time
                               const hint = getSlotHint(slot)
-                              
+
                               return (
                                 <Button
                                   key={`${timeValue}-${idx}`}
@@ -434,13 +511,20 @@ export default function BookingPage() {
 
                     <h3 className="mb-4 font-semibold text-lg border-b pb-2">Chi tiết lịch khám</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 text-sm bg-background p-4 rounded-lg border">
-                      <div>
-                        <span className="text-muted-foreground block mb-1">Bác sĩ:</span>
-                        <span className="font-medium text-base text-primary">{doctorDetailQuery.data?.name}</span>
-                      </div>
+                      {isPackageBooking ? (
+                        <div>
+                          <span className="text-muted-foreground block mb-1">Gói khám:</span>
+                          <span className="font-medium text-base text-primary">{selectedPackage?.name}</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-muted-foreground block mb-1">Bác sĩ:</span>
+                          <span className="font-medium text-base text-primary">{doctorDetailQuery.data?.name}</span>
+                        </div>
+                      )}
                       <div>
                         <span className="text-muted-foreground block mb-1">Phòng khám:</span>
-                        <span className="font-medium">{doctorDetailQuery.data?.clinic?.name}</span>
+                        <span className="font-medium">{isPackageBooking ? selectedPackage?.clinic?.name || selectedClinic?.name : doctorDetailQuery.data?.clinic?.name}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground block mb-1"><CalendarIcon className="h-4 w-4 inline mr-1" />Ngày khám:</span>
@@ -463,7 +547,10 @@ export default function BookingPage() {
                       onClick={() =>
                         createBookingMutation.mutate({
                           clinicId: clinicId,
-                          doctorId: doctorId,
+                          specialtyId,
+                          doctorId: isPackageBooking ? undefined : doctorId,
+                          packageId: packageId || undefined,
+                          bookingType: isPackageBooking ? "HEALTH_PACKAGE" : "DOCTOR_CONSULTATION",
                           patientName,
                           patientEmail,
                           patientPhone,

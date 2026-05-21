@@ -3,6 +3,9 @@ import { apiClient } from '@/shared/lib/apiClient'
 export async function postBooking(input: {
   clinicId: string
   doctorId?: string
+  specialtyId?: string
+  packageId?: string
+  bookingType?: 'DOCTOR_CONSULTATION' | 'HEALTH_PACKAGE'
   patientName: string
   patientEmail: string
   patientPhone: string

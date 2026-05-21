@@ -1,6 +1,6 @@
 import { adminClient } from '@/shared/lib/apiClient'
 
-export type AdminRole = 'PATIENT' | 'DOCTOR' | 'ADMIN'
+export type AdminRole = 'PATIENT' | 'DOCTOR' | 'ADMIN' | 'CLINIC_ADMIN'
 
 export type AdminUser = {
     id: string
@@ -9,6 +9,11 @@ export type AdminUser = {
     phone?: string | null
     role: AdminRole
     isActive: boolean
+    clinicAdminProfile?: {
+        id: string
+        clinicId: string
+        clinic?: { id: string; name: string }
+    } | null
 }
 
 export type AdminClinic = {
@@ -51,6 +56,28 @@ export type AdminArticle = {
     updatedAt: string
 }
 
+export type AdminPackage = {
+    id: string
+    clinicId: string
+    clinic?: { id: string; name: string; address?: string | null } | null
+    specialtyId?: string | null
+    specialty?: { id: string; name: string } | null
+    name: string
+    shortDescription?: string | null
+    description: string
+    price: string
+    promotionalPrice?: string | null
+    currency: string
+    category: string
+    targetGender?: string | null
+    targetAgeRange?: string | null
+    preparationNotes?: string | null
+    isPopular: boolean
+    isActive: boolean
+    features: string[]
+    imageUrl?: string | null
+}
+
 export async function getAdminUsers(role?: AdminRole) {
     const res = await adminClient.get<{ items: AdminUser[] }>('/v1/admin/users', {
         params: role ? { role } : undefined,
@@ -63,7 +90,8 @@ export async function createAdminUser(input: {
     email: string
     phone?: string
     password: string
-    role: 'DOCTOR'
+    role: 'DOCTOR' | 'CLINIC_ADMIN'
+    clinicId?: string
 }) {
     const res = await adminClient.post<AdminUser>('/v1/admin/users', input)
     return res.data
@@ -200,5 +228,59 @@ export async function updateAdminArticle(id: string, input: Partial<{
 
 export async function deleteAdminArticle(id: string) {
     const res = await adminClient.delete<{ id: string }>(`/v1/admin/articles/${id}`)
+    return res.data
+}
+
+export async function getAdminPackages() {
+    const res = await adminClient.get<{ items: AdminPackage[] }>('/v1/admin/packages')
+    return res.data
+}
+
+export async function createAdminPackage(input: {
+    clinicId: string
+    specialtyId: string
+    name: string
+    shortDescription?: string
+    description: string
+    price: number
+    promotionalPrice?: number | null
+    currency?: string
+    category?: string
+    targetGender?: string
+    targetAgeRange?: string
+    preparationNotes?: string
+    isPopular?: boolean
+    isActive?: boolean
+    features?: string[]
+    imageUrl?: string
+}) {
+    const res = await adminClient.post<AdminPackage>('/v1/admin/packages', input)
+    return res.data
+}
+
+export async function updateAdminPackage(id: string, input: Partial<{
+    clinicId: string
+    specialtyId: string
+    name: string
+    shortDescription: string
+    description: string
+    price: number
+    promotionalPrice: number | null
+    currency: string
+    category: string
+    targetGender: string
+    targetAgeRange: string
+    preparationNotes: string
+    isPopular: boolean
+    isActive: boolean
+    features: string[]
+    imageUrl: string
+}>) {
+    const res = await adminClient.patch<AdminPackage>(`/v1/admin/packages/${id}`, input)
+    return res.data
+}
+
+export async function deleteAdminPackage(id: string) {
+    const res = await adminClient.delete<{ id: string }>(`/v1/admin/packages/${id}`)
     return res.data
 }

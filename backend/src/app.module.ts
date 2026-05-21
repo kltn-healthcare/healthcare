@@ -18,6 +18,7 @@ import { SpecialtiesModule } from './specialties/specialties.module';
 import { RedisModule } from './common/redis/redis.module';
 import { MailModule } from './common/mail/mail.module';
 import { DoctorAdminModule } from './doctor-admin/doctor-admin.module';
+import { ClinicAdminModule } from './clinic-admin/clinic-admin.module';
 import { AdminModule } from './admin/admin.module';
 import { ArticlesModule } from './articles/articles.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -46,6 +47,7 @@ import { RemindersModule } from './reminders/reminders.module';
     SpecialtiesModule,
     ArticlesModule,
     DoctorAdminModule,
+    ClinicAdminModule,
     AdminModule,
     ReviewsModule,
     PackagesModule,

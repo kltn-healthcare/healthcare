@@ -124,6 +124,8 @@ export class DoctorsService {
         id: true,
         name: true,
         isAvailable: true,
+        clinicId: true,
+        specialtyId: true,
         qualifications: true,
       },
     });
@@ -149,13 +151,26 @@ export class DoctorsService {
     }
 
     const settings = this.extractAdminSettings(doctor.qualifications);
-    const slotDurationMinutes = settings.slotDurationMinutes ?? 30;
     const dayOfWeek = date.getUTCDay();
     const workingHour = (settings.workingHours ?? []).find(
       (row) => row.dayOfWeek === dayOfWeek,
     );
+    const specialtySchedules =
+      await this.prisma.clinicSpecialtySchedule.findMany({
+        where: {
+          clinicId: doctor.clinicId,
+          specialtyId: doctor.specialtyId,
+          dayOfWeek,
+          isActive: true,
+        },
+        orderBy: { startTime: 'asc' },
+      });
+    const slotDurationMinutes =
+      specialtySchedules[0]?.slotDurationMinutes ??
+      settings.slotDurationMinutes ??
+      30;
 
-    if (!workingHour) {
+    if (!workingHour || !specialtySchedules.length) {
       return {
         doctorId: doctor.id,
         doctorName: doctor.name,
@@ -168,11 +183,21 @@ export class DoctorsService {
       };
     }
 
-    const slots = this.buildTimeSlots(
-      workingHour.startTime,
-      workingHour.endTime,
-      slotDurationMinutes,
-    );
+    const slots = specialtySchedules.flatMap((schedule) => {
+      const start = Math.max(
+        this.timeToMinutes(workingHour.startTime),
+        this.timeToMinutes(schedule.startTime),
+      );
+      const end = Math.min(
+        this.timeToMinutes(workingHour.endTime),
+        this.timeToMinutes(schedule.endTime),
+      );
+      return this.buildTimeSlots(
+        this.minutesToTime(start),
+        this.minutesToTime(end),
+        schedule.slotDurationMinutes,
+      );
+    });
 
     const booked = await this.prisma.booking.findMany({
       where: {

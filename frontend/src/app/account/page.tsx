@@ -191,6 +191,7 @@ export default function AccountPage() {
                 <div className="grid gap-4">
                   {(myBookingsQuery.data?.items ?? []).map((b: any) => {
                     const isPast = isBookingPast(b.bookingDate, b.bookingTime)
+                    const isPackageBooking = Boolean(b.healthPackage)
                     const canCancel =
                       (b.status === "PENDING" || b.status === "CONFIRMED") &&
                       !isPast
@@ -208,7 +209,11 @@ export default function AccountPage() {
                             <div>
                               <h3 className="font-semibold text-lg">{b.clinic?.name ?? "Phòng khám"}</h3>
                               <div className="text-sm text-muted-foreground flex items-center mt-1">
-                                <User className="mr-1 h-3.5 w-3.5" /> Bác sĩ: <span className="font-medium text-foreground ml-1">{b.doctor?.name ?? "—"}</span>
+                                <User className="mr-1 h-3.5 w-3.5" />
+                                {isPackageBooking ? "Gói khám:" : "Bác sĩ:"}
+                                <span className="font-medium text-foreground ml-1">
+                                  {isPackageBooking ? b.healthPackage?.name ?? "—" : b.doctor?.name ?? "—"}
+                                </span>
                               </div>
                             </div>
                             <Badge 

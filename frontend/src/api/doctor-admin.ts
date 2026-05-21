@@ -21,6 +21,15 @@ export type DoctorWorkingHour = {
     endTime: string
 }
 
+export type DoctorSpecialtySchedule = {
+    dayOfWeek: number
+    isActive: boolean
+    startTime: string
+    endTime: string
+    slotDurationMinutes: number
+    capacity: number
+}
+
 export type DoctorServicePrice = {
     name: string
     price: number
@@ -47,11 +56,12 @@ export async function patchDoctorBookingStatus(
 
 export async function getDoctorSettings() {
     const res = await adminClient.get<{
-        doctor: { id: string; name: string; clinicId: string }
+        doctor: { id: string; name: string; clinicId: string; specialtyId: string }
         settings: {
             slotDurationMinutes: number
             workingHours: DoctorWorkingHour[]
             services: DoctorServicePrice[]
+            specialtySchedules: DoctorSpecialtySchedule[]
         }
     }>('/v1/doctor-admin/settings')
     return res.data

@@ -18,7 +18,7 @@ type ClinicsListResponse = {
   total: number
 }
 
-export async function getClinics(params?: { q?: string; page?: number; limit?: number }): Promise<{
+export async function getClinics(params?: { q?: string; specialtyId?: string; page?: number; limit?: number }): Promise<{
   items: Clinic[]
   page: number
   limit: number
@@ -38,6 +38,7 @@ export async function getClinics(params?: { q?: string; page?: number; limit?: n
       numReviews: c.reviewCount || 0,
       image: c.image ?? '',
       openingHours: c.openingHours ?? '',
+      specialties: c.specialties ?? [],
     })),
   }
 }
@@ -51,6 +52,11 @@ export async function getClinicById(id: string) {
     rating: Number(c.rating),
     image: c.image ?? '',
     openingHours: c.openingHours ?? '',
+    healthPackages: (c.healthPackages ?? []).map((pkg: any) => ({
+      ...pkg,
+      price: Number(pkg.price || 0),
+      promotionalPrice: pkg.promotionalPrice == null ? null : Number(pkg.promotionalPrice),
+    })),
   } as Clinic & {
     doctors?: Array<{
       id: string
@@ -60,6 +66,7 @@ export async function getClinicById(id: string) {
       isAvailable: boolean
       specialty: { id: string; name: string }
     }>
+    healthPackages?: import('@/shared/types').HealthPackage[]
   }
 }
 
