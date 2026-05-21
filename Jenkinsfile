@@ -29,9 +29,39 @@ pipeline {
   stages {
     stage('System Information') {
       steps {
-          script {
-              printSystemInfo()
+        script {
+          printSystemInfo()
+        }
+      }
+    }
+
+    stage('Detect Changes') {
+      steps {
+        checkout scm
+        script {
+          // 1. Lấy mã short SHA của commit hiện tại làm mã định danh Image Tag duy nhất (Immutable Tag)
+          env.SHORT_SHA = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+          env.DEPLOY_TAG = env.SHORT_SHA
+          
+          echo "Branch: ${env.BRANCH_NAME ?: 'N/A'} | Commit Tag: ${env.DEPLOY_TAG}"
+
+          // 2. Xác định Base Commit (Commit thành công trước đó) để so sánh git diff
+          def baseCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
+          if (!baseCommit) {
+              try {
+                  baseCommit = sh(script: 'git rev-parse HEAD~1', returnStdout: true).trim()
+              } catch (ignored) {
+                  baseCommit = null
+              }
           }
+
+          // 3. Gọi hàm từ Shared Library để phân tích Monorepo
+          // Hàm này nhận vào baseCommit, currentCommit và trả về chuỗi (VD: "frontend,auth")
+          env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, env.GIT_COMMIT)
+          
+          echo "Changed services detected: ${env.CHANGED_SERVICES ?: 'none'}"
+          printSystemInfo()
+        }
       }
     }
     // stage('Detect Changes') {
