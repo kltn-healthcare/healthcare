@@ -6,13 +6,13 @@ set -euo pipefail
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 : "${GIT_AUTH_URL:?GIT_AUTH_URL is required}"
 : "${MANIFEST_REPO_BRANCH:?MANIFEST_REPO_BRANCH is required}"
+: "${COMMIT_MESSAGE:?COMMIT_MESSAGE is required}"
 : "${GIT_USER_NAME:?GIT_USER_NAME is required}"
 : "${GIT_USER_EMAIL:?GIT_USER_EMAIL is required}"
 : "${GITEA_REGISTRY:?GITEA_REGISTRY is required}"
 : "${GITEA_OWNER:?GITEA_OWNER is required}"
 
 workdir=${WORKDIR:-manifests-workspace}
-commit_message=${COMMIT_MESSAGE:-"ci(${ENVIRONMENT}): update healthcare images to ${IMAGE_TAG}"}
 
 rm -rf "${workdir}"
 
@@ -66,6 +66,6 @@ if git diff --cached --quiet; then
 fi
 
 git -c user.name="${GIT_USER_NAME}" -c user.email="${GIT_USER_EMAIL}" \
-  commit -m "${commit_message}"
+  commit -m "${COMMIT_MESSAGE}"
 
 git -c http.sslVerify=false push origin "${MANIFEST_REPO_BRANCH}"
