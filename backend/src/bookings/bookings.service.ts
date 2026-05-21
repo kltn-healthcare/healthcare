@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import {
   BookingStatus,
   BookingType,
@@ -20,6 +24,17 @@ export class BookingsService {
   ) {}
 
   async create(userId: string, dto: CreateBookingDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException({
+        code: ERROR_CODES.USER_NOT_FOUND,
+        message: 'Your login session is no longer valid. Please sign in again.',
+      });
+    }
+
     const bookingType =
       dto.bookingType ??
       (dto.packageId
@@ -425,7 +440,7 @@ export class BookingsService {
     const settings = doctor
       ? this.extractDoctorAdminSettings(doctor.qualifications)
       : {};
-    const workingHour = (settings.workingHours ?? []).find(
+    const workingHours = (settings.workingHours ?? []).filter(
       (row) => row.dayOfWeek === dayOfWeek,
     );
     const specialtySchedules = doctor
@@ -440,28 +455,30 @@ export class BookingsService {
         })
       : [];
 
-    if (!doctor || !workingHour || !specialtySchedules.length) {
+    if (!doctor || !workingHours.length || !specialtySchedules.length) {
       throw new BadRequestException({
         code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
         message: 'Doctor is not available on this date',
       });
     }
 
-    const slots = specialtySchedules.flatMap((schedule) => {
-      const start = Math.max(
-        this.timeToMinutes(workingHour.startTime),
-        this.timeToMinutes(schedule.startTime),
-      );
-      const end = Math.min(
-        this.timeToMinutes(workingHour.endTime),
-        this.timeToMinutes(schedule.endTime),
-      );
-      return this.buildTimeSlots(
-        this.minutesToTime(start),
-        this.minutesToTime(end),
-        schedule.slotDurationMinutes,
-      );
-    });
+    const slots = workingHours.flatMap((workingHour) =>
+      specialtySchedules.flatMap((schedule) => {
+        const start = Math.max(
+          this.timeToMinutes(workingHour.startTime),
+          this.timeToMinutes(schedule.startTime),
+        );
+        const end = Math.min(
+          this.timeToMinutes(workingHour.endTime),
+          this.timeToMinutes(schedule.endTime),
+        );
+        return this.buildTimeSlots(
+          this.minutesToTime(start),
+          this.minutesToTime(end),
+          schedule.slotDurationMinutes,
+        );
+      }),
+    );
 
     if (!slots.includes(bookingTime)) {
       throw new BadRequestException({

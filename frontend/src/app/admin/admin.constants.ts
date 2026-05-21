@@ -144,6 +144,12 @@ export const ADMIN_TEXT = {
             selectLabel: "Chọn chuyên khoa",
             selectPlaceholder: "Chọn chuyên khoa",
             configuringPrefix: "Đang cấu hình",
+            slotDurationLabel: "Thời lượng mỗi slot chuyên khoa",
+            slotDurationOptions: {
+                thirty: "30 phút",
+                sixty: "60 phút",
+            },
+            capacityLabel: "Sức chứa mỗi slot",
             activeLabel: "Bật",
             save: "Lưu lịch chuyên khoa",
         },

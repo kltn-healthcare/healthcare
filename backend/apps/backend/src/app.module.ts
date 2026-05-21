@@ -24,6 +24,9 @@ import { AuthModule } from '../../../src/auth/auth.module';
 import { DynamoAppointmentsModule } from '../../../src/aws/dynamo-appointments.module';
 import { NotificationsModule } from '../../../src/notifications/notifications.module';
 import { RemindersModule } from '../../../src/reminders/reminders.module';
+import { DoctorAdminModule } from '../../../src/doctor-admin/doctor-admin.module';
+import { ClinicAdminModule } from '../../../src/clinic-admin/clinic-admin.module';
+import { AdminModule } from '../../../src/admin/admin.module';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { RemindersModule } from '../../../src/reminders/reminders.module';
     DynamoAppointmentsModule,
     NotificationsModule,
     RemindersModule,
+    DoctorAdminModule,
+    ClinicAdminModule,
+    AdminModule,
   ],
   providers: [
     {

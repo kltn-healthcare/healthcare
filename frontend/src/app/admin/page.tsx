@@ -75,10 +75,9 @@ import {
     getDoctorSettings,
     patchDoctorBookingStatus,
     putDoctorSchedule,
-    putDoctorServices,
     type DoctorBookingItem,
     type DoctorBookingStatus,
-    type DoctorServicePrice,
+    type DoctorSpecialtySchedule,
     type DoctorWorkingHour,
 } from "@/api/doctor-admin"
 import { getSpecialties } from "@/api/specialties"
@@ -100,6 +99,13 @@ type WeeklyScheduleRow = {
 type SpecialtyOption = {
     id: string
     name: string
+}
+
+type GeneratedDoctorSlot = {
+    key: string
+    dayOfWeek: number
+    startTime: string
+    endTime: string
 }
 
 const dayOptions = ADMIN_DAY_OPTIONS
@@ -202,6 +208,81 @@ function buildWeeklySchedule(workingHours: DoctorWorkingHour[] | undefined): Wee
     })
 }
 
+function doctorSlotKey(dayOfWeek: number, startTime: string, endTime: string) {
+    return `${dayOfWeek}-${startTime}-${endTime}`
+}
+
+function adminTimeToMinutes(value: string) {
+    const [hour, minute] = value.split(":").map(Number)
+    return hour * 60 + minute
+}
+
+function adminMinutesToTime(total: number) {
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`
+}
+
+function generateDoctorSlots(schedules: DoctorSpecialtySchedule[]): GeneratedDoctorSlot[] {
+    return schedules
+        .filter((row) => row.isActive)
+        .flatMap((row) => {
+            const slots: GeneratedDoctorSlot[] = []
+            const start = adminTimeToMinutes(row.startTime)
+            const end = adminTimeToMinutes(row.endTime)
+            for (let cursor = start; cursor + row.slotDurationMinutes <= end; cursor += row.slotDurationMinutes) {
+                const startTime = adminMinutesToTime(cursor)
+                const endTime = adminMinutesToTime(cursor + row.slotDurationMinutes)
+                slots.push({
+                    key: doctorSlotKey(row.dayOfWeek, startTime, endTime),
+                    dayOfWeek: row.dayOfWeek,
+                    startTime,
+                    endTime,
+                })
+            }
+            return slots
+        })
+}
+
+function workingHoursToSelectedSlots(workingHours: DoctorWorkingHour[] | undefined, slots: GeneratedDoctorSlot[]) {
+    const selected = new Set<string>()
+    const rows = workingHours ?? []
+    slots.forEach((slot) => {
+        const slotStart = adminTimeToMinutes(slot.startTime)
+        const slotEnd = adminTimeToMinutes(slot.endTime)
+        const isSelected = rows.some(
+            (row) =>
+                row.dayOfWeek === slot.dayOfWeek &&
+                slotStart >= adminTimeToMinutes(row.startTime) &&
+                slotEnd <= adminTimeToMinutes(row.endTime),
+        )
+        if (isSelected) selected.add(slot.key)
+    })
+    return selected
+}
+
+function selectedSlotsToWorkingHours(selected: Set<string>, slots: GeneratedDoctorSlot[]): DoctorWorkingHour[] {
+    return dayOptions.flatMap((day) => {
+        const daySlots = slots
+            .filter((slot) => slot.dayOfWeek === day.value && selected.has(slot.key))
+            .sort((a, b) => adminTimeToMinutes(a.startTime) - adminTimeToMinutes(b.startTime))
+        const ranges: DoctorWorkingHour[] = []
+        let current: DoctorWorkingHour | null = null
+        daySlots.forEach((slot) => {
+            if (!current) {
+                current = { dayOfWeek: day.value, startTime: slot.startTime, endTime: slot.endTime }
+                return
+            }
+            if (current.endTime === slot.startTime) {
+                current.endTime = slot.endTime
+                return
+            }
+            ranges.push(current)
+            current = { dayOfWeek: day.value, startTime: slot.startTime, endTime: slot.endTime }
+        })
+        if (current) ranges.push(current)
+        return ranges
+    })
+}
+
 export default function AdminPage() {
     const router = useRouter()
     const auth = useAuthStore()
@@ -297,11 +378,6 @@ function DoctorAdminSection() {
     const queryClient = useQueryClient()
     const doctorText = text.doctorAdmin
 
-    const pendingBookingsQuery = useQuery({
-        queryKey: ["doctor-admin", "bookings", "pending"],
-        queryFn: () => getDoctorBookings({ status: "PENDING" }),
-    })
-
     const allBookingsQuery = useQuery({
         queryKey: ["doctor-admin", "bookings", "all"],
         queryFn: () => getDoctorBookings(),
@@ -314,16 +390,14 @@ function DoctorAdminSection() {
 
     const [bookingFilter, setBookingFilter] = useState<BookingFilter>("ALL")
     const [slotDurationMinutes, setSlotDurationMinutes] = useState(30)
-    const [weeklySchedule, setWeeklySchedule] = useState<WeeklyScheduleRow[]>(
-        getDefaultWeeklySchedule(),
-    )
+    const [specialtySchedules, setSpecialtySchedules] = useState<DoctorSpecialtySchedule[]>([])
+    const [selectedDoctorSlots, setSelectedDoctorSlots] = useState<Set<string>>(new Set())
     const [scheduleError, setScheduleError] = useState<string | null>(null)
-    const [services, setServices] = useState<DoctorServicePrice[]>([])
     const [cancelBookingTarget, setCancelBookingTarget] = useState<DoctorBookingItem | null>(null)
     const [cancelReason, setCancelReason] = useState("")
 
     const allBookings = allBookingsQuery.data?.items ?? []
-    const pendingBookings = pendingBookingsQuery.data?.items ?? []
+    const generatedDoctorSlots = useMemo(() => generateDoctorSlots(specialtySchedules), [specialtySchedules])
 
     const filteredBookings = useMemo(() => {
         if (bookingFilter === "ALL") {
@@ -343,8 +417,9 @@ function DoctorAdminSection() {
     useEffect(() => {
         if (settingsQuery.data?.settings) {
             setSlotDurationMinutes(settingsQuery.data.settings.slotDurationMinutes ?? 30)
-            setWeeklySchedule(buildWeeklySchedule(settingsQuery.data.settings.workingHours))
-            setServices(settingsQuery.data.settings.services ?? [])
+            const schedules = settingsQuery.data.settings.specialtySchedules ?? []
+            setSpecialtySchedules(schedules)
+            setSelectedDoctorSlots(workingHoursToSelectedSlots(settingsQuery.data.settings.workingHours, generateDoctorSlots(schedules)))
         }
     }, [settingsQuery.data])
 
@@ -373,21 +448,8 @@ function DoctorAdminSection() {
         },
     })
 
-    const saveServicesMutation = useMutation({
-        mutationFn: putDoctorServices,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["doctor-admin", "settings"] })
-        },
-    })
-
     const handleSaveSchedule = () => {
-        const workingHours: DoctorWorkingHour[] = weeklySchedule
-            .filter((row) => row.enabled)
-            .map((row) => ({
-                dayOfWeek: row.dayOfWeek,
-                startTime: row.startTime,
-                endTime: row.endTime,
-            }))
+        const workingHours = selectedSlotsToWorkingHours(selectedDoctorSlots, generatedDoctorSlots)
 
         if (!workingHours.length) {
             setScheduleError(doctorText.scheduleError)
@@ -398,20 +460,13 @@ function DoctorAdminSection() {
         saveScheduleMutation.mutate({ slotDurationMinutes, workingHours })
     }
 
-    const updateWeeklyRow = (
-        dayOfWeek: number,
-        patch: Partial<Omit<WeeklyScheduleRow, "dayOfWeek">>,
-    ) => {
-        setWeeklySchedule((prev) =>
-            prev.map((row) =>
-                row.dayOfWeek === dayOfWeek
-                    ? {
-                        ...row,
-                        ...patch,
-                    }
-                    : row,
-            ),
-        )
+    const toggleDoctorSlot = (slotKey: string) => {
+        setSelectedDoctorSlots((prev) => {
+            const next = new Set(prev)
+            if (next.has(slotKey)) next.delete(slotKey)
+            else next.add(slotKey)
+            return next
+        })
     }
 
     const requestCancelBooking = (booking: DoctorBookingItem) => {
@@ -441,55 +496,16 @@ function DoctorAdminSection() {
             </div>
 
             <Tabs defaultValue="bookings" className="space-y-4">
-                <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted p-1">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1">
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="bookings">
                         {doctorText.tabs.bookings}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="schedule">
                         {doctorText.tabs.schedule}
                     </TabsTrigger>
-                    <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="services">
-                        {doctorText.tabs.services}
-                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="bookings" className="space-y-4">
-                    <Card className="border-amber-200 bg-amber-50/60">
-                        <CardHeader>
-                            <CardTitle>{doctorText.pendingCard.title}</CardTitle>
-                            <CardDescription>
-                                {doctorText.pendingCard.description}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <BookingTable
-                                items={pendingBookings}
-                                emptyText={doctorText.pendingCard.empty}
-                                renderActions={(item) => (
-                                    <div className="space-x-2">
-                                        <Button
-                                            size="sm"
-                                            disabled={updateBookingStatusMutation.isPending}
-                                            onClick={() =>
-                                                updateBookingStatusMutation.mutate({ id: item.id, status: "CONFIRMED" })
-                                            }
-                                        >
-                                            {doctorText.pendingCard.confirm}
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            disabled={updateBookingStatusMutation.isPending}
-                                            onClick={() => requestCancelBooking(item)}
-                                        >
-                                            {doctorText.pendingCard.reject}
-                                        </Button>
-                                    </div>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
-
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
@@ -578,59 +594,39 @@ function DoctorAdminSection() {
                                 />
                             </div>
 
-                            <div className="rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>{doctorText.scheduleCard.headers.day}</TableHead>
-                                            <TableHead>{doctorText.scheduleCard.headers.enabled}</TableHead>
-                                            <TableHead>{doctorText.scheduleCard.headers.start}</TableHead>
-                                            <TableHead>{doctorText.scheduleCard.headers.end}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {weeklySchedule.map((row) => {
-                                            const day = dayOptions.find((item) => item.value === row.dayOfWeek)
+                            <div className="rounded-lg border p-4">
+                                {generatedDoctorSlots.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground">
+                                        Clinic admin cần cấu hình lịch chuyên khoa trước khi bác sĩ chọn slot làm việc.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {dayOptions.map((day) => {
+                                            const slots = generatedDoctorSlots.filter((slot) => slot.dayOfWeek === day.value)
+                                            if (!slots.length) return null
                                             return (
-                                                <TableRow key={row.dayOfWeek}>
-                                                    <TableCell className="font-medium">{day?.label}</TableCell>
-                                                    <TableCell>
-                                                        <Switch
-                                                            checked={row.enabled}
-                                                            onCheckedChange={(checked) =>
-                                                                updateWeeklyRow(row.dayOfWeek, { enabled: checked })
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="time"
-                                                            value={row.startTime}
-                                                            disabled={!row.enabled}
-                                                            onChange={(e) =>
-                                                                updateWeeklyRow(row.dayOfWeek, {
-                                                                    startTime: e.target.value,
-                                                                })
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="time"
-                                                            value={row.endTime}
-                                                            disabled={!row.enabled}
-                                                            onChange={(e) =>
-                                                                updateWeeklyRow(row.dayOfWeek, {
-                                                                    endTime: e.target.value,
-                                                                })
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
+                                                <div key={day.value} className="grid gap-3 md:grid-cols-[120px_1fr]">
+                                                    <div className="font-medium">{day.label}</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {slots.map((slot) => {
+                                                            const active = selectedDoctorSlots.has(slot.key)
+                                                            return (
+                                                                <button
+                                                                    key={slot.key}
+                                                                    type="button"
+                                                                    onClick={() => toggleDoctorSlot(slot.key)}
+                                                                    className={`rounded-md border px-3 py-2 text-sm transition ${active ? "border-primary bg-primary text-white" : "border-slate-200 bg-white hover:bg-primary/10"}`}
+                                                                >
+                                                                    {slot.startTime}-{slot.endTime}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
                                             )
                                         })}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                )}
                             </div>
 
                             {scheduleError ? (
@@ -646,92 +642,6 @@ function DoctorAdminSection() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="services">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{doctorText.servicesCard.title}</CardTitle>
-                            <CardDescription>
-                                {doctorText.servicesCard.description}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {services.length === 0 ? (
-                                <div className="rounded-md border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                    {doctorText.servicesCard.empty}
-                                </div>
-                            ) : null}
-
-                            {services.map((service, idx) => (
-                                <div key={idx} className="grid items-end gap-3 rounded-md border p-4 md:grid-cols-12 bg-slate-50/50">
-                                    <div className="space-y-1.5 md:col-span-5">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.nameLabel}</Label>
-                                        <Input
-                                            placeholder={doctorText.servicesCard.namePlaceholder}
-                                            value={service.name}
-                                            onChange={(e) => {
-                                                const next = [...services]
-                                                next[idx] = { ...next[idx], name: e.target.value }
-                                                setServices(next)
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5 md:col-span-3">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.priceLabel}</Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            placeholder={doctorText.servicesCard.pricePlaceholder}
-                                            value={service.price === 0 ? "" : service.price}
-                                            onChange={(e) => {
-                                                const next = [...services]
-                                                next[idx] = { ...next[idx], price: e.target.value === "" ? 0 : Number(e.target.value) }
-                                                setServices(next)
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5 md:col-span-2">
-                                        <Label className="text-xs text-muted-foreground uppercase font-bold">{doctorText.servicesCard.currencyLabel}</Label>
-                                        <Input
-                                            placeholder={doctorText.servicesCard.currencyPlaceholder}
-                                            value={service.currency}
-                                            onChange={(e) => {
-                                                const next = [...services]
-                                                next[idx] = { ...next[idx], currency: e.target.value.toUpperCase() }
-                                                setServices(next)
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <Button
-                                            variant="destructive"
-                                            className="w-full"
-                                            onClick={() => setServices(services.filter((_, i) => i !== idx))}
-                                        >
-                                            {doctorText.servicesCard.remove}
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        setServices([...services, { name: "", price: 0, currency: "VND" }])
-                                    }
-                                >
-                                    {doctorText.servicesCard.add}
-                                </Button>
-                                <Button
-                                    disabled={saveServicesMutation.isPending || services.length === 0}
-                                    onClick={() => saveServicesMutation.mutate({ services })}
-                                >
-                                    {saveServicesMutation.isPending ? text.common.saving : doctorText.servicesCard.save}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
             </Tabs>
 
             <Dialog

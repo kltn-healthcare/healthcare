@@ -85,11 +85,7 @@ export class DoctorsService {
       });
     }
 
-    const reviewStats = await this.prisma.review.aggregate({
-      where: { doctorId: id },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+    const reviewStats = await this.getReviewStats(id);
 
     const settings = this.extractAdminSettings(doctor.qualifications);
 
@@ -107,6 +103,28 @@ export class DoctorsService {
       reviewCount: reviewStats._count.rating,
       createdAt: doctor.createdAt,
     };
+  }
+
+  private async getReviewStats(doctorId: string) {
+    try {
+      return await this.prisma.review.aggregate({
+        where: { doctorId },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2021'
+      ) {
+        return {
+          _avg: { rating: null },
+          _count: { rating: 0 },
+        };
+      }
+
+      throw error;
+    }
   }
 
   async getAvailability(doctorId: string, dto: QueryDoctorAvailabilityDto) {
@@ -152,7 +170,7 @@ export class DoctorsService {
 
     const settings = this.extractAdminSettings(doctor.qualifications);
     const dayOfWeek = date.getUTCDay();
-    const workingHour = (settings.workingHours ?? []).find(
+    const workingHours = (settings.workingHours ?? []).filter(
       (row) => row.dayOfWeek === dayOfWeek,
     );
     const specialtySchedules =
@@ -170,7 +188,7 @@ export class DoctorsService {
       settings.slotDurationMinutes ??
       30;
 
-    if (!workingHour || !specialtySchedules.length) {
+    if (!workingHours.length || !specialtySchedules.length) {
       return {
         doctorId: doctor.id,
         doctorName: doctor.name,
@@ -183,21 +201,23 @@ export class DoctorsService {
       };
     }
 
-    const slots = specialtySchedules.flatMap((schedule) => {
-      const start = Math.max(
-        this.timeToMinutes(workingHour.startTime),
-        this.timeToMinutes(schedule.startTime),
-      );
-      const end = Math.min(
-        this.timeToMinutes(workingHour.endTime),
-        this.timeToMinutes(schedule.endTime),
-      );
-      return this.buildTimeSlots(
-        this.minutesToTime(start),
-        this.minutesToTime(end),
-        schedule.slotDurationMinutes,
-      );
-    });
+    const slots = workingHours.flatMap((workingHour) =>
+      specialtySchedules.flatMap((schedule) => {
+        const start = Math.max(
+          this.timeToMinutes(workingHour.startTime),
+          this.timeToMinutes(schedule.startTime),
+        );
+        const end = Math.min(
+          this.timeToMinutes(workingHour.endTime),
+          this.timeToMinutes(schedule.endTime),
+        );
+        return this.buildTimeSlots(
+          this.minutesToTime(start),
+          this.minutesToTime(end),
+          schedule.slotDurationMinutes,
+        );
+      }),
+    );
 
     const booked = await this.prisma.booking.findMany({
       where: {
