@@ -80,7 +80,7 @@ export class RemindersService {
         },
         reminderLogs: {
           none: {
-            channel: ReminderChannel.EMAIL,
+            channel: ReminderChannel.IN_WEB,
             status: ReminderStatus.SENT,
           },
         },
@@ -125,28 +125,7 @@ export class RemindersService {
       clinicName: booking.clinic.name,
     };
 
-    try {
-      await this.mailService.sendBookingReminderEmail({
-        email: booking.patientEmail,
-        patientName: booking.patientName,
-        clinicName: booking.clinic.name,
-        doctorName: booking.doctor?.name,
-        appointmentAt: appointmentLabel,
-      });
-      await this.notificationsService.markReminderSent(
-        booking.id,
-        ReminderChannel.EMAIL,
-        scheduledFor,
-      );
-    } catch (error) {
-      await this.notificationsService.markReminderFailed(
-        booking.id,
-        ReminderChannel.EMAIL,
-        scheduledFor,
-        error,
-      );
-    }
-
+    // SMTP Email sending is skipped here because it is handled externally by AWS Lambda + DynamoDB
     try {
       await this.notificationsService.createNotification({
         userId: booking.userId,

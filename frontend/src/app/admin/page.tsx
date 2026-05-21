@@ -1121,43 +1121,6 @@ function SystemAdminSectionV2() {
 
                 <TabsContent value="users" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>{systemText.users.title}</CardTitle>
-                            <CardDescription>{systemText.users.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid gap-3 md:grid-cols-3">
-                            <Input value={clinicAdminName} onChange={(event) => setClinicAdminName(event.target.value)} placeholder={systemText.users.placeholders.name} />
-                            <Input value={clinicAdminEmail} onChange={(event) => setClinicAdminEmail(event.target.value)} placeholder={systemText.users.placeholders.email} />
-                            <Input value={clinicAdminPhone} onChange={(event) => setClinicAdminPhone(event.target.value)} placeholder={systemText.users.placeholders.phone} />
-                            <Input value={clinicAdminPassword} onChange={(event) => setClinicAdminPassword(event.target.value)} placeholder={systemText.users.placeholders.password} type="password" />
-                            <Select value={clinicAdminClinicId} onValueChange={setClinicAdminClinicId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder={systemText.users.selectClinicPlaceholder} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {clinics.map((clinic) => (
-                                        <SelectItem key={clinic.id} value={clinic.id}>
-                                            {clinic.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Button
-                                disabled={!clinicAdminName || !clinicAdminEmail || !clinicAdminPassword || !clinicAdminClinicId || createUserMutation.isPending}
-                                onClick={() => createUserMutation.mutate({
-                                    name: clinicAdminName,
-                                    email: clinicAdminEmail,
-                                    phone: clinicAdminPhone || undefined,
-                                    password: clinicAdminPassword,
-                                    role: "CLINIC_ADMIN",
-                                    clinicId: clinicAdminClinicId,
-                                })}
-                            >
-                                {systemText.users.createButton}
-                            </Button>
-                        </CardContent>
-                    </Card>
-                    <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <CardTitle>{systemText.users.listTitle}</CardTitle>
@@ -1216,6 +1179,43 @@ function SystemAdminSectionV2() {
                 </TabsContent>
 
                 <TabsContent value="clinics" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{systemText.users.title}</CardTitle>
+                            <CardDescription>{systemText.users.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 md:grid-cols-3">
+                            <Input value={clinicAdminName} onChange={(event) => setClinicAdminName(event.target.value)} placeholder={systemText.users.placeholders.name} />
+                            <Input value={clinicAdminEmail} onChange={(event) => setClinicAdminEmail(event.target.value)} placeholder={systemText.users.placeholders.email} />
+                            <Input value={clinicAdminPhone} onChange={(event) => setClinicAdminPhone(event.target.value)} placeholder={systemText.users.placeholders.phone} />
+                            <Input value={clinicAdminPassword} onChange={(event) => setClinicAdminPassword(event.target.value)} placeholder={systemText.users.placeholders.password} type="password" />
+                            <Select value={clinicAdminClinicId} onValueChange={setClinicAdminClinicId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={systemText.users.selectClinicPlaceholder} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {clinics.map((clinic) => (
+                                        <SelectItem key={clinic.id} value={clinic.id}>
+                                            {clinic.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                disabled={!clinicAdminName || !clinicAdminEmail || !clinicAdminPassword || !clinicAdminClinicId || createUserMutation.isPending}
+                                onClick={() => createUserMutation.mutate({
+                                    name: clinicAdminName,
+                                    email: clinicAdminEmail,
+                                    phone: clinicAdminPhone || undefined,
+                                    password: clinicAdminPassword,
+                                    role: "CLINIC_ADMIN",
+                                    clinicId: clinicAdminClinicId,
+                                })}
+                            >
+                                {systemText.users.createButton}
+                            </Button>
+                        </CardContent>
+                    </Card>
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
