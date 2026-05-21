@@ -78,15 +78,22 @@ pipeline {
           }
       }
     }
-    // stage('Security Scan') {
-    //   steps {
-    //     scanSecurity(
-    //       sonarServer: env.SONAR_SERVER,
-    //       sonarScanner: env.SONAR_SCANNER,
-    //       sonarProjectKey: env.JOB_BASE_NAME
-    //     )
-    //   }
-    // }
+
+    stage('Build & Push') {
+      // Vẫn câu thần chú: Không có code đổi thì tự động Skip bước này
+      when {
+          expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
+      }
+      steps {
+        script {
+          echo "🚀 Bắt đầu Build & Push Docker Image cho: ${env.CHANGED_SERVICES}"
+          echo "🏷️ Sử dụng Immutable Tag: ${env.DEPLOY_TAG}"
+          
+          // Gọi hàm từ Shared Library và truyền 4 tham số vào
+          buildAndPush(env.CHANGED_SERVICES, env.DEPLOY_TAG)
+        }
+      }
+    }
 
     // stage('Build & Push Images') {
     //   when {
