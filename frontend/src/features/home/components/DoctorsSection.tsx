@@ -11,7 +11,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ROUTES } from "@/shared/constants"
 import { useTranslation } from "react-i18next"
-
+import { DOCTOR_I18N_KEYS, HOME_I18N_KEYS } from "@/shared/i18n/keys"
 import {
     Carousel,
     CarouselContent,
@@ -59,24 +59,18 @@ export function DoctorsSection() {
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
                     <div>
-                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl font-heading">{t("doctors.title")}</h2>
-                        <p className="text-sm text-muted-foreground sm:text-base">{t("doctors.desc")}</p>
+                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl font-heading">{t(HOME_I18N_KEYS.doctors.title)}</h2>
+                        <p className="text-sm text-muted-foreground sm:text-base">{t(HOME_I18N_KEYS.doctors.desc)}</p>
                     </div>
                     <Link href={ROUTES.DOCTORS} className="w-full sm:w-auto">
                         <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t("articles.view_all")}
+                            {t(HOME_I18N_KEYS.doctors.viewAll)}
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </Link>
                 </div>
 
-                <Carousel
-                    opts={{
-                        align: "start",
-                        loop: false,
-                    }}
-                    className="w-full"
-                >
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
                         {doctors.map((doctor) => (
                             <CarouselItem key={doctor.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
@@ -96,7 +90,7 @@ export function DoctorsSection() {
                                         )}
                                         <div className="absolute top-3 right-3">
                                             <Badge className="bg-white/90 text-primary backdrop-blur-sm border-none shadow-sm">
-                                                {doctor.specialty?.name || td("default_specialty")}
+                                                {doctor.specialty?.name || td(DOCTOR_I18N_KEYS.defaultSpecialty)}
                                             </Badge>
                                         </div>
                                     </div>
@@ -105,16 +99,16 @@ export function DoctorsSection() {
                                         <div className="flex items-center gap-1 text-sm text-amber-500 font-medium">
                                             <Star className="h-4 w-4 fill-current" />
                                             <span>{doctor.rating || 5.0}</span>
-                                            <span className="text-muted-foreground ml-1">({doctor.reviewCount || 0}+ {td("medical_visit_count")})</span>
+                                            <span className="text-muted-foreground ml-1">({doctor.reviewCount || 0}+ {td(DOCTOR_I18N_KEYS.medicalVisitCount)})</span>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="p-4 pt-0 flex-none flex flex-col gap-3">
                                         <p className="text-sm text-muted-foreground line-clamp-1 italic">
-                                            {doctor.experience}+ {td("years_exp")}
+                                            {doctor.experience}+ {td(DOCTOR_I18N_KEYS.yearsExp)}
                                         </p>
                                         <Link href={`${ROUTES.BOOKING}?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`} className="flex-1">
                                             <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
-                                                {td("book_now")}
+                                                {td(DOCTOR_I18N_KEYS.bookNow)}
                                             </Button>
                                         </Link>
                                     </CardContent>

@@ -9,6 +9,9 @@ import { ROUTES } from "@/shared/constants"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { packageService } from "@/features/clinics/services/packageService"
+import { HOME_I18N_KEYS, PACKAGE_I18N_KEYS } from "@/shared/i18n/keys"
+import { useLanguage } from "@/shared/provider/LanguageProvider"
+import { formatHomePrice } from "@/features/home/home.utils"
 import {
     Carousel,
     CarouselContent,
@@ -20,6 +23,7 @@ import {
 export function PackagesSection() {
     const { t } = useTranslation("home")
     const { t: tp } = useTranslation("packages")
+    const { language } = useLanguage()
     const packagesQuery = useQuery({
         queryKey: ["packages", "featured"],
         queryFn: () => packageService.getAll({ limit: 6 }),
@@ -29,10 +33,6 @@ export function PackagesSection() {
         if (!pkg.specialtyId) return true
         return items.findIndex((item) => item.specialtyId === pkg.specialtyId) === index
     })
-
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat("vi-VN").format(price) + "đ"
-    }
 
     const getBookingHref = (pkg: typeof packages[number]) => {
         const params = new URLSearchParams({ packageId: pkg.id })
@@ -47,29 +47,23 @@ export function PackagesSection() {
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
                     <div>
-                        <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t("packages.title")}</h2>
+                        <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.packages.title)}</h2>
                         <p className="text-sm text-muted-foreground text-pretty sm:text-base">
-                            {t("packages.desc")}
+                            {t(HOME_I18N_KEYS.packages.desc)}
                         </p>
                     </div>
                     <Link href={ROUTES.PACKAGES}>
                         <Button variant="outline" className="gap-2 bg-transparent border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t("packages.view_all")}
+                            {t(HOME_I18N_KEYS.packages.viewAll)}
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </Link>
                 </div>
 
-                <Carousel
-                    opts={{
-                        align: "start",
-                        loop: false,
-                    }}
-                    className="w-full"
-                >
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     {packagesQuery.isLoading ? (
                         <div className="flex justify-center p-8">
-                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                         </div>
                     ) : packages.length > 0 ? (
                         <CarouselContent className="-ml-4">
@@ -80,7 +74,7 @@ export function PackagesSection() {
                                             {pkg.isPopular && (
                                                 <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
                                                     <Badge className="bg-primary text-white shadow-sm">
-                                                        <Star className="mr-1 h-3 w-3" /> {tp("popular_badge")}
+                                                        <Star className="mr-1 h-3 w-3" /> {tp(PACKAGE_I18N_KEYS.popularBadge)}
                                                     </Badge>
                                                 </div>
                                             )}
@@ -92,9 +86,9 @@ export function PackagesSection() {
                                         </CardHeader>
                                         <CardContent className="space-y-4 flex-1 pt-6 px-6">
                                             <div className="text-3xl font-bold text-primary">
-                                                {formatPrice(pkg.promotionalPrice || pkg.price)} <span className="text-sm font-normal text-muted-foreground">{tp("per_person")}</span>
+                                                {formatHomePrice(pkg.promotionalPrice || pkg.price, language)} <span className="text-sm font-normal text-muted-foreground">{tp(PACKAGE_I18N_KEYS.perPerson)}</span>
                                                 {pkg.promotionalPrice ? (
-                                                    <div className="mt-1 text-sm font-normal text-muted-foreground line-through">{formatPrice(pkg.price)}</div>
+                                                    <div className="mt-1 text-sm font-normal text-muted-foreground line-through">{formatHomePrice(pkg.price, language)}</div>
                                                 ) : null}
                                             </div>
 
@@ -107,7 +101,7 @@ export function PackagesSection() {
                                                 ))}
                                                 {pkg.features.length > 4 && (
                                                     <li className="text-sm text-primary font-medium pl-6">
-                                                        + {pkg.features.length - 4} {tp("others_count")}
+                                                        + {pkg.features.length - 4} {tp(PACKAGE_I18N_KEYS.othersCount)}
                                                     </li>
                                                 )}
                                             </ul>
@@ -115,7 +109,7 @@ export function PackagesSection() {
                                         <CardFooter className="mt-auto pt-4 pb-6 px-6">
                                             <Link href={getBookingHref(pkg)} className="w-full">
                                                 <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
-                                                    {tp("book_now")}
+                                                    {tp(PACKAGE_I18N_KEYS.bookNow)}
                                                 </Button>
                                             </Link>
                                         </CardFooter>
@@ -125,7 +119,7 @@ export function PackagesSection() {
                         </CarouselContent>
                     ) : (
                         <p className="mt-4 text-sm text-center text-muted-foreground w-full">
-                            {t("packages.empty")}
+                            {t(HOME_I18N_KEYS.packages.empty)}
                         </p>
                     )}
                     {packages.length > 3 && (

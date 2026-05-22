@@ -8,14 +8,14 @@ import { useTranslation } from "react-i18next"
 import { Logo } from "@/components/Logo"
 import { useAuthStore } from "@/store"
 import { ROUTES } from "@/shared/constants"
-
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import { COMMON_I18N_KEYS, NAV_I18N_KEYS } from "@/shared/i18n/keys"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar"
 import { User, LogOut, Calendar, LayoutDashboard } from "lucide-react"
@@ -42,29 +42,23 @@ export function Header() {
 
         <nav className="hidden items-center gap-8 md:flex">
           <Link href={ROUTES.CLINICS} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t("clinics")}
+            {t(NAV_I18N_KEYS.clinics)}
           </Link>
-          <Link
-            href={ROUTES.PACKAGES}
-            className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary"
-          >
-            {t("packages")}
+          <Link href={ROUTES.PACKAGES} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
+            {t(NAV_I18N_KEYS.packages)}
           </Link>
           <Link href={ROUTES.DOCTORS} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t("doctors")}
+            {t(NAV_I18N_KEYS.doctors)}
           </Link>
-          <Link
-            href={ROUTES.HEALTH_GUIDE}
-            className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary"
-          >
-            {t("health_guide")}
+          <Link href={ROUTES.HEALTH_GUIDE} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
+            {t(NAV_I18N_KEYS.healthGuide)}
           </Link>
         </nav>
 
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
           <NotificationBell enabled={auth.isAuthenticated} />
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/10">
@@ -82,69 +76,65 @@ export function Header() {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-bold leading-none">{auth.user?.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {auth.user?.email}
-                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">{auth.user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <Link href="/account?tab=profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <User className="mr-2 h-4 w-4 text-primary" />
-                      <span>Hồ sơ cá nhân</span>
+                      <span>{tc(COMMON_I18N_KEYS.userMenuProfile)}</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/account?tab=appointments">
                     <DropdownMenuItem className="cursor-pointer">
                       <Calendar className="mr-2 h-4 w-4 text-primary" />
-                      <span>Lịch hẹn của tôi</span>
+                      <span>{tc(COMMON_I18N_KEYS.userMenuAppointments)}</span>
                     </DropdownMenuItem>
                   </Link>
                   {canAccessAdmin && (
                     <Link href="/admin">
                       <DropdownMenuItem className="cursor-pointer">
                         <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
-                        <span>Trang quản trị</span>
+                        <span>{tc(COMMON_I18N_KEYS.userMenuAdmin)}</span>
                       </DropdownMenuItem>
                     </Link>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="cursor-pointer text-rose-600 focus:text-rose-600 focus:bg-rose-50"
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Đăng xuất</span>
+                    <span>{tc(COMMON_I18N_KEYS.logout)}</span>
                   </DropdownMenuItem>
                 </>
               ) : (
                 <>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-bold leading-none">Khách hàng</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        Vui lòng đăng nhập để sử dụng
-                      </p>
+                      <p className="text-sm font-bold leading-none">{tc(COMMON_I18N_KEYS.userMenuCustomer)}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{tc(COMMON_I18N_KEYS.userMenuGuestHint)}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <Link href="/login?next=/account?tab=profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <span>Hồ sơ cá nhân</span>
+                      <span>{tc(COMMON_I18N_KEYS.userMenuProfile)}</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/login?next=/account?tab=appointments">
                     <DropdownMenuItem className="cursor-pointer">
                       <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <span>Lịch hẹn của tôi</span>
+                      <span>{tc(COMMON_I18N_KEYS.userMenuAppointments)}</span>
                     </DropdownMenuItem>
                   </Link>
                   <DropdownMenuSeparator />
                   <Link href="/login">
                     <DropdownMenuItem className="cursor-pointer font-bold text-primary focus:text-primary focus:bg-primary/5">
                       <LogOut className="mr-2 h-4 w-4 rotate-180" />
-                      <span>Đăng nhập ngay</span>
+                      <span>{tc(COMMON_I18N_KEYS.userMenuLoginNow)}</span>
                     </DropdownMenuItem>
                   </Link>
                 </>
@@ -154,7 +144,7 @@ export function Header() {
 
           <Link href="/booking">
             <Button size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20 transition-all active:scale-95">
-              {tc("book_appointment")}
+              {tc(COMMON_I18N_KEYS.bookAppointment)}
             </Button>
           </Link>
         </div>

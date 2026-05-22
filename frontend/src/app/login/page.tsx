@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Logo } from "@/components/Logo"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
@@ -12,6 +13,8 @@ import { useMutation } from "@tanstack/react-query"
 import { postLogin } from "@/api/auth"
 import { useAuthStore } from "@/store"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useTranslation } from "react-i18next"
+import { AUTH_I18N_KEYS } from "@/shared/i18n/keys"
 
 function normalizeRole(role?: string) {
   const normalized = String(role || "").toUpperCase()
@@ -36,6 +39,7 @@ function resolveLoginRedirect(role: string, nextPath: string | null) {
 }
 
 export default function LoginPage() {
+  const { t } = useTranslation("auth")
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextPath = searchParams.get("next")
@@ -57,21 +61,25 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
+
       <div className="w-full max-w-[520px]">
         <div className="mb-6 text-center">
           <Logo className="mb-4 scale-90 justify-center" />
           <h1 className="text-[28px] font-bold leading-tight text-sky-600">
-            HEALTHCARE
+            {t(AUTH_I18N_KEYS.brandTitle)}
           </h1>
           <p className="mt-1 text-lg text-slate-600">
-            Hệ thống quản lý chăm sóc sức khỏe
+            {t(AUTH_I18N_KEYS.login.subtitle)}
           </p>
         </div>
 
         <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
           <CardHeader className="px-5 pt-5 pb-1">
             <CardTitle className="text-[26px] font-bold text-slate-800">
-              Đăng nhập
+              {t(AUTH_I18N_KEYS.login.title)}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pb-5">
@@ -88,17 +96,14 @@ export default function LoginPage() {
               }}
             >
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="flex items-center gap-3 text-base font-semibold text-slate-600"
-                >
+                <Label htmlFor="email" className="flex items-center gap-3 text-base font-semibold text-slate-600">
                   <Mail className="h-5 w-5" />
-                  Email
+                  {t(AUTH_I18N_KEYS.login.emailLabel)}
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@healthcare.com"
+                  placeholder={t(AUTH_I18N_KEYS.login.emailPlaceholder)}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
@@ -107,17 +112,14 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="flex items-center gap-3 text-base font-semibold text-slate-600"
-                >
+                <Label htmlFor="password" className="flex items-center gap-3 text-base font-semibold text-slate-600">
                   <LockKeyhole className="h-5 w-5" />
-                  Mật khẩu
+                  {t(AUTH_I18N_KEYS.login.passwordLabel)}
                 </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Nhập mật khẩu"
+                  placeholder={t(AUTH_I18N_KEYS.login.passwordPlaceholder)}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
@@ -127,7 +129,7 @@ export default function LoginPage() {
 
               {loginMutation.isError && (
                 <div className="text-sm text-destructive">
-                  Đăng nhập thất bại. Vui lòng kiểm tra email/mật khẩu.
+                  {t(AUTH_I18N_KEYS.login.error)}
                 </div>
               )}
 
@@ -137,16 +139,16 @@ export default function LoginPage() {
                 disabled={loginMutation.isPending || !canSubmit}
               >
                 <LogIn className="h-5 w-5" />
-                {loginMutation.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
+                {loginMutation.isPending ? t(AUTH_I18N_KEYS.login.submitting) : t(AUTH_I18N_KEYS.login.submit)}
               </Button>
 
               <p className="text-center text-sm text-slate-600">
-                Chưa có tài khoản?{" "}
+                {t(AUTH_I18N_KEYS.login.noAccount)}{" "}
                 <Link
                   href={`/register${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
                   className="font-medium text-sky-600 hover:text-sky-700 hover:underline"
                 >
-                  Đăng ký ngay
+                  {t(AUTH_I18N_KEYS.login.registerLink)}
                 </Link>
               </p>
             </form>
@@ -154,7 +156,7 @@ export default function LoginPage() {
         </Card>
 
         <div className="mt-5 text-center text-sm text-slate-500">
-          <p>© 2026 HEALTHCARE. All rights reserved.</p>
+          <p>{t(AUTH_I18N_KEYS.copyright)}</p>
         </div>
       </div>
     </main>

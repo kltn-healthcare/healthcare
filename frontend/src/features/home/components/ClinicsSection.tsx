@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next"
 import { useEffect, useState } from "react"
 import { getClinics } from "@/api/clinics"
 import type { Clinic } from "@/shared/types"
+import { CLINIC_I18N_KEYS, HOME_I18N_KEYS } from "@/shared/i18n/keys"
 import {
     Carousel,
     CarouselContent,
@@ -56,35 +57,29 @@ export function ClinicsSection() {
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
                     <div>
-                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl">{t("clinics.title")}</h2>
-                        <p className="text-sm text-muted-foreground sm:text-base">{t("clinics.desc")}</p>
+                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl">{t(HOME_I18N_KEYS.clinics.title)}</h2>
+                        <p className="text-sm text-muted-foreground sm:text-base">{t(HOME_I18N_KEYS.clinics.desc)}</p>
                     </div>
                     <Link href={ROUTES.CLINICS} className="w-full sm:w-auto">
                         <Button variant="outline" className="gap-2 bg-transparent text-primary border-primary/20 hover:bg-primary/5 transition-colors">
-                            {t("clinics.view_all")}
+                            {t(HOME_I18N_KEYS.clinics.viewAll)}
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </Link>
                 </div>
 
-                <Carousel
-                    opts={{
-                        align: "start",
-                        loop: false,
-                    }}
-                    className="w-full"
-                >
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
                         {clinics.length > 0 ? clinics.map((clinic) => (
                             <CarouselItem key={clinic.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                                 <Link href={ROUTES.CLINIC_DETAIL(clinic.id)}>
                                     <Card className="flex h-full flex-col p-0 gap-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-slate-100 group">
                                         <div className="relative aspect-[2/1] w-full overflow-hidden bg-muted flex-none">
-                                            <Image 
-                                                src={clinic.image || "/placeholder-clinic.jpg"} 
-                                                alt={clinic.name} 
-                                                fill 
-                                                className="object-cover transition-transform duration-500 group-hover:scale-110" 
+                                            <Image
+                                                src={clinic.image || "/placeholder-clinic.jpg"}
+                                                alt={clinic.name}
+                                                fill
+                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                                         </div>
@@ -95,13 +90,13 @@ export function ClinicsSection() {
                                                     variant="secondary"
                                                     className={clinic.isOpen ? "shrink-0 bg-success/10 text-success" : "shrink-0 bg-muted text-muted-foreground"}
                                                 >
-                                                    <span className="mr-1">●</span> {clinic.isOpen ? tc("status_open") : tc("status_closed")}
+                                                    <span className="mr-1">●</span> {clinic.isOpen ? tc(CLINIC_I18N_KEYS.statusOpen) : tc(CLINIC_I18N_KEYS.statusClosed)}
                                                 </Badge>
                                             </div>
                                             <div className="flex items-center gap-1 text-sm">
                                                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                                                 <span className="font-semibold">{clinic.rating}</span>
-                                                <span className="text-muted-foreground">({clinic.numReviews || 0} {tc("reviews")})</span>
+                                                <span className="text-muted-foreground">({clinic.numReviews || 0} {tc(CLINIC_I18N_KEYS.reviews)})</span>
                                             </div>
                                         </CardHeader>
                                         <CardContent className="flex-1 space-y-2.5 pt-0 px-6">
@@ -115,14 +110,14 @@ export function ClinicsSection() {
                                             </div>
                                         </CardContent>
                                         <CardFooter className="flex-none pt-2 pb-6 px-6">
-                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">{tc("book_now")}</Button>
+                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">{tc(CLINIC_I18N_KEYS.bookNow)}</Button>
                                         </CardFooter>
                                     </Card>
                                 </Link>
                             </CarouselItem>
                         )) : (
                             <p className="mt-4 text-sm text-center text-muted-foreground w-full col-span-full py-8">
-                                {t("clinics.empty")}
+                                {t(HOME_I18N_KEYS.clinics.empty)}
                             </p>
                         )}
                     </CarouselContent>
@@ -137,5 +132,3 @@ export function ClinicsSection() {
         </section>
     )
 }
-
-

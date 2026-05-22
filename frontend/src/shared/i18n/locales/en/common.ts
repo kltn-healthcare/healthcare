@@ -1,5 +1,6 @@
 const common = {
   login: "Login",
+  logout: "Logout",
   register: "Register",
   account: "Account",
   book_appointment: "Book Appointment",
@@ -15,6 +16,21 @@ const common = {
   save: "Save",
   cancel: "Cancel",
   confirm: "Confirm",
+  language: {
+    vietnamese: "Tiếng Việt",
+    english: "English",
+  },
+  user_menu: {
+    customer: "Customer",
+    guest_hint: "Please sign in to continue",
+    profile: "Personal profile",
+    appointments: "My appointments",
+    admin: "Admin dashboard",
+    login_now: "Sign in now",
+  },
+  contact_info: {
+    address: "Ho Chi Minh City, Vietnam",
+  },
 };
 
 export default common;

@@ -4,9 +4,10 @@ import { Globe } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu"
 import { useLanguage } from "@/shared/provider/LanguageProvider"
+import { COMMON_I18N_KEYS } from "@/shared/i18n/keys"
 
 export function LanguageSwitcher() {
-  const { language, setLanguage, t } = useLanguage()
+  const { language, setLanguage, translate } = useLanguage()
 
   return (
     <DropdownMenu>
@@ -18,10 +19,10 @@ export function LanguageSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setLanguage("vi")} className={language === "vi" ? "bg-accent" : ""}>
-          Tiếng Việt
+          {translate(COMMON_I18N_KEYS.languageVietnamese)}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLanguage("en")} className={language === "en" ? "bg-accent" : ""}>
-          English
+          {translate(COMMON_I18N_KEYS.languageEnglish)}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

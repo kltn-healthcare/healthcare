@@ -26,10 +26,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLanguageState(lang)
   }
 
-  // Sync state with i18n
   useEffect(() => {
-    setLanguageState(i18n.language as Language)
-  }, [i18n.language])
+    const handleLanguageChanged = (lng: string) => {
+      setLanguageState(lng as Language)
+    }
+
+    i18n.on("languageChanged", handleLanguageChanged)
+    return () => {
+      i18n.off("languageChanged", handleLanguageChanged)
+    }
+  }, [])
 
   // Backward compatibility t(vi, en)
   const tCompatibility = (vi: string, en: string) => {

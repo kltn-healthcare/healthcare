@@ -1,17 +1,17 @@
 const nav = {
-  home: "Trang Chủ",
-  clinics: "Phòng Khám",
-  doctors: "Bác Sĩ",
-  packages: "Gói Khám",
-  health_guide: "Cẩm Nang",
-  about: "Giới Thiệu",
-  contact: "Liên Hệ",
-  login: "Đăng Nhập",
-  register: "Đăng Ký",
-  account: "Tài Khoản",
-  logout: "Đăng Xuất",
-  services: "Dịch Vụ",
-  booking: "Đặt Lịch",
-};
+  home: "Trang chủ",
+  clinics: "Phòng khám",
+  doctors: "Bác sĩ",
+  packages: "Gói khám",
+  health_guide: "Cẩm nang",
+  about: "Giới thiệu",
+  contact: "Liên hệ",
+  login: "Đăng nhập",
+  register: "Đăng ký",
+  account: "Tài khoản",
+  logout: "Đăng xuất",
+  services: "Dịch vụ",
+  booking: "Đặt lịch",
+}
 
-export default nav;
+export default nav

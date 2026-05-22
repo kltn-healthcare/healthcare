@@ -1,0 +1,172 @@
+export const COMMON_I18N_KEYS = {
+  login: "login",
+  logout: "logout",
+  register: "register",
+  account: "account",
+  bookAppointment: "book_appointment",
+  explore: "explore",
+  contact: "contact",
+  aboutUs: "about_us",
+  services: "services",
+  privacyPolicy: "privacy_policy",
+  terms: "terms",
+  copyright: "copyright",
+  loading: "loading",
+  error: "error",
+  save: "save",
+  cancel: "cancel",
+  confirm: "confirm",
+  languageVietnamese: "language.vietnamese",
+  languageEnglish: "language.english",
+  userMenuCustomer: "user_menu.customer",
+  userMenuGuestHint: "user_menu.guest_hint",
+  userMenuProfile: "user_menu.profile",
+  userMenuAppointments: "user_menu.appointments",
+  userMenuAdmin: "user_menu.admin",
+  userMenuLoginNow: "user_menu.login_now",
+  contactAddress: "contact_info.address",
+} as const
+
+export const NAV_I18N_KEYS = {
+  home: "home",
+  clinics: "clinics",
+  doctors: "doctors",
+  packages: "packages",
+  healthGuide: "health_guide",
+  about: "about",
+  contact: "contact",
+  login: "login",
+  register: "register",
+  account: "account",
+  logout: "logout",
+  services: "services",
+  booking: "booking",
+} as const
+
+export const HOME_I18N_KEYS = {
+  hero: {
+    title: "hero.title",
+    desc: "hero.desc",
+    searchPlaceholder: "hero.search_placeholder",
+    searchButton: "hero.search_button",
+    findDoctorClinic: "hero.find_doctor_clinic",
+    sideTitle: "hero.side_title",
+    sideDesc: "hero.side_desc",
+    imageAlt: "hero.image_alt",
+  },
+  clinics: {
+    title: "clinics.title",
+    desc: "clinics.desc",
+    viewAll: "clinics.view_all",
+    empty: "clinics.empty",
+  },
+  packages: {
+    title: "packages.title",
+    desc: "packages.desc",
+    viewAll: "packages.view_all",
+    empty: "packages.empty",
+  },
+  doctors: {
+    title: "doctors.title",
+    desc: "doctors.desc",
+    viewAll: "doctors.view_all",
+  },
+  articles: {
+    title: "articles.title",
+    desc: "articles.desc",
+    viewAll: "articles.view_all",
+    empty: "articles.empty",
+    dateSeparator: "articles.date_separator",
+  },
+  services: {
+    title: "services.title",
+    desc: "services.desc",
+    defaultDesc: "services.default_desc",
+  },
+  howItWorks: {
+    title: "how_it_works.title",
+    desc: "how_it_works.desc",
+    steps: [
+      { title: "how_it_works.steps.0.title", desc: "how_it_works.steps.0.desc" },
+      { title: "how_it_works.steps.1.title", desc: "how_it_works.steps.1.desc" },
+      { title: "how_it_works.steps.2.title", desc: "how_it_works.steps.2.desc" },
+    ],
+  },
+  cta: {
+    title: "cta.title",
+    desc: "cta.desc",
+    buttonPrimary: "cta.button_primary",
+  },
+  footer: {
+    desc: "footer.desc",
+  },
+} as const
+
+export const CLINIC_I18N_KEYS = {
+  statusOpen: "status_open",
+  statusClosed: "status_closed",
+  reviews: "reviews",
+  bookNow: "book_now",
+} as const
+
+export const PACKAGE_I18N_KEYS = {
+  bookNow: "book_now",
+  popularBadge: "popular_badge",
+  perPerson: "per_person",
+  othersCount: "others_count",
+} as const
+
+export const DOCTOR_I18N_KEYS = {
+  bookNow: "book_now",
+  yearsExp: "years_exp",
+  medicalVisitCount: "medical_visit_count",
+  defaultSpecialty: "default_specialty",
+} as const
+
+export const AUTH_I18N_KEYS = {
+  brandTitle: "brand.title",
+  copyright: "brand.copyright",
+  login: {
+    subtitle: "login.subtitle",
+    title: "login.title",
+    emailLabel: "login.email_label",
+    emailPlaceholder: "login.email_placeholder",
+    passwordLabel: "login.password_label",
+    passwordPlaceholder: "login.password_placeholder",
+    error: "login.error",
+    submit: "login.submit",
+    submitting: "login.submitting",
+    noAccount: "login.no_account",
+    registerLink: "login.register_link",
+  },
+  register: {
+    subtitle: "register.subtitle",
+    title: "register.title",
+    fullNameLabel: "register.full_name_label",
+    fullNamePlaceholder: "register.full_name_placeholder",
+    phoneLabel: "register.phone_label",
+    phonePlaceholder: "register.phone_placeholder",
+    emailLabel: "register.email_label",
+    emailPlaceholder: "register.email_placeholder",
+    passwordLabel: "register.password_label",
+    passwordPlaceholder: "register.password_placeholder",
+    confirmPasswordLabel: "register.confirm_password_label",
+    confirmPasswordPlaceholder: "register.confirm_password_placeholder",
+    passwordMismatch: "register.password_mismatch",
+    error: "register.error",
+    submit: "register.submit",
+    submitting: "register.submitting",
+    hasAccount: "register.has_account",
+    loginLink: "register.login_link",
+  },
+  otp: {
+    title: "otp.title",
+    description: "otp.description",
+    codeLabel: "otp.code_label",
+    codePlaceholder: "otp.code_placeholder",
+    error: "otp.error",
+    submit: "otp.submit",
+    submitting: "otp.submitting",
+    backToRegister: "otp.back_to_register",
+  },
+} as const

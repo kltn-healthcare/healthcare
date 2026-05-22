@@ -6,14 +6,18 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { KeyRound, LockKeyhole, Mail, Phone, UserRound } from "lucide-react"
 import { Logo } from "@/components/Logo"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { postRegister, postVerifyRegisterOtp } from "@/api/auth"
 import { useAuthStore } from "@/store"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
+import { useTranslation } from "react-i18next"
+import { AUTH_I18N_KEYS } from "@/shared/i18n/keys"
 
 export default function RegisterPage() {
+  const { t } = useTranslation("auth")
   const router = useRouter()
   const searchParams = useSearchParams()
   const auth = useAuthStore()
@@ -43,20 +47,23 @@ export default function RegisterPage() {
     },
   })
 
-  const passwordMismatch =
-    Boolean(password && confirmPassword) && password !== confirmPassword
+  const passwordMismatch = Boolean(password && confirmPassword) && password !== confirmPassword
   const canRegister = Boolean(name.trim() && email.trim() && password) && !passwordMismatch
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
+
       <div className="w-full max-w-[560px]">
         <div className="mb-5 text-center">
           <Logo className="mb-3 scale-90 justify-center" />
           <h1 className="text-[26px] font-bold leading-tight text-sky-600">
-            HEALTHCARE
+            {t(AUTH_I18N_KEYS.brandTitle)}
           </h1>
           <p className="mt-1 text-base text-slate-600">
-            Tạo tài khoản để đặt lịch khám nhanh hơn
+            {t(AUTH_I18N_KEYS.register.subtitle)}
           </p>
         </div>
 
@@ -64,7 +71,7 @@ export default function RegisterPage() {
           <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
             <CardHeader className="px-5 pt-4 pb-1">
               <CardTitle className="text-[25px] font-bold text-slate-800">
-                Đăng ký
+                {t(AUTH_I18N_KEYS.register.title)}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-5 pb-5">
@@ -89,11 +96,11 @@ export default function RegisterPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="fullname" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                       <UserRound className="h-4 w-4" />
-                      Họ và tên
+                      {t(AUTH_I18N_KEYS.register.fullNameLabel)}
                     </Label>
                     <Input
                       id="fullname"
-                      placeholder="Nguyễn Văn A"
+                      placeholder={t(AUTH_I18N_KEYS.register.fullNamePlaceholder)}
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       autoComplete="name"
@@ -104,12 +111,12 @@ export default function RegisterPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                       <Phone className="h-4 w-4" />
-                      Số điện thoại
+                      {t(AUTH_I18N_KEYS.register.phoneLabel)}
                     </Label>
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="0912345678"
+                      placeholder={t(AUTH_I18N_KEYS.register.phonePlaceholder)}
                       value={phone}
                       onChange={(event) => setPhone(event.target.value)}
                       autoComplete="tel"
@@ -121,12 +128,12 @@ export default function RegisterPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                     <Mail className="h-4 w-4" />
-                    Email
+                    {t(AUTH_I18N_KEYS.register.emailLabel)}
                   </Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="email@example.com"
+                    placeholder={t(AUTH_I18N_KEYS.register.emailPlaceholder)}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     autoComplete="email"
@@ -138,12 +145,12 @@ export default function RegisterPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="password" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                       <LockKeyhole className="h-4 w-4" />
-                      Mật khẩu
+                      {t(AUTH_I18N_KEYS.register.passwordLabel)}
                     </Label>
                     <Input
                       id="password"
                       type="password"
-                      placeholder="Nhập mật khẩu"
+                      placeholder={t(AUTH_I18N_KEYS.register.passwordPlaceholder)}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       autoComplete="new-password"
@@ -154,12 +161,12 @@ export default function RegisterPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="confirm-password" className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                       <LockKeyhole className="h-4 w-4" />
-                      Xác nhận mật khẩu
+                      {t(AUTH_I18N_KEYS.register.confirmPasswordLabel)}
                     </Label>
                     <Input
                       id="confirm-password"
                       type="password"
-                      placeholder="Nhập lại mật khẩu"
+                      placeholder={t(AUTH_I18N_KEYS.register.confirmPasswordPlaceholder)}
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       autoComplete="new-password"
@@ -170,12 +177,12 @@ export default function RegisterPage() {
 
                 {passwordMismatch && (
                   <div className="text-sm text-destructive">
-                    Mật khẩu xác nhận không khớp.
+                    {t(AUTH_I18N_KEYS.register.passwordMismatch)}
                   </div>
                 )}
                 {registerMutation.isError && (
                   <div className="text-sm text-destructive">
-                    Đăng ký thất bại. Email có thể đã tồn tại.
+                    {t(AUTH_I18N_KEYS.register.error)}
                   </div>
                 )}
 
@@ -184,16 +191,16 @@ export default function RegisterPage() {
                   className="h-11 w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-base font-bold shadow-lg shadow-cyan-700/20 hover:from-blue-700 hover:to-cyan-700"
                   disabled={registerMutation.isPending || !canRegister}
                 >
-                  {registerMutation.isPending ? "Đang gửi OTP..." : "Đăng ký"}
+                  {registerMutation.isPending ? t(AUTH_I18N_KEYS.register.submitting) : t(AUTH_I18N_KEYS.register.submit)}
                 </Button>
 
                 <p className="text-center text-sm text-slate-600">
-                  Đã có tài khoản?{" "}
+                  {t(AUTH_I18N_KEYS.register.hasAccount)}{" "}
                   <Link
                     href={`/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
                     className="font-medium text-sky-600 hover:text-sky-700 hover:underline"
                   >
-                    Đăng nhập
+                    {t(AUTH_I18N_KEYS.register.loginLink)}
                   </Link>
                 </p>
               </form>
@@ -206,7 +213,7 @@ export default function RegisterPage() {
                 <KeyRound className="h-6 w-6" />
               </div>
               <CardTitle className="text-[25px] font-bold text-slate-800">
-                Xác nhận email
+                {t(AUTH_I18N_KEYS.otp.title)}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-5 pb-5">
@@ -223,17 +230,17 @@ export default function RegisterPage() {
                 }}
               >
                 <p className="text-center text-sm text-slate-600">
-                  Mã OTP gồm 6 chữ số đã được gửi đến{" "}
+                  {t(AUTH_I18N_KEYS.otp.description)}{" "}
                   <span className="font-medium text-slate-800">{email}</span>
                 </p>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="otp" className="text-sm font-semibold text-slate-600">
-                    Mã xác nhận
+                    {t(AUTH_I18N_KEYS.otp.codeLabel)}
                   </Label>
                   <Input
                     id="otp"
-                    placeholder="123456"
+                    placeholder={t(AUTH_I18N_KEYS.otp.codePlaceholder)}
                     value={otp}
                     onChange={(event) => setOtp(event.target.value)}
                     className="h-12 text-center text-lg font-medium tracking-[0.5em]"
@@ -243,7 +250,7 @@ export default function RegisterPage() {
 
                 {verifyOtpMutation.isError && (
                   <div className="text-sm text-destructive">
-                    Mã OTP không đúng hoặc đã hết hạn.
+                    {t(AUTH_I18N_KEYS.otp.error)}
                   </div>
                 )}
 
@@ -252,7 +259,7 @@ export default function RegisterPage() {
                   className="h-11 w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-base font-bold shadow-lg shadow-cyan-700/20 hover:from-blue-700 hover:to-cyan-700"
                   disabled={verifyOtpMutation.isPending || otp.length !== 6}
                 >
-                  {verifyOtpMutation.isPending ? "Đang xác nhận..." : "Xác nhận"}
+                  {verifyOtpMutation.isPending ? t(AUTH_I18N_KEYS.otp.submitting) : t(AUTH_I18N_KEYS.otp.submit)}
                 </Button>
 
                 <Button
@@ -261,7 +268,7 @@ export default function RegisterPage() {
                   className="w-full text-sm text-slate-600"
                   onClick={() => setStep("register")}
                 >
-                  Quay lại trang đăng ký
+                  {t(AUTH_I18N_KEYS.otp.backToRegister)}
                 </Button>
               </form>
             </CardContent>
@@ -269,7 +276,7 @@ export default function RegisterPage() {
         )}
 
         <div className="mt-4 text-center text-sm text-slate-500">
-          <p>© 2026 HEALTHCARE. All rights reserved.</p>
+          <p>{t(AUTH_I18N_KEYS.copyright)}</p>
         </div>
       </div>
     </main>

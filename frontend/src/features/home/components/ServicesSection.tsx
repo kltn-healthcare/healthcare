@@ -1,13 +1,13 @@
 "use client"
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
-import { Stethoscope, Heart, TestTube, Syringe } from "lucide-react"
 import { ROUTES } from "@/shared/constants"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { getSpecialties, type Specialty } from "@/api/specialties"
 import { useTranslation } from "react-i18next"
-
+import { HOME_I18N_KEYS } from "@/shared/i18n/keys"
+import { HOME_SPECIALTY_CARD_STYLES } from "@/features/home/home.constants"
 import {
     Carousel,
     CarouselContent,
@@ -53,39 +53,28 @@ export function ServicesSection() {
         <section className="py-12 md:py-16 bg-slate-50/50">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 text-center md:mb-12">
-                    <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t("services.title")}</h2>
+                    <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.services.title)}</h2>
                     <p className="text-sm text-muted-foreground text-pretty sm:text-base">
-                        {t("services.desc")}
+                        {t(HOME_I18N_KEYS.services.desc)}
                     </p>
                 </div>
 
-                <Carousel
-                    opts={{
-                        align: "start",
-                        loop: false,
-                    }}
-                    className="w-full"
-                >
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
                         {specialties.map((specialty, index) => {
-                            const Icon = [Stethoscope, Heart, TestTube, Syringe][index % 4]
-                            const colors = [
-                                "bg-blue-50 text-blue-600",
-                                "bg-rose-50 text-rose-600",
-                                "bg-teal-50 text-teal-600",
-                                "bg-amber-50 text-amber-600"
-                            ][index % 4]
+                            const { icon: Icon, colors } = HOME_SPECIALTY_CARD_STYLES[index % HOME_SPECIALTY_CARD_STYLES.length]
+                            const [bgColor, textColor] = colors.split(" ")
 
                             return (
                                 <CarouselItem key={specialty.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                                     <Link href={`${ROUTES.CLINICS}?specialtyId=${specialty.id}`} className="h-full block">
                                         <Card className="group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full border-none shadow-sm">
                                             <CardHeader>
-                                                <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110 ${colors.split(' ')[0]} ${colors.split(' ')[1]}`}>
+                                                <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform group-hover:scale-110 ${bgColor} ${textColor}`}>
                                                     <Icon className="h-7 w-7" />
                                                 </div>
                                                 <CardTitle className="group-hover:text-primary transition-colors">{specialty.name}</CardTitle>
-                                                <CardDescription className="line-clamp-2">{specialty.description || t("services.default_desc")}</CardDescription>
+                                                <CardDescription className="line-clamp-2">{specialty.description || t(HOME_I18N_KEYS.services.defaultDesc)}</CardDescription>
                                             </CardHeader>
                                         </Card>
                                     </Link>

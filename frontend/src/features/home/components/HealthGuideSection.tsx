@@ -10,6 +10,10 @@ import { useQuery } from "@tanstack/react-query"
 import { getFeaturedArticles } from "@/api/articles"
 import { ARTICLE_DEFAULTS, ARTICLE_QUERY_KEYS, ROUTES } from "@/shared/constants"
 import { useTranslation } from "react-i18next"
+import { HOME_I18N_KEYS } from "@/shared/i18n/keys"
+import { useLanguage } from "@/shared/provider/LanguageProvider"
+import { HOME_ARTICLE_SKELETON_IDS } from "@/features/home/home.constants"
+import { formatHomeDate } from "@/features/home/home.utils"
 import {
     Carousel,
     CarouselContent,
@@ -18,18 +22,9 @@ import {
     CarouselPrevious,
 } from "@/shared/ui/carousel"
 
-const homeArticleSkeletonIds = ["article-skeleton-1", "article-skeleton-2", "article-skeleton-3"]
-
-function formatPublishedDate(value: string) {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        return value
-    }
-    return date.toLocaleDateString("vi-VN")
-}
-
 export function HealthGuideSection() {
     const { t } = useTranslation("home")
+    const { language } = useLanguage()
     const featuredArticlesQuery = useQuery({
         queryKey: ARTICLE_QUERY_KEYS.FEATURED(ARTICLE_DEFAULTS.HOME_LIMIT),
         queryFn: () => getFeaturedArticles(ARTICLE_DEFAULTS.HOME_LIMIT),
@@ -42,29 +37,23 @@ export function HealthGuideSection() {
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
                     <div>
-                        <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t("articles.title")}</h2>
+                        <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.articles.title)}</h2>
                         <p className="text-sm text-muted-foreground text-pretty sm:text-base">
-                            {t("articles.desc")}
+                            {t(HOME_I18N_KEYS.articles.desc)}
                         </p>
                     </div>
                     <Link href={ROUTES.HEALTH_GUIDE}>
                         <Button variant="outline" className="gap-2 bg-transparent border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t("articles.view_all")}
+                            {t(HOME_I18N_KEYS.articles.viewAll)}
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </Link>
                 </div>
 
-                <Carousel
-                    opts={{
-                        align: "start",
-                        loop: false,
-                    }}
-                    className="w-full"
-                >
+                <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
                         {featuredArticlesQuery.isLoading
-                            ? homeArticleSkeletonIds.map((skeletonId) => (
+                            ? HOME_ARTICLE_SKELETON_IDS.map((skeletonId) => (
                                 <CarouselItem key={skeletonId} className="pl-4 md:basis-1/2 lg:basis-1/3">
                                     <Card className="h-full overflow-hidden">
                                         <div className="h-48 animate-pulse bg-muted" />
@@ -100,7 +89,7 @@ export function HealthGuideSection() {
                                             </CardHeader>
                                             <CardContent className="pb-5 pt-0 flex-none">
                                                 <p className="text-sm text-muted-foreground">
-                                                    {article.readTime} • {formatPublishedDate(article.publishedAt)}
+                                                    {article.readTime} {t(HOME_I18N_KEYS.articles.dateSeparator)} {formatHomeDate(article.publishedAt, language)}
                                                 </p>
                                             </CardContent>
                                         </Card>
@@ -118,7 +107,7 @@ export function HealthGuideSection() {
 
                 {!featuredArticlesQuery.isLoading && articles.length === 0 ? (
                     <p className="mt-4 text-sm text-muted-foreground">
-                        {t("articles.empty")}
+                        {t(HOME_I18N_KEYS.articles.empty)}
                     </p>
                 ) : null}
             </div>
