@@ -41,3 +41,17 @@ export async function getMe(): Promise<User> {
   return res.data
 }
 
+export async function postForgotPassword(input: { email: string }): Promise<{ message: string; expiresInSeconds: number }> {
+  const res = await axios.post<{ message: string; expiresInSeconds: number }>('/api/auth/forgot-password', input)
+  return res.data
+}
+
+export async function postResetPassword(input: {
+  token: string
+  newPassword: string
+  confirmPassword: string
+}): Promise<{ message: string }> {
+  const res = await axios.post<{ message: string }>('/api/auth/reset-password', input)
+  return res.data
+}
+

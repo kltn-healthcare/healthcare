@@ -100,11 +100,13 @@ export function DoctorsSection() {
                                         <Link href={`/doctor/${doctor.id}`}>
                                             <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{doctor.name}</CardTitle>
                                         </Link>
-                                        <div className="flex items-center gap-1 text-sm text-amber-500 font-medium">
-                                            <Star className="h-4 w-4 fill-current" />
-                                            <span>{doctor.rating || 5.0}</span>
-                                            <span className="text-muted-foreground ml-1">({doctor.reviewCount || 0}+ {td(DOCTOR_I18N_KEYS.medicalVisitCount)})</span>
-                                        </div>
+                                        {(Number(doctor.reviewCount || 0) > 0 && Number(doctor.rating || 0) > 0) ? (
+                                            <div className="flex items-center gap-1 text-sm text-amber-500 font-medium">
+                                                <Star className="h-4 w-4 fill-current" />
+                                                <span>{doctor.rating}</span>
+                                                <span className="text-muted-foreground ml-1">({doctor.reviewCount} {td(DOCTOR_I18N_KEYS.medicalVisitCount)})</span>
+                                            </div>
+                                        ) : null}
                                     </CardHeader>
                                     <CardContent className="p-4 pt-0 flex-none flex flex-col gap-3">
                                         <p className="text-sm text-muted-foreground line-clamp-1 italic">

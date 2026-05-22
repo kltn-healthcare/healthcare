@@ -116,10 +116,18 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-3 text-base font-semibold text-slate-600">
-                  <LockKeyhole className="h-5 w-5" />
-                  {t(AUTH_I18N_KEYS.login.passwordLabel)}
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="flex items-center gap-3 text-base font-semibold text-slate-600">
+                    <LockKeyhole className="h-5 w-5" />
+                    {t(AUTH_I18N_KEYS.login.passwordLabel)}
+                  </Label>
+                  <Link
+                    href={`/forgot-password${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
+                    className="text-sm font-semibold text-sky-600 hover:text-sky-700 hover:underline"
+                  >
+                    {t(AUTH_I18N_KEYS.login.forgotPasswordLink)}
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"

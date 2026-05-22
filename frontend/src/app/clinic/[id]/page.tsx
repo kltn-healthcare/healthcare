@@ -50,13 +50,15 @@ export default function ClinicDetailPage() {
                         <span className="mr-1">●</span> Đang mở cửa
                       </Badge>
                     </div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xl font-semibold">{clinic?.rating ?? 0}</span>
+                    {(Number(clinic?.reviewCount || 0) > 0 && Number(clinic?.rating || 0) > 0) ? (
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xl font-semibold">{clinic?.rating}</span>
+                        </div>
+                        <span className="text-muted-foreground">({clinic?.reviewCount} đánh giá)</span>
                       </div>
-                      <span className="text-muted-foreground">({clinic?.reviewCount ?? 0} đánh giá)</span>
-                    </div>
+                    ) : null}
                     <p className="text-muted-foreground">
                       {clinic?.description ||
                         "Phòng khám cung cấp các dịch vụ chăm sóc sức khỏe chất lượng, đội ngũ bác sĩ giàu kinh nghiệm."}

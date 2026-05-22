@@ -96,11 +96,13 @@ export default function DoctorDetailPage() {
                         <span className="flex items-center">
                           <Stethoscope className="mr-1.5 h-4 w-4" /> {doctor.experience} năm kinh nghiệm
                         </span>
-                        <span className="flex items-center">
-                          <Star className="mr-1 h-4 w-4 fill-yellow-500 text-yellow-500" />
-                          <span className="mx-1 font-semibold text-foreground">{doctor.rating > 0 ? doctor.rating : "5.0"}</span>
-                          ({doctor.reviewCount} đánh giá)
-                        </span>
+                        {(Number((doctor as any).reviewCount || 0) > 0 && Number((doctor as any).rating || 0) > 0) ? (
+                          <span className="flex items-center">
+                            <Star className="mr-1 h-4 w-4 fill-yellow-500 text-yellow-500" />
+                            <span className="mx-1 font-semibold text-foreground">{(doctor as any).rating}</span>
+                            ({(doctor as any).reviewCount} đánh giá)
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -122,11 +124,13 @@ export default function DoctorDetailPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl">Phản hồi từ bệnh nhân</CardTitle>
-                    <div className="flex items-center">
-                      <Star className="mr-1 h-5 w-5 fill-yellow-500 text-yellow-500" />
-                      <span className="text-lg font-bold">{doctor.rating > 0 ? doctor.rating : "5.0"}</span>
-                      <span className="ml-1 text-muted-foreground">/ 5</span>
-                    </div>
+                    {(Number((doctor as any).reviewCount || 0) > 0 && Number((doctor as any).rating || 0) > 0) ? (
+                      <div className="flex items-center">
+                        <Star className="mr-1 h-5 w-5 fill-yellow-500 text-yellow-500" />
+                        <span className="text-lg font-bold">{(doctor as any).rating}</span>
+                        <span className="ml-1 text-muted-foreground">/ 5</span>
+                      </div>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent>

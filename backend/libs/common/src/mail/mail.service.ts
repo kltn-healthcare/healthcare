@@ -30,6 +30,38 @@ export class MailService {
     });
   }
 
+  async sendPasswordResetEmail(
+    email: string,
+    resetUrl: string,
+    expiresInSeconds: number,
+  ): Promise<void> {
+    const smtp = this.getSmtpConfig();
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: smtp.auth,
+      });
+
+      const expiresInMinutes = Math.ceil(expiresInSeconds / 60);
+
+      await transporter.sendMail({
+        from: smtp.from,
+        to: email,
+        subject: 'HEALTHCARE password reset request',
+        text: `A password reset was requested for your HEALTHCARE account. Use this link to reset your password: ${resetUrl}. This link expires in ${expiresInMinutes} minutes.`,
+        html: `<p>A password reset was requested for your HEALTHCARE account.</p><p><a href="${resetUrl}">Reset password</a></p><p>This link expires in ${expiresInMinutes} minutes.</p>`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send password reset email to ${email}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new InternalServerErrorException('Failed to send reset email');
+    }
+  }
+
   private getSmtpConfig() {
     const host = this.configService.get<string>('SMTP_HOST')?.trim();
     const port = this.configService.get<number>('SMTP_PORT') ?? 587;

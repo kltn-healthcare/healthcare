@@ -80,11 +80,13 @@ export default function ClinicsPage() {
                         {clinic.isOpen ? t(CLINIC_I18N_KEYS.statusOpen) : t(CLINIC_I18N_KEYS.statusClosed)}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{clinic.rating}</span>
-                      <span className="text-muted-foreground">({clinic.reviewCount} {t(CLINIC_I18N_KEYS.reviews)})</span>
-                    </div>
+                    {(Number((clinic as any).reviewCount || 0) > 0 && Number((clinic as any).rating || 0) > 0) ? (
+                      <div className="flex items-center gap-1 text-sm">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold">{(clinic as any).rating}</span>
+                        <span className="text-muted-foreground">({(clinic as any).reviewCount} {t(CLINIC_I18N_KEYS.reviews)})</span>
+                      </div>
+                    ) : null}
                   </CardHeader>
                   <CardContent className="flex-1 space-y-2.5 pt-0">
                     <div className="flex items-start gap-2 text-sm">

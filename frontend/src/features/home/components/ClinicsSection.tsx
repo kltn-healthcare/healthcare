@@ -93,11 +93,13 @@ export function ClinicsSection() {
                                                     <span className="mr-1">●</span> {clinic.isOpen ? tc(CLINIC_I18N_KEYS.statusOpen) : tc(CLINIC_I18N_KEYS.statusClosed)}
                                                 </Badge>
                                             </div>
-                                            <div className="flex items-center gap-1 text-sm">
-                                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                                <span className="font-semibold">{clinic.rating}</span>
-                                                <span className="text-muted-foreground">({clinic.numReviews || 0} {tc(CLINIC_I18N_KEYS.reviews)})</span>
-                                            </div>
+                                            {(Number((clinic as any).numReviews || 0) > 0 && Number((clinic as any).rating || 0) > 0) ? (
+                                                <div className="flex items-center gap-1 text-sm">
+                                                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                                    <span className="font-semibold">{(clinic as any).rating}</span>
+                                                    <span className="text-muted-foreground">({(clinic as any).numReviews} {tc(CLINIC_I18N_KEYS.reviews)})</span>
+                                                </div>
+                                            ) : null}
                                         </CardHeader>
                                         <CardContent className="flex-1 space-y-2.5 pt-0 px-6">
                                             <div className="flex items-start gap-2 text-sm">
