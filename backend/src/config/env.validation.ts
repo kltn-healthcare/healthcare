@@ -119,6 +119,14 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   aws_session_token?: string;
+
+  @IsString()
+  @IsOptional()
+  AWS_S3_BUCKET_NAME?: string;
+
+  @IsString()
+  @IsOptional()
+  AWS_S3_ENDPOINT?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

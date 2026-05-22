@@ -7,3 +7,5 @@ export { Header } from './Header'
 export { Footer } from './Footer'
 export { Logo } from './Logo'
 export { LanguageSwitcher } from './LanguageSwitcher'
+export { ImageUpload } from './ImageUpload'
+

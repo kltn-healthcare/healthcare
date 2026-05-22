@@ -54,6 +54,7 @@ import {
     SelectValue,
 } from "@/shared/ui/select"
 import { useAuthStore } from "@/store"
+import { ImageUpload } from "@/components"
 import {
     createAdminArticle,
     createAdminClinic,
@@ -823,15 +824,20 @@ function DoctorAdminSection() {
                                         )}
                                     </div>
                                     
-                                    <div className="w-full space-y-2">
-                                        <Label htmlFor="avatarUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Ảnh đại diện</Label>
-                                        <Input
-                                            id="avatarUrl"
-                                            value={profileAvatar}
-                                            onChange={(e) => setProfileAvatar(e.target.value)}
-                                            placeholder="https://example.com/avatar.png"
-                                            className="w-full text-xs"
-                                        />
+                                    <div className="w-full space-y-3">
+                                        <div className="flex justify-center w-full">
+                                            <ImageUpload onUploadSuccess={(url) => setProfileAvatar(url)} label="Tải ảnh lên" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="avatarUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Ảnh đại diện</Label>
+                                            <Input
+                                                id="avatarUrl"
+                                                value={profileAvatar}
+                                                onChange={(e) => setProfileAvatar(e.target.value)}
+                                                placeholder="https://example.com/avatar.png"
+                                                className="w-full text-xs"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Fixed info section with premium badges */}
@@ -1648,7 +1654,16 @@ function SystemAdminSectionV2() {
                                 <Input value={articleTitle} onChange={(event) => setArticleTitle(event.target.value)} placeholder={systemText.news.placeholders.title} />
                                 <Input value={articleCategory} onChange={(event) => setArticleCategory(event.target.value)} placeholder={systemText.news.placeholders.category} />
                                 <Input value={articleReadTime} onChange={(event) => setArticleReadTime(event.target.value)} placeholder={systemText.news.placeholders.readTime} />
-                                <Input value={articleImage} onChange={(event) => setArticleImage(event.target.value)} placeholder={systemText.news.placeholders.image} />
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        <Input value={articleImage} onChange={(event) => setArticleImage(event.target.value)} placeholder={systemText.news.placeholders.image} />
+                                    </div>
+                                    <ImageUpload onUploadSuccess={(url) => setArticleImage(url)} label="Tải ảnh" />
+                                    {articleImage && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={articleImage} alt="Article Preview" className="h-9 w-9 object-cover rounded-md border" />
+                                    )}
+                                </div>
                             </div>
                             <Textarea value={articleDescription} onChange={(event) => setArticleDescription(event.target.value)} placeholder={systemText.news.placeholders.description} />
                             <div className="flex gap-2">
@@ -1733,7 +1748,16 @@ function SystemAdminSectionV2() {
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label>{systemText.clinicDialog.labels.image}</Label>
-                                <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} />
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        <Input value={clinicImage} onChange={(event) => setClinicImage(event.target.value)} />
+                                    </div>
+                                    <ImageUpload onUploadSuccess={(url) => setClinicImage(url)} label="Tải ảnh" />
+                                    {clinicImage && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={clinicImage} alt="Clinic Preview" className="h-9 w-9 object-cover rounded-md border" />
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -1825,7 +1849,16 @@ function SystemAdminSectionV2() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>{systemText.doctorDialog.labels.avatar}</Label>
-                                    <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} />
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1">
+                                            <Input value={doctorEditAvatar} onChange={(event) => setDoctorEditAvatar(event.target.value)} />
+                                        </div>
+                                        <ImageUpload onUploadSuccess={(url) => setDoctorEditAvatar(url)} label="Tải ảnh" />
+                                        {doctorEditAvatar && (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={doctorEditAvatar} alt="Doctor Preview" className="h-9 w-9 object-cover rounded-md border" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="space-y-2">

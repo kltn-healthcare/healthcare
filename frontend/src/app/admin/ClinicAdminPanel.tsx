@@ -29,6 +29,8 @@ import { ADMIN_DAY_OPTIONS, ADMIN_TEXT } from "./admin.constants"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Textarea } from "@/shared/ui/textarea"
 import { Building, Phone, Mail, Globe, Clock, FileText, Image as ImageIcon, MapPin, Check } from "lucide-react"
+import { ImageUpload } from "@/components"
+
 
 const dayOptions = ADMIN_DAY_OPTIONS
 
@@ -905,6 +907,9 @@ export function ClinicAdminPanel() {
                                             </div>
                                         )}
                                     </div>
+
+                                    <ImageUpload onUploadSuccess={(url) => setProfileImage(url)} label="Tải logo lên" />
+
                                     <div className="w-full space-y-2">
                                         <Label htmlFor="logoUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Logo</Label>
                                         <Input

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Header } from "@/components/Header"
+import { Header, ImageUpload } from "@/components"
 import { NotificationList } from "@/components/NotificationList"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
@@ -55,6 +55,11 @@ export default function AccountPage() {
   const [editName, setEditName] = useState("")
   const [editPhone, setEditPhone] = useState("")
   const [editAvatar, setEditAvatar] = useState("")
+  const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    setImageError(false)
+  }, [editAvatar])
 
   // Cancel Booking State
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -297,62 +302,106 @@ export default function AccountPage() {
                   <CardDescription>{t(ACCOUNT_I18N_KEYS.profile.desc)}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isEditingProfile ? (
-                    <div className="space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>{t(ACCOUNT_I18N_KEYS.profile.fullName)}</Label>
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t(ACCOUNT_I18N_KEYS.profile.emailLocked)}</Label>
-                          <Input value={auth.user?.email || ""} disabled />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t(ACCOUNT_I18N_KEYS.profile.phone)}</Label>
-                          <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
-                        </div>
-                        <div className="space-y-2 lg:col-span-2">
-                          <Label>{t(ACCOUNT_I18N_KEYS.profile.avatarUrl)}</Label>
-                          <Input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} placeholder={t(ACCOUNT_I18N_KEYS.profile.avatarPlaceholder)} />
-                        </div>
+                  <div className="grid gap-6 md:grid-cols-3">
+                    {/* Left Column: Avatar view/upload */}
+                    <div className="flex flex-col items-center space-y-5 rounded-lg border bg-slate-50/50 p-6 dark:bg-slate-900/50">
+                      <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border bg-white shadow-xs dark:bg-slate-950">
+                        {editAvatar && !imageError ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={editAvatar}
+                            alt="Avatar preview"
+                            className="h-full w-full object-cover"
+                            onError={() => setImageError(true)}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center space-y-2 text-center p-2 text-muted-foreground">
+                            <User className="h-12 w-12 stroke-1 text-muted-foreground/60" />
+                            <span className="text-[10px] leading-tight text-amber-600 dark:text-amber-500 font-medium">
+                              {imageError ? "Lỗi: AWS S3 Bucket đang chặn quyền truy cập công khai (403 Forbidden)" : "Chưa có ảnh"}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex justify-end gap-2 mt-6">
-                        <Button variant="outline" onClick={() => setIsEditingProfile(false)}>{t(ACCOUNT_I18N_KEYS.profile.cancel)}</Button>
-                        <Button 
-                          className="bg-primary" 
-                          onClick={handleUpdateProfile}
-                          disabled={profileMutation.isPending}
-                        >
-                          {profileMutation.isPending ? t(ACCOUNT_I18N_KEYS.profile.saving) : t(ACCOUNT_I18N_KEYS.profile.save)}
-                        </Button>
-                      </div>
+
+                      {isEditingProfile ? (
+                        <div className="flex flex-col items-center w-full space-y-3">
+                          <ImageUpload onUploadSuccess={(url) => setEditAvatar(url)} label="Tải ảnh lên" />
+                          
+                          <div className="w-full space-y-1">
+                            <Label htmlFor="avatarUrl" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">URL Ảnh đại diện</Label>
+                            <Input
+                              id="avatarUrl"
+                              value={editAvatar}
+                              onChange={(e) => setEditAvatar(e.target.value)}
+                              placeholder="https://example.com/avatar.png"
+                              className="w-full text-xs"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ảnh đại diện</span>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.fullName)}</p>
-                          <p className="font-semibold text-lg">{auth.user?.name ?? "—"}</p>
+
+                    {/* Right Column: Profile Form Details */}
+                    <div className="md:col-span-2 space-y-4">
+                      {isEditingProfile ? (
+                        <div className="space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>{t(ACCOUNT_I18N_KEYS.profile.fullName)}</Label>
+                              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>{t(ACCOUNT_I18N_KEYS.profile.emailLocked)}</Label>
+                              <Input value={auth.user?.email || ""} disabled />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>{t(ACCOUNT_I18N_KEYS.profile.phone)}</Label>
+                              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 mt-6">
+                            <Button variant="outline" onClick={() => setIsEditingProfile(false)}>{t(ACCOUNT_I18N_KEYS.profile.cancel)}</Button>
+                            <Button 
+                              className="bg-primary" 
+                              onClick={handleUpdateProfile}
+                              disabled={profileMutation.isPending}
+                            >
+                              {profileMutation.isPending ? t(ACCOUNT_I18N_KEYS.profile.saving) : t(ACCOUNT_I18N_KEYS.profile.save)}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.email)}</p>
-                          <p className="font-semibold text-lg">{auth.user?.email ?? "—"}</p>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="grid gap-6 md:grid-cols-2">
+                            <div className="rounded-lg border p-4 bg-muted/20">
+                              <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.fullName)}</p>
+                              <p className="font-semibold text-lg">{auth.user?.name ?? "—"}</p>
+                            </div>
+                            <div className="rounded-lg border p-4 bg-muted/20">
+                              <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.email)}</p>
+                              <p className="font-semibold text-lg">{auth.user?.email ?? "—"}</p>
+                            </div>
+                            <div className="rounded-lg border p-4 bg-muted/20">
+                              <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.phone)}</p>
+                              <p className="font-semibold text-lg">{auth.user?.phone || t(ACCOUNT_I18N_KEYS.profile.notUpdated)}</p>
+                            </div>
+                            <div className="rounded-lg border p-4 bg-muted/20">
+                              <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.role)}</p>
+                              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase font-bold tracking-wider">{auth.user?.role}</Badge>
+                            </div>
+                          </div>
+                          <Button className="bg-primary" onClick={() => setIsEditingProfile(true)}>
+                            {t(ACCOUNT_I18N_KEYS.profile.edit)}
+                          </Button>
                         </div>
-                        <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.phone)}</p>
-                          <p className="font-semibold text-lg">{auth.user?.phone || t(ACCOUNT_I18N_KEYS.profile.notUpdated)}</p>
-                        </div>
-                        <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.role)}</p>
-                          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase font-bold tracking-wider">{auth.user?.role}</Badge>
-                        </div>
-                      </div>
-                      <Button className="bg-primary" onClick={() => setIsEditingProfile(true)}>
-                        {t(ACCOUNT_I18N_KEYS.profile.edit)}
-                      </Button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

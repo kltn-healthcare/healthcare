@@ -27,6 +27,7 @@ import { FirebaseModule } from './common/firebase/firebase.module';
 import { DynamoAppointmentsModule } from './aws/dynamo-appointments.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { RemindersModule } from './reminders/reminders.module';
     DynamoAppointmentsModule,
     NotificationsModule,
     RemindersModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [

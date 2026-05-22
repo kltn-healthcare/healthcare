@@ -27,6 +27,7 @@ import { RemindersModule } from '../../../src/reminders/reminders.module';
 import { DoctorAdminModule } from '../../../src/doctor-admin/doctor-admin.module';
 import { ClinicAdminModule } from '../../../src/clinic-admin/clinic-admin.module';
 import { AdminModule } from '../../../src/admin/admin.module';
+import { UploadModule } from '../../../src/upload/upload.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { AdminModule } from '../../../src/admin/admin.module';
     DoctorAdminModule,
     ClinicAdminModule,
     AdminModule,
+    UploadModule,
   ],
   providers: [
     {
