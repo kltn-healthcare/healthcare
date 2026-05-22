@@ -204,16 +204,16 @@ export default function BookingPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <main className="flex-1 bg-muted/30 py-12">
+      <main className="flex-1 bg-muted/30 pt-6 pb-12">
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-4xl">
-            <div className="mb-8">
-              <h1 className="mb-2 text-3xl font-bold">Đặt Lịch Khám</h1>
-              <p className="text-muted-foreground">Hoàn thành các bước dưới đây để đặt lịch khám</p>
+            <div className="mb-4">
+              <h1 className="mb-1 text-3xl font-bold">Đặt Lịch Khám</h1>
+              <p className="text-muted-foreground text-sm">Hoàn thành các bước dưới đây để đặt lịch khám</p>
             </div>
 
             {/* Progress Steps */}
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between">
               {[1, 2, 3].map((s) => (
                 <div key={s} className="flex flex-1 items-center">
                   <div
@@ -277,13 +277,13 @@ export default function BookingPage() {
                   <div className="mt-6 border-t pt-6 space-y-4">
                     <Label className="text-base font-semibold">Chọn Cơ sở & Bác sĩ</Label>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                       <div className="space-y-2">
                         <Label>Phòng khám</Label>
                         <Select value={clinicId} onValueChange={(val) => {
                           setClinicId(val)
                           setSpecialtyId("")
-                          setDoctorId("") // Reset doctor when clinic changes
+                          setDoctorId("") // Reset specialty & doctor when clinic changes
                           setPackageId("")
                         }}>
                           <SelectTrigger className="bg-white border-gray-200">
@@ -300,14 +300,45 @@ export default function BookingPage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label>Chuyên khoa</Label>
+                        <Select
+                          value={specialtyId}
+                          onValueChange={(val) => {
+                            setSpecialtyId(val)
+                            setDoctorId("")
+                          }}
+                          disabled={!clinicId || isPackageBooking}
+                        >
+                          <SelectTrigger className="bg-white border-gray-200">
+                            <SelectValue placeholder={!clinicId ? "Vui lòng chọn phòng khám" : "Chọn chuyên khoa"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {specialtyOptions.map((specialty: any) => (
+                              <SelectItem key={specialty.id || specialty} value={specialty.id || specialty}>
+                                {specialty.name || specialty}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
                         <Label>Bác sĩ</Label>
                         <Select
                           value={doctorId}
                           onValueChange={setDoctorId}
-                          disabled={isPackageBooking || !clinicId || doctorsQuery.isLoading}
+                          disabled={isPackageBooking || !clinicId || !specialtyId || doctorsQuery.isLoading}
                         >
                           <SelectTrigger className="bg-white border-gray-200">
-                            <SelectValue placeholder={doctorsQuery.isLoading ? "Đang tải..." : "Chọn bác sĩ"} />
+                            <SelectValue placeholder={
+                              doctorsQuery.isLoading 
+                                ? "Đang tải..." 
+                                : !clinicId 
+                                  ? "Vui lòng chọn phòng khám"
+                                  : !specialtyId
+                                    ? "Vui lòng chọn chuyên khoa"
+                                    : "Chọn bác sĩ"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
                             {(doctorsQuery.data?.items ?? []).map((doc: any) => (
@@ -318,29 +349,6 @@ export default function BookingPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                    </div>
-
-                    <div className="rounded-xl border bg-white p-4">
-                      <div className="mb-2 text-sm font-medium text-muted-foreground">Chuyên khoa</div>
-                      <Select
-                        value={specialtyId}
-                        onValueChange={(val) => {
-                          setSpecialtyId(val)
-                          setDoctorId("")
-                        }}
-                        disabled={!clinicId || isPackageBooking}
-                      >
-                        <SelectTrigger className="bg-white border-gray-200">
-                          <SelectValue placeholder="Chọn chuyên khoa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {specialtyOptions.map((specialty: any) => (
-                            <SelectItem key={specialty.id || specialty} value={specialty.id || specialty}>
-                              {specialty.name || specialty}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
 
                     {doctorId && doctorDetailQuery.data && (
