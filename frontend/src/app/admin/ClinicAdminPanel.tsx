@@ -61,7 +61,7 @@ function defaultSpecialtySchedules(slotDurationMinutes = 30): SpecialtyScheduleR
         {
             dayOfWeek: day.value,
             isActive: day.value >= 1 && day.value <= 6,
-            startTime: "13:30",
+            startTime: "14:00",
             endTime: "17:00",
             slotDurationMinutes,
             capacity: 1,
@@ -335,6 +335,83 @@ export function ClinicAdminPanel() {
     const [selectedSpecialtySlots, setSelectedSpecialtySlots] = useState<Set<string>>(new Set())
     const [selectedPackageId, setSelectedPackageId] = useState("")
     const [availability, setAvailability] = useState<PackageAvailabilityRow[]>(defaultPackageAvailability())
+
+    // 1. So sánh Dirty State cho giờ làm việc Clinic
+    const initialWorkingHours = useMemo(() => {
+        if (!clinic?.workingHours?.length) return defaultClinicHours()
+        const byDay = new Map(clinic.workingHours.map((row: any) => [row.dayOfWeek, row]))
+        return defaultClinicHours().map((row) => {
+            const override = byDay.get(row.dayOfWeek)
+            return override ? { ...row, ...override } : row
+        })
+    }, [clinic?.workingHours])
+
+    const isHoursDirty = useMemo(() => {
+        return JSON.stringify(workingHours) !== JSON.stringify(initialWorkingHours)
+    }, [workingHours, initialWorkingHours])
+
+    // 2. So sánh Dirty State cho Lịch Chuyên khoa
+    const initialSpecialtySchedules = useMemo(() => {
+        if (!selectedSpecialtyId) return defaultSpecialtySchedules()
+        const selected = clinicSpecialties.find((item: any) => item.specialtyId === selectedSpecialtyId)
+        return selected?.schedules?.length ? selected.schedules : defaultSpecialtySchedules()
+    }, [clinicSpecialties, selectedSpecialtyId])
+
+    const isSpecialtyDirty = useMemo(() => {
+        if (!selectedSpecialtyId) return false
+        const cleanCurrent = specialtySchedules.map((s: SpecialtyScheduleRow) => ({
+            dayOfWeek: s.dayOfWeek,
+            isActive: s.isActive,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            slotDurationMinutes: s.slotDurationMinutes,
+            capacity: s.capacity
+        }))
+        const cleanInitial = (initialSpecialtySchedules as SpecialtyScheduleRow[]).map((s: SpecialtyScheduleRow) => ({
+            dayOfWeek: s.dayOfWeek,
+            isActive: s.isActive,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            slotDurationMinutes: s.slotDurationMinutes,
+            capacity: s.capacity
+        }))
+        return JSON.stringify(cleanCurrent) !== JSON.stringify(cleanInitial)
+    }, [specialtySchedules, initialSpecialtySchedules, selectedSpecialtyId])
+
+    // 3. So sánh Dirty State cho Gói khám
+    const initialAvailability = useMemo(() => {
+        if (!selectedPackageId) return defaultPackageAvailability()
+        const pkg = packages.find((item: any) => item.id === selectedPackageId)
+        if (pkg?.availabilities?.length) {
+            const byDay = new Map(pkg.availabilities.map((row: any) => [row.dayOfWeek, row]))
+            return defaultPackageAvailability().map((row) => {
+                const override = byDay.get(row.dayOfWeek)
+                return override ? { ...row, ...override } : row
+            })
+        }
+        return defaultPackageAvailability()
+    }, [packages, selectedPackageId])
+
+    const isAvailabilityDirty = useMemo(() => {
+        if (!selectedPackageId) return false
+        const cleanCurrent = availability.map(row => ({
+            dayOfWeek: row.dayOfWeek,
+            isActive: row.isActive,
+            startTime: row.startTime,
+            endTime: row.endTime,
+            slotDurationMinutes: row.slotDurationMinutes,
+            capacity: row.capacity
+        }))
+        const cleanInitial = initialAvailability.map(row => ({
+            dayOfWeek: row.dayOfWeek,
+            isActive: row.isActive,
+            startTime: row.startTime,
+            endTime: row.endTime,
+            slotDurationMinutes: row.slotDurationMinutes,
+            capacity: row.capacity
+        }))
+        return JSON.stringify(cleanCurrent) !== JSON.stringify(cleanInitial)
+    }, [availability, initialAvailability, selectedPackageId])
     const [packageName, setPackageName] = useState("")
     const [packageDescription, setPackageDescription] = useState("")
     const [packagePrice, setPackagePrice] = useState("")
@@ -491,7 +568,7 @@ export function ClinicAdminPanel() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <MultiRangeTimeline selected={selectedClinicSlots} onChange={setClinicTimeline} />
-                    <Button onClick={() => saveHoursMutation.mutate(workingHours)} disabled={saveHoursMutation.isPending}>
+                    <Button onClick={() => saveHoursMutation.mutate(workingHours)} disabled={saveHoursMutation.isPending || !isHoursDirty}>
                         {text.workingHours.save}
                     </Button>
                 </CardContent>
@@ -576,7 +653,7 @@ export function ClinicAdminPanel() {
                                 disabledKeys={disabledSpecialtySlots}
                                 stepMinutes={specialtySlotDuration}
                             />
-                            <Button onClick={() => saveSpecialtySchedulesMutation.mutate({ specialtyId: selectedSpecialtyId, rows: specialtySchedules })} disabled={saveSpecialtySchedulesMutation.isPending}>
+                            <Button onClick={() => saveSpecialtySchedulesMutation.mutate({ specialtyId: selectedSpecialtyId, rows: specialtySchedules })} disabled={saveSpecialtySchedulesMutation.isPending || !isSpecialtyDirty}>
                                 {text.specialtySchedule.save}
                             </Button>
                         </>
@@ -661,7 +738,7 @@ export function ClinicAdminPanel() {
                                     <Input value={row.capacity} type="number" onChange={(event) => updateAvailability(row.dayOfWeek, { capacity: Number(event.target.value) || 1 })} />
                                 </div>
                             ))}
-                            <Button onClick={() => saveAvailabilityMutation.mutate({ packageId: selectedPackageId, rows: availability })} disabled={saveAvailabilityMutation.isPending}>
+                            <Button onClick={() => saveAvailabilityMutation.mutate({ packageId: selectedPackageId, rows: availability })} disabled={saveAvailabilityMutation.isPending || !isAvailabilityDirty}>
                                 {text.packages.saveAvailability}
                             </Button>
                         </>

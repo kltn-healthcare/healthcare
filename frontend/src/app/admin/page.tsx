@@ -414,6 +414,39 @@ function DoctorAdminSection() {
         return { total, pending, confirmed, completed }
     }, [allBookings])
 
+    // Khởi tạo các slot được chọn ban đầu từ DB để so sánh Dirty State
+    const initialSelectedSlots = useMemo(() => {
+        if (!settingsQuery.data?.settings) return new Set<string>()
+        const schedules = settingsQuery.data.settings.specialtySchedules ?? []
+        return workingHoursToSelectedSlots(
+            settingsQuery.data.settings.workingHours,
+            generateDoctorSlots(schedules)
+        )
+    }, [settingsQuery.data?.settings])
+
+    // Tính toán xem người dùng đã thực hiện bất kỳ thay đổi nào chưa (isDirty)
+    const isScheduleDirty = useMemo(() => {
+        if (!settingsQuery.data?.settings) return false
+        if (initialSelectedSlots.size !== selectedDoctorSlots.size) return true
+        for (const key of selectedDoctorSlots) {
+            if (!initialSelectedSlots.has(key)) return true
+        }
+        return false
+    }, [initialSelectedSlots, selectedDoctorSlots, settingsQuery.data?.settings])
+
+    // Lấy danh sách tất cả các khung giờ duy nhất của chuyên khoa để làm header bảng Grid
+    const allUniqueTimeIntervals = useMemo(() => {
+        const intervals = new Set<string>()
+        generatedDoctorSlots.forEach((slot) => {
+            intervals.add(`${slot.startTime}-${slot.endTime}`)
+        })
+        return Array.from(intervals).sort((a, b) => {
+            const timeA = adminTimeToMinutes(a.split("-")[0])
+            const timeB = adminTimeToMinutes(b.split("-")[0])
+            return timeA - timeB
+        })
+    }, [generatedDoctorSlots])
+
     useEffect(() => {
         if (settingsQuery.data?.settings) {
             setSlotDurationMinutes(settingsQuery.data.settings.slotDurationMinutes ?? 30)
@@ -488,7 +521,7 @@ function DoctorAdminSection() {
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard icon={CalendarClock} title={doctorText.stats.total} value={String(bookingStats.total)} />
                 <StatCard icon={Activity} title={doctorText.stats.pending} value={String(bookingStats.pending)} />
                 <StatCard icon={CalendarCheck2} title={doctorText.stats.confirmed} value={String(bookingStats.confirmed)} />
@@ -594,40 +627,63 @@ function DoctorAdminSection() {
                                 />
                             </div>
 
-                            <div className="rounded-lg border p-4">
-                                {generatedDoctorSlots.length === 0 ? (
-                                    <div className="text-sm text-muted-foreground">
-                                        Clinic admin cần cấu hình lịch chuyên khoa trước khi bác sĩ chọn slot làm việc.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {dayOptions.map((day) => {
-                                            const slots = generatedDoctorSlots.filter((slot) => slot.dayOfWeek === day.value)
-                                            if (!slots.length) return null
-                                            return (
-                                                <div key={day.value} className="grid gap-3 md:grid-cols-[120px_1fr]">
-                                                    <div className="font-medium">{day.label}</div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {slots.map((slot) => {
-                                                            const active = selectedDoctorSlots.has(slot.key)
+                            {generatedDoctorSlots.length === 0 ? (
+                                <div className="rounded-lg border p-4 text-sm text-muted-foreground bg-slate-50 text-center">
+                                    Clinic admin cần cấu hình lịch chuyên khoa trước khi bác sĩ chọn slot làm việc.
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                                <TableHead className="w-[120px] font-semibold text-slate-900 border-r">Ngày làm việc</TableHead>
+                                                {allUniqueTimeIntervals.map((interval) => (
+                                                    <TableHead key={interval} className="text-center font-semibold text-slate-900 min-w-[125px]">
+                                                        {interval}
+                                                    </TableHead>
+                                                ))}
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {dayOptions.map((day) => (
+                                                <TableRow key={day.value} className="hover:bg-slate-50/50">
+                                                    <TableCell className="font-medium text-slate-800 border-r">{day.label}</TableCell>
+                                                    {allUniqueTimeIntervals.map((interval) => {
+                                                        const [startTime, endTime] = interval.split("-")
+                                                        const targetKey = doctorSlotKey(day.value, startTime, endTime)
+                                                        const existsInSpecialty = generatedDoctorSlots.some((s) => s.key === targetKey)
+                                                        const active = selectedDoctorSlots.has(targetKey)
+
+                                                        if (!existsInSpecialty) {
                                                             return (
-                                                                <button
-                                                                    key={slot.key}
-                                                                    type="button"
-                                                                    onClick={() => toggleDoctorSlot(slot.key)}
-                                                                    className={`rounded-md border px-3 py-2 text-sm transition ${active ? "border-primary bg-primary text-white" : "border-slate-200 bg-white hover:bg-primary/10"}`}
-                                                                >
-                                                                    {slot.startTime}-{slot.endTime}
-                                                                </button>
+                                                                <TableCell key={interval} className="text-center bg-slate-50 text-slate-300 text-xs select-none">
+                                                                    -
+                                                                </TableCell>
                                                             )
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </div>
+                                                        }
+
+                                                        return (
+                                                            <TableCell key={interval} className="text-center p-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleDoctorSlot(targetKey)}
+                                                                    className={`w-full rounded-md border py-1.5 px-2 text-xs font-semibold tracking-wide transition shadow-sm ${
+                                                                        active
+                                                                            ? "border-primary bg-primary text-white hover:bg-primary/95 hover:border-primary/95"
+                                                                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                                                                    }`}
+                                                                >
+                                                                    {active ? "Đăng ký" : "Trống"}
+                                                                </button>
+                                                            </TableCell>
+                                                        )
+                                                    })}
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
 
                             {scheduleError ? (
                                 <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
@@ -635,9 +691,15 @@ function DoctorAdminSection() {
                                 </div>
                             ) : null}
 
-                            <Button disabled={saveScheduleMutation.isPending} onClick={handleSaveSchedule}>
-                                {saveScheduleMutation.isPending ? text.common.saving : doctorText.scheduleCard.save}
-                            </Button>
+                            <div className="flex justify-end pt-2">
+                                <Button 
+                                    disabled={saveScheduleMutation.isPending || !isScheduleDirty} 
+                                    onClick={handleSaveSchedule}
+                                    className="px-6 py-2 shadow transition"
+                                >
+                                    {saveScheduleMutation.isPending ? text.common.saving : doctorText.scheduleCard.save}
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
