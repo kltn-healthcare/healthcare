@@ -92,3 +92,20 @@ export async function patchClinicAdminBookingStatus(
     const res = await adminClient.patch(`/v1/clinic-admin/bookings/${id}/status`, input)
     return res.data
 }
+
+export type UpdateClinicProfileInput = {
+    name?: string
+    description?: string
+    address?: string
+    phone?: string
+    email?: string
+    website?: string
+    image?: string
+    isOpen?: boolean
+    openingHours?: string
+}
+
+export async function patchClinicAdminProfile(input: UpdateClinicProfileInput) {
+    const res = await adminClient.patch('/v1/clinic-admin/profile', input)
+    return res.data
+}

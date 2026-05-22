@@ -15,6 +15,12 @@ import {
     Stethoscope,
     UserRoundCheck,
     Users,
+    User,
+    Mail,
+    Phone,
+    Award,
+    Sparkles,
+    Check,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -75,10 +81,14 @@ import {
     getDoctorSettings,
     patchDoctorBookingStatus,
     putDoctorSchedule,
+    getDoctorProfile,
+    patchDoctorProfile,
     type DoctorBookingItem,
     type DoctorBookingStatus,
     type DoctorSpecialtySchedule,
     type DoctorWorkingHour,
+    type DoctorProfileItem,
+    type UpdateDoctorProfileInput,
 } from "@/api/doctor-admin"
 import { getSpecialties } from "@/api/specialties"
 import { ARTICLE_DEFAULTS, ARTICLE_QUERY_KEYS } from "@/shared/constants"
@@ -388,6 +398,11 @@ function DoctorAdminSection() {
         queryFn: getDoctorSettings,
     })
 
+    const profileQuery = useQuery({
+        queryKey: ["doctor-admin", "profile"],
+        queryFn: getDoctorProfile,
+    })
+
     const [bookingFilter, setBookingFilter] = useState<BookingFilter>("ALL")
     const [slotDurationMinutes, setSlotDurationMinutes] = useState(30)
     const [specialtySchedules, setSpecialtySchedules] = useState<DoctorSpecialtySchedule[]>([])
@@ -395,6 +410,62 @@ function DoctorAdminSection() {
     const [scheduleError, setScheduleError] = useState<string | null>(null)
     const [cancelBookingTarget, setCancelBookingTarget] = useState<DoctorBookingItem | null>(null)
     const [cancelReason, setCancelReason] = useState("")
+
+    const [profileName, setProfileName] = useState("")
+    const [profilePhone, setProfilePhone] = useState("")
+    const [profileAvatar, setProfileAvatar] = useState("")
+    const [profileExperience, setProfileExperience] = useState<number>(0)
+    const [profileBio, setProfileBio] = useState("")
+
+    const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null)
+    const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (profileQuery.data) {
+            setProfileName(profileQuery.data.name ?? "")
+            setProfilePhone(profileQuery.data.user?.phone ?? "")
+            setProfileAvatar(profileQuery.data.avatar ?? "")
+            setProfileExperience(profileQuery.data.experience ?? 0)
+            setProfileBio(profileQuery.data.bio ?? "")
+        }
+    }, [profileQuery.data])
+
+    const isProfileDirty = useMemo(() => {
+        if (!profileQuery.data) return false
+        return (
+            profileName !== (profileQuery.data.name ?? "") ||
+            profilePhone !== (profileQuery.data.user?.phone ?? "") ||
+            profileAvatar !== (profileQuery.data.avatar ?? "") ||
+            profileExperience !== (profileQuery.data.experience ?? 0) ||
+            profileBio !== (profileQuery.data.bio ?? "")
+        )
+    }, [profileName, profilePhone, profileAvatar, profileExperience, profileBio, profileQuery.data])
+
+    const updateProfileMutation = useMutation({
+        mutationFn: patchDoctorProfile,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["doctor-admin", "profile"] })
+            setProfileSuccessMsg("Cập nhật hồ sơ cá nhân thành công!")
+            setProfileErrorMsg(null)
+            setTimeout(() => setProfileSuccessMsg(null), 5000)
+        },
+        onError: (error: any) => {
+            setProfileErrorMsg(error?.response?.data?.message || "Đã xảy ra lỗi khi cập nhật hồ sơ.")
+            setProfileSuccessMsg(null)
+        },
+    })
+
+    const handleSaveProfile = () => {
+        setProfileSuccessMsg(null)
+        setProfileErrorMsg(null)
+        updateProfileMutation.mutate({
+            name: profileName,
+            phone: profilePhone,
+            avatar: profileAvatar,
+            experience: Number(profileExperience) || 0,
+            bio: profileBio,
+        })
+    }
 
     const allBookings = allBookingsQuery.data?.items ?? []
     const generatedDoctorSlots = useMemo(() => generateDoctorSlots(specialtySchedules), [specialtySchedules])
@@ -529,12 +600,15 @@ function DoctorAdminSection() {
             </div>
 
             <Tabs defaultValue="bookings" className="space-y-4">
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1">
+                <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted p-1">
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="bookings">
                         {doctorText.tabs.bookings}
                     </TabsTrigger>
                     <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="schedule">
                         {doctorText.tabs.schedule}
+                    </TabsTrigger>
+                    <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="profile">
+                        Hồ sơ cá nhân
                     </TabsTrigger>
                 </TabsList>
 
@@ -699,6 +773,180 @@ function DoctorAdminSection() {
                                 >
                                     {saveScheduleMutation.isPending ? text.common.saving : doctorText.scheduleCard.save}
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Tab 3: Hồ sơ cá nhân */}
+                <TabsContent value="profile" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Cập nhật hồ sơ cá nhân</CardTitle>
+                            <CardDescription>
+                                Quản lý thông tin cá nhân, ảnh đại diện, số năm kinh nghiệm và tiểu sử của bạn.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {profileSuccessMsg && (
+                                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-600 flex items-center gap-2">
+                                    <Check className="h-4 w-4" />
+                                    {profileSuccessMsg}
+                                </div>
+                            )}
+                            {profileErrorMsg && (
+                                <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600">
+                                    {profileErrorMsg}
+                                </div>
+                            )}
+
+                            <div className="grid gap-6 md:grid-cols-3">
+                                {/* Left column: Avatar preview & Fixed info badges */}
+                                <div className="flex flex-col items-center space-y-5 rounded-lg border bg-slate-50/50 p-6 dark:bg-slate-900/50">
+                                    <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border bg-white shadow-xs dark:bg-slate-950">
+                                        {profileAvatar ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={profileAvatar}
+                                                alt="Avatar preview"
+                                                className="h-full w-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLElement).style.display = "none"
+                                                }}
+                                            />
+                                        ) : null}
+                                        {!profileAvatar && (
+                                            <div className="flex flex-col items-center space-y-2 text-muted-foreground">
+                                                <ImageIcon className="h-12 w-12 stroke-1" />
+                                                <span className="text-xs">Chưa có ảnh</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="w-full space-y-2">
+                                        <Label htmlFor="avatarUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Ảnh đại diện</Label>
+                                        <Input
+                                            id="avatarUrl"
+                                            value={profileAvatar}
+                                            onChange={(e) => setProfileAvatar(e.target.value)}
+                                            placeholder="https://example.com/avatar.png"
+                                            className="w-full text-xs"
+                                        />
+                                    </div>
+
+                                    {/* Fixed info section with premium badges */}
+                                    <div className="w-full pt-4 border-t border-slate-200/60 dark:border-slate-800/60 space-y-3">
+                                        <div className="space-y-1">
+                                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                                <Mail className="h-3 w-3" />
+                                                Email đăng nhập
+                                            </div>
+                                            <div className="text-sm font-medium truncate text-slate-800 dark:text-slate-200">
+                                                {profileQuery.data?.user?.email || "Chưa có email"}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                                <Building2 className="h-3 w-3" />
+                                                Phòng khám
+                                            </div>
+                                            <div>
+                                                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 max-w-full text-xs truncate block py-0.5">
+                                                    {profileQuery.data?.clinic?.name || "Chưa gán phòng khám"}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                                <Stethoscope className="h-3 w-3" />
+                                                Chuyên khoa
+                                            </div>
+                                            <div>
+                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900 max-w-full text-xs truncate block py-0.5">
+                                                    {profileQuery.data?.specialty?.name || "Chưa gán chuyên khoa"}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right column: Edit Form */}
+                                <div className="space-y-4 md:col-span-2">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="doctorName" className="flex items-center gap-2">
+                                                <User className="h-4 w-4 text-primary" />
+                                                Họ và tên bác sĩ
+                                            </Label>
+                                            <Input
+                                                id="doctorName"
+                                                value={profileName}
+                                                onChange={(e) => setProfileName(e.target.value)}
+                                                placeholder="Bác sĩ Nguyễn Văn A"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="doctorPhone" className="flex items-center gap-2">
+                                                <Phone className="h-4 w-4 text-primary" />
+                                                Số điện thoại
+                                            </Label>
+                                            <Input
+                                                id="doctorPhone"
+                                                value={profilePhone}
+                                                onChange={(e) => setProfilePhone(e.target.value)}
+                                                placeholder="0123456789"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="doctorExperience" className="flex items-center gap-2">
+                                                <Award className="h-4 w-4 text-primary" />
+                                                Số năm kinh nghiệm
+                                            </Label>
+                                            <Input
+                                                id="doctorExperience"
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profileExperience}
+                                                onChange={(e) => setProfileExperience(Number(e.target.value) || 0)}
+                                                placeholder="5"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="doctorBio" className="flex items-center gap-2">
+                                                <Sparkles className="h-4 w-4 text-primary" />
+                                                Tiểu sử / Giới thiệu
+                                            </Label>
+                                            <Textarea
+                                                id="doctorBio"
+                                                value={profileBio}
+                                                onChange={(e) => setProfileBio(e.target.value)}
+                                                placeholder="Giới thiệu về quá trình công tác, thành tựu, triết lý chữa bệnh..."
+                                                rows={6}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end pt-4">
+                                        <Button
+                                            onClick={handleSaveProfile}
+                                            disabled={updateProfileMutation.isPending || !isProfileDirty}
+                                            className="min-w-[150px] shadow-sm transition-all"
+                                        >
+                                            {updateProfileMutation.isPending ? "Đang lưu..." : (
+                                                <span className="flex items-center gap-2">
+                                                    <Check className="h-4 w-4" />
+                                                    Lưu thay đổi
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

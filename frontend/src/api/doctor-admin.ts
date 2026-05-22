@@ -81,3 +81,46 @@ export async function putDoctorServices(input: {
     const res = await adminClient.put('/v1/doctor-admin/settings/services', input)
     return res.data
 }
+
+export type DoctorProfileItem = {
+    id: string
+    name: string
+    avatar?: string | null
+    bio?: string | null
+    experience?: number | null
+    userId: string
+    clinicId: string
+    specialtyId: string
+    clinic?: {
+        id: string
+        name: string
+    } | null
+    specialty?: {
+        id: string
+        name: string
+    } | null
+    user?: {
+        email: string
+        phone?: string | null
+        avatar?: string | null
+        name: string
+    } | null
+}
+
+export type UpdateDoctorProfileInput = {
+    name?: string
+    phone?: string
+    avatar?: string
+    experience?: number
+    bio?: string
+}
+
+export async function getDoctorProfile() {
+    const res = await adminClient.get<DoctorProfileItem>('/v1/doctor-admin/profile')
+    return res.data
+}
+
+export async function patchDoctorProfile(input: UpdateDoctorProfileInput) {
+    const res = await adminClient.patch<DoctorProfileItem>('/v1/doctor-admin/profile', input)
+    return res.data
+}

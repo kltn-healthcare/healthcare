@@ -16,6 +16,7 @@ import { QueryDoctorBookingsDto } from './dto/query-doctor-bookings.dto';
 import { UpdateDoctorBookingStatusDto } from './dto/update-doctor-booking-status.dto';
 import { UpsertDoctorScheduleDto } from './dto/upsert-doctor-schedule.dto';
 import { UpsertDoctorServicesDto } from './dto/upsert-doctor-services.dto';
+import { UpdateDoctorProfileDto } from './dto/update-doctor-profile.dto';
 import { DoctorAdminService } from './doctor-admin.service';
 
 @ApiTags('Doctor Admin')
@@ -40,6 +41,19 @@ export class DoctorAdminController {
     @Body() dto: UpdateDoctorBookingStatusDto,
   ) {
     return this.doctorAdminService.updateBookingStatus(user.id, id, dto);
+  }
+
+  @Get('profile')
+  getProfile(@CurrentUser() user: JwtUser) {
+    return this.doctorAdminService.getProfile(user.id);
+  }
+
+  @Patch('profile')
+  updateProfile(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: UpdateDoctorProfileDto,
+  ) {
+    return this.doctorAdminService.updateProfile(user.id, dto);
   }
 
   @Get('settings')

@@ -14,6 +14,7 @@ import { QueryDoctorBookingsDto } from './dto/query-doctor-bookings.dto';
 import { UpdateDoctorBookingStatusDto } from './dto/update-doctor-booking-status.dto';
 import { UpsertDoctorScheduleDto } from './dto/upsert-doctor-schedule.dto';
 import { UpsertDoctorServicesDto } from './dto/upsert-doctor-services.dto';
+import { UpdateDoctorProfileDto } from './dto/update-doctor-profile.dto';
 
 type DoctorAdminSettings = {
   slotDurationMinutes?: number;
@@ -251,6 +252,84 @@ export class DoctorAdminService {
       id: updated.id,
       settings: this.extractAdminSettings(updated.qualifications),
     };
+  }
+
+  async getProfile(userId: string) {
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { userId },
+      include: {
+        clinic: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        specialty: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            email: true,
+            phone: true,
+            avatar: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!doctor) {
+      throw new ForbiddenException({
+        code: 'DOCTOR_PROFILE_NOT_FOUND',
+        message: 'Doctor profile is not linked to your account',
+      });
+    }
+
+    return doctor;
+  }
+
+  async updateProfile(userId: string, dto: UpdateDoctorProfileDto) {
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new ForbiddenException({
+        code: 'DOCTOR_PROFILE_NOT_FOUND',
+        message: 'Doctor profile is not linked to your account',
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Update Doctor
+      await tx.doctor.update({
+        where: { id: doctor.id },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.avatar !== undefined ? { avatar: dto.avatar.trim() } : {}),
+          ...(dto.bio !== undefined ? { bio: dto.bio.trim() } : {}),
+          ...(dto.experience !== undefined ? { experience: dto.experience } : {}),
+        },
+      });
+
+      // Update User if any field provided
+      if (dto.name || dto.avatar || dto.phone) {
+        const userUpdateData: Prisma.UserUpdateInput = {};
+        if (dto.name !== undefined) userUpdateData.name = dto.name.trim();
+        if (dto.avatar !== undefined) userUpdateData.avatar = dto.avatar.trim();
+        if (dto.phone !== undefined) userUpdateData.phone = dto.phone.trim();
+
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdateData,
+        });
+      }
+    });
+
+    return this.getProfile(userId);
   }
 
   private async getDoctorByUserId(userId: string) {

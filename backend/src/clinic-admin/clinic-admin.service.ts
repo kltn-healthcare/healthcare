@@ -14,6 +14,7 @@ import { UpdateClinicPackageDto } from './dto/update-clinic-package.dto';
 import { UpsertClinicWorkingHoursDto } from './dto/upsert-clinic-working-hours.dto';
 import { UpsertPackageAvailabilityDto } from './dto/upsert-package-availability.dto';
 import { UpsertSpecialtySchedulesDto } from './dto/upsert-specialty-schedules.dto';
+import { UpdateClinicProfileDto } from './dto/update-clinic-profile.dto';
 
 @Injectable()
 export class ClinicAdminService {
@@ -27,6 +28,28 @@ export class ClinicAdminService {
     return {
       clinic: admin.clinic,
     };
+  }
+
+  async updateProfile(userId: string, dto: UpdateClinicProfileDto) {
+    const admin = await this.getClinicAdmin(userId);
+    
+    const updateData: Prisma.ClinicUpdateInput = {};
+    if (dto.name !== undefined) updateData.name = dto.name.trim();
+    if (dto.address !== undefined) updateData.address = dto.address.trim();
+    if (dto.description !== undefined) updateData.description = dto.description?.trim() || null;
+    if (dto.phone !== undefined) updateData.phone = dto.phone?.trim() || null;
+    if (dto.email !== undefined) updateData.email = dto.email?.trim().toLowerCase() || null;
+    if (dto.website !== undefined) updateData.website = dto.website?.trim() || null;
+    if (dto.image !== undefined) updateData.image = dto.image?.trim() || null;
+    if (dto.isOpen !== undefined) updateData.isOpen = dto.isOpen;
+    if (dto.openingHours !== undefined) updateData.openingHours = dto.openingHours?.trim() || null;
+
+    await this.prisma.clinic.update({
+      where: { id: admin.clinicId },
+      data: updateData,
+    });
+
+    return this.profile(userId);
   }
 
   async upsertWorkingHours(userId: string, dto: UpsertClinicWorkingHoursDto) {
@@ -377,7 +400,13 @@ export class ClinicAdminService {
           select: {
             id: true,
             name: true,
+            description: true,
             address: true,
+            phone: true,
+            email: true,
+            website: true,
+            image: true,
+            isOpen: true,
             openingHours: true,
             workingHours: { orderBy: { dayOfWeek: 'asc' } },
             specialties: {

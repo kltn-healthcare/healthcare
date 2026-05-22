@@ -13,6 +13,8 @@ import { UpsertClinicWorkingHoursDto } from './dto/upsert-clinic-working-hours.d
 import { UpsertPackageAvailabilityDto } from './dto/upsert-package-availability.dto';
 import { UpsertSpecialtySchedulesDto } from './dto/upsert-specialty-schedules.dto';
 
+import { UpdateClinicProfileDto } from './dto/update-clinic-profile.dto';
+
 @ApiTags('Clinic Admin')
 @ApiBearerAuth('JWT')
 @Roles(UserRole.CLINIC_ADMIN)
@@ -23,6 +25,14 @@ export class ClinicAdminController {
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
     return this.clinicAdminService.profile(user.id);
+  }
+
+  @Patch('profile')
+  updateProfile(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: UpdateClinicProfileDto,
+  ) {
+    return this.clinicAdminService.updateProfile(user.id, dto);
   }
 
   @Put('working-hours')

@@ -11,6 +11,7 @@ import {
     putClinicWorkingHours,
     putPackageAvailability,
     putSpecialtySchedules,
+    patchClinicAdminProfile,
     type ClinicAdminBookingStatus,
     type ClinicWorkingHour,
     type PackageAvailabilityRow,
@@ -25,6 +26,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/shared/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { ADMIN_DAY_OPTIONS, ADMIN_TEXT } from "./admin.constants"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { Textarea } from "@/shared/ui/textarea"
+import { Building, Phone, Mail, Globe, Clock, FileText, Image as ImageIcon, MapPin, Check } from "lucide-react"
 
 const dayOptions = ADMIN_DAY_OPTIONS
 
@@ -336,6 +340,73 @@ export function ClinicAdminPanel() {
     const [selectedPackageId, setSelectedPackageId] = useState("")
     const [availability, setAvailability] = useState<PackageAvailabilityRow[]>(defaultPackageAvailability())
 
+    // Form profile state
+    const [profileName, setProfileName] = useState("")
+    const [profileAddress, setProfileAddress] = useState("")
+    const [profileDescription, setProfileDescription] = useState("")
+    const [profilePhone, setProfilePhone] = useState("")
+    const [profileEmail, setProfileEmail] = useState("")
+    const [profileWebsite, setProfileWebsite] = useState("")
+    const [profileImage, setProfileImage] = useState("")
+    const [profileOpeningHours, setProfileOpeningHours] = useState("")
+
+    useEffect(() => {
+        if (clinic) {
+            setProfileName(clinic.name || "")
+            setProfileAddress(clinic.address || "")
+            setProfileDescription(clinic.description || "")
+            setProfilePhone(clinic.phone || "")
+            setProfileEmail(clinic.email || "")
+            setProfileWebsite(clinic.website || "")
+            setProfileImage(clinic.image || "")
+            setProfileOpeningHours(clinic.openingHours || "")
+        }
+    }, [clinic])
+
+    const isProfileDirty = useMemo(() => {
+        if (!clinic) return false
+        return (
+            profileName.trim() !== (clinic.name || "").trim() ||
+            profileAddress.trim() !== (clinic.address || "").trim() ||
+            profileDescription.trim() !== (clinic.description || "").trim() ||
+            profilePhone.trim() !== (clinic.phone || "").trim() ||
+            profileEmail.trim() !== (clinic.email || "").trim() ||
+            profileWebsite.trim() !== (clinic.website || "").trim() ||
+            profileImage.trim() !== (clinic.image || "").trim() ||
+            profileOpeningHours.trim() !== (clinic.openingHours || "").trim()
+        )
+    }, [
+        clinic,
+        profileName,
+        profileAddress,
+        profileDescription,
+        profilePhone,
+        profileEmail,
+        profileWebsite,
+        profileImage,
+        profileOpeningHours,
+    ])
+
+    const saveProfileMutation = useMutation({
+        mutationFn: patchClinicAdminProfile,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["clinic-admin", "profile"] })
+        },
+    })
+
+    const handleSaveProfile = () => {
+        saveProfileMutation.mutate({
+            name: profileName,
+            address: profileAddress,
+            description: profileDescription,
+            phone: profilePhone,
+            email: profileEmail,
+            website: profileWebsite,
+            image: profileImage,
+            openingHours: profileOpeningHours,
+        })
+    }
+
     // 1. So sánh Dirty State cho giờ làm việc Clinic
     const initialWorkingHours = useMemo(() => {
         if (!clinic?.workingHours?.length) return defaultClinicHours()
@@ -562,232 +633,407 @@ export function ClinicAdminPanel() {
                 </CardHeader>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{text.workingHours.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <MultiRangeTimeline selected={selectedClinicSlots} onChange={setClinicTimeline} />
-                    <Button onClick={() => saveHoursMutation.mutate(workingHours)} disabled={saveHoursMutation.isPending || !isHoursDirty}>
-                        {text.workingHours.save}
-                    </Button>
-                </CardContent>
-            </Card>
+            <Tabs defaultValue="bookings" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+                    <TabsTrigger value="bookings">Quản lý đặt lịch</TabsTrigger>
+                    <TabsTrigger value="schedule_services">Lịch & Dịch vụ</TabsTrigger>
+                    <TabsTrigger value="profile">Hồ sơ phòng khám</TabsTrigger>
+                </TabsList>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{text.specialtySchedule.title}</CardTitle>
-                    <CardDescription>{text.specialtySchedule.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>{text.specialtySchedule.selectLabel}</Label>
-                        <Select value={selectedSpecialtyId} onValueChange={setSelectedSpecialtyId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder={text.specialtySchedule.selectPlaceholder} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clinicSpecialties.map((item: any) => (
-                                    <SelectItem key={item.specialtyId} value={item.specialtyId}>
-                                        {item.specialty?.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {selectedSpecialtyId ? (
-                        <>
-                            <div className="text-sm text-muted-foreground">{text.specialtySchedule.configuringPrefix}: {selectedSpecialtyName()}</div>
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>{text.specialtySchedule.slotDurationLabel}</Label>
-                                    <Select
-                                        value={String(specialtySlotDuration)}
-                                        onValueChange={(value) => {
-                                            const nextDuration = Number(value) || clinicStepMinutes
-                                            const nextSelected = schedulesToSelectedKeys(specialtySchedules, nextDuration)
-                                            setSpecialtySlotDuration(nextDuration)
-                                            setSelectedSpecialtySlots(nextSelected)
-                                            setSpecialtySchedules(
-                                                selectedKeysToSchedules(
-                                                    nextSelected,
-                                                    nextDuration,
-                                                    specialtyCapacity,
-                                                    nextDuration,
-                                                ),
-                                            )
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="30">{text.specialtySchedule.slotDurationOptions.thirty}</SelectItem>
-                                            <SelectItem value="60">{text.specialtySchedule.slotDurationOptions.sixty}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>{text.specialtySchedule.capacityLabel}</Label>
-                                    <Input
-                                        type="number"
-                                        value={specialtyCapacity}
-                                        onChange={(event) => {
-                                            const value = Number(event.target.value) || 1
-                                            setSpecialtyCapacity(value)
-                                            setSpecialtySchedules(
-                                                selectedKeysToSchedules(
-                                                    selectedSpecialtySlots,
-                                                    specialtySlotDuration,
-                                                    value,
-                                                    specialtySlotDuration,
-                                                ),
-                                            )
-                                        }}
+                {/* Tab 1: Bookings (Default) */}
+                <TabsContent value="bookings" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{text.bookings.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{text.bookings.headers.patient}</TableHead>
+                                        <TableHead>{text.bookings.headers.package}</TableHead>
+                                        <TableHead>{text.bookings.headers.dateTime}</TableHead>
+                                        <TableHead>{text.bookings.headers.status}</TableHead>
+                                        <TableHead>{text.bookings.headers.actions}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {(bookingsQuery.data?.items ?? []).map((booking) => (
+                                        <TableRow key={booking.id}>
+                                            <TableCell>
+                                                <div className="font-medium">{booking.patientName}</div>
+                                                <div className="text-xs text-muted-foreground">{booking.patientPhone}</div>
+                                            </TableCell>
+                                            <TableCell>{booking.healthPackage?.name || "-"}</TableCell>
+                                            <TableCell>{formatDate(booking.bookingDate)} {booking.bookingTime}</TableCell>
+                                            <TableCell><Badge variant="outline">{booking.status}</Badge></TableCell>
+                                            <TableCell className="space-x-2">
+                                                {booking.status === "PENDING" ? (
+                                                    <>
+                                                        <Button size="sm" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}>{text.bookings.confirm}</Button>
+                                                        <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}>{text.bookings.cancel}</Button>
+                                                    </>
+                                                ) : null}
+                                                {booking.status === "CONFIRMED" ? (
+                                                    <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}>{text.bookings.complete}</Button>
+                                                ) : null}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Tab 2: Lịch & Dịch vụ */}
+                <TabsContent value="schedule_services" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{text.workingHours.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <MultiRangeTimeline selected={selectedClinicSlots} onChange={setClinicTimeline} />
+                            <Button onClick={() => saveHoursMutation.mutate(workingHours)} disabled={saveHoursMutation.isPending || !isHoursDirty}>
+                                {text.workingHours.save}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{text.specialtySchedule.title}</CardTitle>
+                            <CardDescription>{text.specialtySchedule.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>{text.specialtySchedule.selectLabel}</Label>
+                                <Select value={selectedSpecialtyId} onValueChange={setSelectedSpecialtyId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={text.specialtySchedule.selectPlaceholder} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {clinicSpecialties.map((item: any) => (
+                                            <SelectItem key={item.specialtyId} value={item.specialtyId}>
+                                                {item.specialty?.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {selectedSpecialtyId ? (
+                                <>
+                                    <div className="text-sm text-muted-foreground">{text.specialtySchedule.configuringPrefix}: {selectedSpecialtyName()}</div>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label>{text.specialtySchedule.slotDurationLabel}</Label>
+                                            <Select
+                                                value={String(specialtySlotDuration)}
+                                                onValueChange={(value) => {
+                                                    const nextDuration = Number(value) || clinicStepMinutes
+                                                    const nextSelected = schedulesToSelectedKeys(specialtySchedules, nextDuration)
+                                                    setSpecialtySlotDuration(nextDuration)
+                                                    setSelectedSpecialtySlots(nextSelected)
+                                                    setSpecialtySchedules(
+                                                        selectedKeysToSchedules(
+                                                            nextSelected,
+                                                            nextDuration,
+                                                            specialtyCapacity,
+                                                            nextDuration,
+                                                        ),
+                                                    )
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="30">{text.specialtySchedule.slotDurationOptions.thirty}</SelectItem>
+                                                    <SelectItem value="60">{text.specialtySchedule.slotDurationOptions.sixty}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>{text.specialtySchedule.capacityLabel}</Label>
+                                            <Input
+                                                type="number"
+                                                value={specialtyCapacity}
+                                                onChange={(event) => {
+                                                    const value = Number(event.target.value) || 1
+                                                    setSpecialtyCapacity(value)
+                                                    setSpecialtySchedules(
+                                                        selectedKeysToSchedules(
+                                                            selectedSpecialtySlots,
+                                                            specialtySlotDuration,
+                                                            value,
+                                                            specialtySlotDuration,
+                                                        ),
+                                                    )
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <MultiRangeTimeline
+                                        selected={selectedSpecialtySlots}
+                                        onChange={setSpecialtyTimeline}
+                                        disabledKeys={disabledSpecialtySlots}
+                                        stepMinutes={specialtySlotDuration}
                                     />
-                                </div>
-                            </div>
-                            <MultiRangeTimeline
-                                selected={selectedSpecialtySlots}
-                                onChange={setSpecialtyTimeline}
-                                disabledKeys={disabledSpecialtySlots}
-                                stepMinutes={specialtySlotDuration}
-                            />
-                            <Button onClick={() => saveSpecialtySchedulesMutation.mutate({ specialtyId: selectedSpecialtyId, rows: specialtySchedules })} disabled={saveSpecialtySchedulesMutation.isPending || !isSpecialtyDirty}>
-                                {text.specialtySchedule.save}
-                            </Button>
-                        </>
-                    ) : null}
-                </CardContent>
-            </Card>
+                                    <Button onClick={() => saveSpecialtySchedulesMutation.mutate({ specialtyId: selectedSpecialtyId, rows: specialtySchedules })} disabled={saveSpecialtySchedulesMutation.isPending || !isSpecialtyDirty}>
+                                        {text.specialtySchedule.save}
+                                    </Button>
+                                </>
+                            ) : null}
+                        </CardContent>
+                    </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{text.packages.title}</CardTitle>
-                    <CardDescription>{text.packages.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_1fr_140px_120px] md:items-end">
-                        <div className="space-y-2">
-                            <Label>{text.packages.nameLabel}</Label>
-                            <Input value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder={text.packages.namePlaceholder} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{text.packages.descriptionLabel}</Label>
-                            <Input value={packageDescription} onChange={(event) => setPackageDescription(event.target.value)} placeholder={text.packages.descriptionPlaceholder} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{text.packages.priceLabel}</Label>
-                            <Input value={packagePrice} type="number" onChange={(event) => setPackagePrice(event.target.value)} />
-                        </div>
-                        <Button
-                            onClick={() => createPackageMutation.mutate({
-                                name: packageName,
-                                description: packageDescription,
-                                specialtyId: selectedSpecialtyId,
-                                price: Number(packagePrice),
-                                features: [],
-                                isActive: true,
-                            })}
-                            disabled={!packageName || !packageDescription || !selectedSpecialtyId || !packagePrice || createPackageMutation.isPending}
-                        >
-                            {text.packages.create}
-                        </Button>
-                    </div>
-                    <div className="space-y-2">
-                        {packages.map((pkg: any) => (
-                            <div key={pkg.id} className="flex items-center justify-between rounded-lg border p-3">
-                                <div>
-                                    <div className="font-medium">{pkg.name}</div>
-                                    <div className="text-xs text-muted-foreground">{pkg.specialty?.name || text.packages.specialtyFallback} - {pkg.price}</div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{text.packages.title}</CardTitle>
+                            <CardDescription>{text.packages.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_1fr_140px_120px] md:items-end">
+                                <div className="space-y-2">
+                                    <Label>{text.packages.nameLabel}</Label>
+                                    <Input value={packageName} onChange={(event) => setPackageName(event.target.value)} placeholder={text.packages.namePlaceholder} />
                                 </div>
-                                <label className="flex items-center gap-2 text-sm">
-                                    <Switch checked={pkg.isActive} onCheckedChange={(value) => togglePackageMutation.mutate({ id: pkg.id, isActive: value })} />
-                                    {text.packages.activeLabel}
-                                </label>
+                                <div className="space-y-2">
+                                    <Label>{text.packages.descriptionLabel}</Label>
+                                    <Input value={packageDescription} onChange={(event) => setPackageDescription(event.target.value)} placeholder={text.packages.descriptionPlaceholder} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{text.packages.priceLabel}</Label>
+                                    <Input value={packagePrice} type="number" onChange={(event) => setPackagePrice(event.target.value)} />
+                                </div>
+                                <Button
+                                    onClick={() => createPackageMutation.mutate({
+                                        name: packageName,
+                                        description: packageDescription,
+                                        specialtyId: selectedSpecialtyId,
+                                        price: Number(packagePrice),
+                                        features: [],
+                                        isActive: true,
+                                    })}
+                                    disabled={!packageName || !packageDescription || !selectedSpecialtyId || !packagePrice || createPackageMutation.isPending}
+                                >
+                                    {text.packages.create}
+                                </Button>
                             </div>
-                        ))}
-                    </div>
-                    <div className="space-y-2">
-                        <Label>{text.packages.selectLabel}</Label>
-                        <Select value={selectedPackageId} onValueChange={setSelectedPackageId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder={text.packages.selectPlaceholder} />
-                            </SelectTrigger>
-                            <SelectContent>
+                            <div className="space-y-2">
                                 {packages.map((pkg: any) => (
-                                    <SelectItem key={pkg.id} value={pkg.id}>
-                                        {pkg.name} - {pkg.specialty?.name || text.packages.specialtyFallback}
-                                    </SelectItem>
+                                    <div key={pkg.id} className="flex items-center justify-between rounded-lg border p-3">
+                                        <div>
+                                            <div className="font-medium">{pkg.name}</div>
+                                            <div className="text-xs text-muted-foreground">{pkg.specialty?.name || text.packages.specialtyFallback} - {pkg.price}</div>
+                                        </div>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <Switch checked={pkg.isActive} onCheckedChange={(value) => togglePackageMutation.mutate({ id: pkg.id, isActive: value })} />
+                                            {text.packages.activeLabel}
+                                        </label>
+                                    </div>
                                 ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {selectedPackageId ? (
-                        <>
-                            {availability.map((row) => (
-                                <div key={row.dayOfWeek} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[100px_100px_1fr_1fr_1fr_1fr] md:items-center">
-                                    <div className="font-medium">{dayOptions.find((day) => day.value === row.dayOfWeek)?.label}</div>
-                                    <label className="flex items-center gap-2 text-sm">
-                                        <Switch checked={row.isActive} onCheckedChange={(value) => updateAvailability(row.dayOfWeek, { isActive: value })} />
-                                        {text.specialtySchedule.activeLabel}
-                                    </label>
-                                    <Input value={row.startTime} onChange={(event) => updateAvailability(row.dayOfWeek, { startTime: event.target.value })} />
-                                    <Input value={row.endTime} onChange={(event) => updateAvailability(row.dayOfWeek, { endTime: event.target.value })} />
-                                    <Input value={row.slotDurationMinutes} type="number" onChange={(event) => updateAvailability(row.dayOfWeek, { slotDurationMinutes: Number(event.target.value) || 30 })} />
-                                    <Input value={row.capacity} type="number" onChange={(event) => updateAvailability(row.dayOfWeek, { capacity: Number(event.target.value) || 1 })} />
-                                </div>
-                            ))}
-                            <Button onClick={() => saveAvailabilityMutation.mutate({ packageId: selectedPackageId, rows: availability })} disabled={saveAvailabilityMutation.isPending || !isAvailabilityDirty}>
-                                {text.packages.saveAvailability}
-                            </Button>
-                        </>
-                    ) : null}
-                </CardContent>
-            </Card>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{text.packages.selectLabel}</Label>
+                                <Select value={selectedPackageId} onValueChange={setSelectedPackageId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={text.packages.selectPlaceholder} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {packages.map((pkg: any) => (
+                                            <SelectItem key={pkg.id} value={pkg.id}>
+                                                {pkg.name} - {pkg.specialty?.name || text.packages.specialtyFallback}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {selectedPackageId ? (
+                                <>
+                                    {availability.map((row) => (
+                                        <div key={row.dayOfWeek} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[100px_100px_1fr_1fr_1fr_1fr] md:items-center">
+                                            <div className="font-medium">{dayOptions.find((day) => day.value === row.dayOfWeek)?.label}</div>
+                                            <label className="flex items-center gap-2 text-sm">
+                                                <Switch checked={row.isActive} onCheckedChange={(value) => updateAvailability(row.dayOfWeek, { isActive: value })} />
+                                                {text.specialtySchedule.activeLabel}
+                                            </label>
+                                            <Input value={row.startTime} onChange={(event) => updateAvailability(row.dayOfWeek, { startTime: event.target.value })} />
+                                            <Input value={row.endTime} onChange={(event) => updateAvailability(row.dayOfWeek, { endTime: event.target.value })} />
+                                            <Input value={row.slotDurationMinutes} type="number" onChange={(event) => updateAvailability(row.dayOfWeek, { slotDurationMinutes: Number(event.target.value) || 30 })} />
+                                            <Input value={row.capacity} type="number" onChange={(event) => updateAvailability(row.dayOfWeek, { capacity: Number(event.target.value) || 1 })} />
+                                        </div>
+                                    ))}
+                                    <Button onClick={() => saveAvailabilityMutation.mutate({ packageId: selectedPackageId, rows: availability })} disabled={saveAvailabilityMutation.isPending || !isAvailabilityDirty}>
+                                        {text.packages.saveAvailability}
+                                    </Button>
+                                </>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{text.bookings.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{text.bookings.headers.patient}</TableHead>
-                                <TableHead>{text.bookings.headers.package}</TableHead>
-                                <TableHead>{text.bookings.headers.dateTime}</TableHead>
-                                <TableHead>{text.bookings.headers.status}</TableHead>
-                                <TableHead>{text.bookings.headers.actions}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {(bookingsQuery.data?.items ?? []).map((booking) => (
-                                <TableRow key={booking.id}>
-                                    <TableCell>
-                                        <div className="font-medium">{booking.patientName}</div>
-                                        <div className="text-xs text-muted-foreground">{booking.patientPhone}</div>
-                                    </TableCell>
-                                    <TableCell>{booking.healthPackage?.name || "-"}</TableCell>
-                                    <TableCell>{formatDate(booking.bookingDate)} {booking.bookingTime}</TableCell>
-                                    <TableCell><Badge variant="outline">{booking.status}</Badge></TableCell>
-                                    <TableCell className="space-x-2">
-                                        {booking.status === "PENDING" ? (
-                                            <>
-                                                <Button size="sm" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}>{text.bookings.confirm}</Button>
-                                                <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}>{text.bookings.cancel}</Button>
-                                            </>
+                {/* Tab 3: Hồ sơ phòng khám */}
+                <TabsContent value="profile" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Cập nhật hồ sơ phòng khám</CardTitle>
+                            <CardDescription>
+                                Quản lý thông tin chi tiết, logo và các kênh liên hệ của phòng khám.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-6 md:grid-cols-3">
+                                {/* Left column: Logo preview & input */}
+                                <div className="flex flex-col items-center space-y-4 rounded-lg border bg-slate-50/50 p-6 dark:bg-slate-900/50">
+                                    <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border bg-white shadow-xs dark:bg-slate-950">
+                                        {profileImage ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={profileImage}
+                                                alt="Logo preview"
+                                                className="h-full w-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLElement).style.display = "none"
+                                                }}
+                                            />
                                         ) : null}
-                                        {booking.status === "CONFIRMED" ? (
-                                            <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}>{text.bookings.complete}</Button>
-                                        ) : null}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                        {!profileImage && (
+                                            <div className="flex flex-col items-center space-y-2 text-muted-foreground">
+                                                <ImageIcon className="h-12 w-12 stroke-1" />
+                                                <span className="text-xs">Chưa có logo</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="w-full space-y-2">
+                                        <Label htmlFor="logoUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Logo</Label>
+                                        <Input
+                                            id="logoUrl"
+                                            value={profileImage}
+                                            onChange={(e) => setProfileImage(e.target.value)}
+                                            placeholder="https://example.com/logo.png"
+                                            className="w-full text-xs"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Right column: Details form */}
+                                <div className="space-y-4 md:col-span-2">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="clinicName" className="flex items-center gap-2">
+                                                <Building className="h-4 w-4 text-primary" />
+                                                Tên phòng khám
+                                            </Label>
+                                            <Input
+                                                id="clinicName"
+                                                value={profileName}
+                                                onChange={(e) => setProfileName(e.target.value)}
+                                                placeholder="Phòng khám đa khoa Healthcare"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="clinicPhone" className="flex items-center gap-2">
+                                                <Phone className="h-4 w-4 text-primary" />
+                                                Hotline liên hệ
+                                            </Label>
+                                            <Input
+                                                id="clinicPhone"
+                                                value={profilePhone}
+                                                onChange={(e) => setProfilePhone(e.target.value)}
+                                                placeholder="0123456789"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="clinicEmail" className="flex items-center gap-2">
+                                                <Mail className="h-4 w-4 text-primary" />
+                                                Email liên hệ
+                                            </Label>
+                                            <Input
+                                                id="clinicEmail"
+                                                type="email"
+                                                value={profileEmail}
+                                                onChange={(e) => setProfileEmail(e.target.value)}
+                                                placeholder="contact@healthcare.com"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="clinicWebsite" className="flex items-center gap-2">
+                                                <Globe className="h-4 w-4 text-primary" />
+                                                Website
+                                            </Label>
+                                            <Input
+                                                id="clinicWebsite"
+                                                value={profileWebsite}
+                                                onChange={(e) => setProfileWebsite(e.target.value)}
+                                                placeholder="https://healthcare.com"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="clinicAddress" className="flex items-center gap-2">
+                                                <MapPin className="h-4 w-4 text-primary" />
+                                                Địa chỉ phòng khám
+                                            </Label>
+                                            <Input
+                                                id="clinicAddress"
+                                                value={profileAddress}
+                                                onChange={(e) => setProfileAddress(e.target.value)}
+                                                placeholder="Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="clinicOpeningHours" className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-primary" />
+                                                Giờ hoạt động hiển thị
+                                            </Label>
+                                            <Input
+                                                id="clinicOpeningHours"
+                                                value={profileOpeningHours}
+                                                onChange={(e) => setProfileOpeningHours(e.target.value)}
+                                                placeholder="Thứ 2 - Thứ 7: 8h00 - 17h00"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="clinicDescription" className="flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-primary" />
+                                                Giới thiệu phòng khám
+                                            </Label>
+                                            <Textarea
+                                                id="clinicDescription"
+                                                value={profileDescription}
+                                                onChange={(e) => setProfileDescription(e.target.value)}
+                                                placeholder="Mô tả chi tiết về phòng khám, các thế mạnh chuyên khoa..."
+                                                rows={4}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end pt-4">
+                                        <Button
+                                            onClick={handleSaveProfile}
+                                            disabled={saveProfileMutation.isPending || !isProfileDirty}
+                                            className="min-w-[150px] shadow-sm transition-all"
+                                        >
+                                            {saveProfileMutation.isPending ? "Đang lưu..." : (
+                                                <span className="flex items-center gap-2">
+                                                    <Check className="h-4 w-4" />
+                                                    Lưu thay đổi
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }
