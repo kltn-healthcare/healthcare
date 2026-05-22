@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import type { UploadedFile } from './upload.types';
 
 @Injectable()
 export class UploadService {
@@ -42,7 +43,7 @@ export class UploadService {
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder = 'general'): Promise<{ url: string }> {
+  async uploadFile(file: UploadedFile, folder = 'general'): Promise<{ url: string }> {
     const originalName = file.originalname;
     const fileExtension = originalName.substring(originalName.lastIndexOf('.'));
     const key = `${folder}/${uuidv4()}${fileExtension}`;

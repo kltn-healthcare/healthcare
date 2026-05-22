@@ -7,6 +7,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
+import type { UploadedFile as UploadedFileType } from './upload.types';
 
 @ApiTags('Upload')
 @ApiBearerAuth('JWT')
@@ -28,7 +29,7 @@ export class UploadController {
     },
   })
   @UseInterceptors(FileInterceptor('file'))
-  upload(@UploadedFile() file: Express.Multer.File) {
+  upload(@UploadedFile() file: UploadedFileType) {
     return this.uploadService.uploadFile(file);
   }
 }
