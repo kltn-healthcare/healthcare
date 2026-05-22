@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Badge } from "@/shared/ui/badge"
 import { Clock } from "lucide-react"
@@ -9,10 +8,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { getArticleCategories, getArticles } from "@/api/articles"
 import { ARTICLE_DEFAULTS, ARTICLE_QUERY_KEYS, ROUTES } from "@/shared/constants"
+import { ARTICLE_I18N_KEYS } from "@/shared/i18n/keys"
 import { useLanguage } from "@/shared/provider/LanguageProvider"
-import { HOME_TEXTS } from "@/shared/constants/home"
+import { formatHomeDate } from "@/features/home/home.utils"
 
 const healthGuideSkeletonIds = [
   "health-guide-skeleton-1",
@@ -23,21 +24,13 @@ const healthGuideSkeletonIds = [
   "health-guide-skeleton-6",
 ]
 
-function formatPublishedDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-  return date.toLocaleDateString("vi-VN")
-}
-
 export default function HealthGuidePage() {
-  const { t } = useLanguage()
-  const allCategoryLabel = t(HOME_TEXTS.PAGES.HEALTH_GUIDE.ALL_CATEGORY.vi, HOME_TEXTS.PAGES.HEALTH_GUIDE.ALL_CATEGORY.en)
+  const { t } = useTranslation("articles")
+  const { language } = useLanguage()
+  const allCategoryLabel = t(ARTICLE_I18N_KEYS.allCategory)
 
   const [activeCategory, setActiveCategory] = useState<string>("ALL")
-  const categoryFilter =
-    activeCategory === "ALL" ? undefined : activeCategory
+  const categoryFilter = activeCategory === "ALL" ? undefined : activeCategory
 
   const categoriesQuery = useQuery({
     queryKey: ARTICLE_QUERY_KEYS.CATEGORIES,
@@ -59,7 +52,7 @@ export default function HealthGuidePage() {
   })
 
   const categories = useMemo(
-    () => [{ id: "ALL", name: allCategoryLabel }, ...(categoriesQuery.data?.items || []).map(c => ({ id: c, name: c }))],
+    () => [{ id: "ALL", name: allCategoryLabel }, ...(categoriesQuery.data?.items || []).map((c) => ({ id: c, name: c }))],
     [categoriesQuery.data?.items, allCategoryLabel],
   )
 
@@ -72,17 +65,16 @@ export default function HealthGuidePage() {
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
           <div className="mb-8">
-            <h1 className="mb-2 text-3xl font-bold">{t(HOME_TEXTS.ARTICLES.TITLE.vi, HOME_TEXTS.ARTICLES.TITLE.en)}</h1>
-            <p className="text-muted-foreground">{t(HOME_TEXTS.ARTICLES.DESC.vi, HOME_TEXTS.ARTICLES.DESC.en)}</p>
+            <h1 className="mb-2 text-3xl font-bold">{t(ARTICLE_I18N_KEYS.title)}</h1>
+            <p className="text-muted-foreground">{t(ARTICLE_I18N_KEYS.desc)}</p>
           </div>
 
-          {/* Categories */}
           <div className="mb-8 flex flex-wrap gap-2">
             {categories.map((category) => (
               <Badge
                 key={category.id}
                 variant={activeCategory === category.id ? "default" : "outline"}
-                className="cursor-pointer"
+                className="cursor-pointer transition-colors hover:bg-primary/10 hover:text-primary"
                 onClick={() => setActiveCategory(category.id)}
               >
                 {category.name}
@@ -90,7 +82,6 @@ export default function HealthGuidePage() {
             ))}
           </div>
 
-          {/* Articles Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {articlesQuery.isLoading
               ? healthGuideSkeletonIds.map((skeletonId) => (
@@ -107,11 +98,11 @@ export default function HealthGuidePage() {
                 </Card>
               ))
               : articles.map((article) => (
-                <Link key={article.id} href={`${ROUTES.HEALTH_GUIDE}/${article.slug}`}>
-                  <Card className="h-full flex flex-col p-0 gap-0 overflow-hidden transition-shadow shadow-sm hover:shadow-lg group">
+                <Link key={article.id} href={`${ROUTES.HEALTH_GUIDE}/${article.slug}`} className="block h-full">
+                  <Card className="h-full flex flex-col p-0 gap-0 overflow-hidden transition-all shadow-sm hover:-translate-y-1 hover:shadow-lg group">
                     <div className="relative h-48 w-full bg-muted overflow-hidden flex-none">
                       <Image
-                        src={article.image || `/abstract-healthcare.png?height=200&width=400&query=healthcare ${article.category}`}
+                        src={article.image || "/placeholder-clinic.jpg"}
                         alt={article.title}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -130,7 +121,7 @@ export default function HealthGuidePage() {
                           <Clock className="h-4 w-4" />
                           <span>{article.readTime}</span>
                         </div>
-                        <span>{formatPublishedDate(article.publishedAt)}</span>
+                        <span>{formatHomeDate(article.publishedAt, language)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -140,13 +131,11 @@ export default function HealthGuidePage() {
 
           {!articlesQuery.isLoading && articles.length === 0 ? (
             <p className="mt-8 text-sm text-muted-foreground">
-              {t(HOME_TEXTS.PAGES.HEALTH_GUIDE.EMPTY.vi, HOME_TEXTS.PAGES.HEALTH_GUIDE.EMPTY.en)}
+              {t(activeCategory === "ALL" ? ARTICLE_I18N_KEYS.empty : ARTICLE_I18N_KEYS.emptyCategory)}
             </p>
           ) : null}
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

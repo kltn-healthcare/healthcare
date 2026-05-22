@@ -103,13 +103,24 @@ export const HOME_I18N_KEYS = {
 } as const
 
 export const CLINIC_I18N_KEYS = {
+  title: "title",
+  desc: "desc",
+  pageTitle: "page_title",
+  pageDesc: "page_desc",
+  empty: "empty",
   statusOpen: "status_open",
   statusClosed: "status_closed",
   reviews: "reviews",
+  viewDetail: "view_detail",
   bookNow: "book_now",
+  noOpeningHours: "no_opening_hours",
 } as const
 
 export const PACKAGE_I18N_KEYS = {
+  title: "title",
+  desc: "desc",
+  viewAll: "view_all",
+  empty: "empty",
   bookNow: "book_now",
   popularBadge: "popular_badge",
   perPerson: "per_person",
@@ -117,17 +128,29 @@ export const PACKAGE_I18N_KEYS = {
 } as const
 
 export const DOCTOR_I18N_KEYS = {
+  title: "title",
+  desc: "desc",
+  viewAll: "view_all",
   bookNow: "book_now",
+  viewDetail: "view_detail",
   yearsExp: "years_exp",
   medicalVisitCount: "medical_visit_count",
   defaultSpecialty: "default_specialty",
 } as const
 
+export const ARTICLE_I18N_KEYS = {
+  title: "title",
+  desc: "desc",
+  viewAll: "view_all",
+  empty: "empty",
+  readMore: "read_more",
+  allCategory: "all_category",
+  emptyCategory: "empty_category",
+} as const
+
 export const AUTH_I18N_KEYS = {
-  brandTitle: "brand.title",
-  copyright: "brand.copyright",
+  backHome: "back_home",
   login: {
-    subtitle: "login.subtitle",
     title: "login.title",
     emailLabel: "login.email_label",
     emailPlaceholder: "login.email_placeholder",
@@ -140,7 +163,6 @@ export const AUTH_I18N_KEYS = {
     registerLink: "login.register_link",
   },
   register: {
-    subtitle: "register.subtitle",
     title: "register.title",
     fullNameLabel: "register.full_name_label",
     fullNamePlaceholder: "register.full_name_placeholder",
@@ -168,5 +190,76 @@ export const AUTH_I18N_KEYS = {
     submit: "otp.submit",
     submitting: "otp.submitting",
     backToRegister: "otp.back_to_register",
+  },
+} as const
+
+export const ACCOUNT_I18N_KEYS = {
+  pageTitle: "page.title",
+  pageDesc: "page.desc",
+  tabs: {
+    appointments: "tabs.appointments",
+    profile: "tabs.profile",
+    notifications: "tabs.notifications",
+  },
+  notifications: {
+    title: "notifications.title",
+    desc: "notifications.desc",
+    markAllRead: "notifications.mark_all_read",
+    enableBrowser: "notifications.enable_browser",
+    empty: "notifications.empty",
+    unread: "notifications.unread",
+    read: "notifications.read",
+  },
+  appointments: {
+    title: "appointments.title",
+    bookNew: "appointments.book_new",
+    loginRequired: "appointments.login_required",
+    login: "appointments.login",
+    loading: "appointments.loading",
+    emptyTitle: "appointments.empty_title",
+    emptyDesc: "appointments.empty_desc",
+    fallbackClinic: "appointments.fallback_clinic",
+    packageLabel: "appointments.package_label",
+    doctorLabel: "appointments.doctor_label",
+    emptyValue: "appointments.empty_value",
+    cancel: "appointments.cancel",
+    past: "appointments.past",
+    review: "appointments.review",
+    reviewed: "appointments.reviewed",
+  },
+  profile: {
+    title: "profile.title",
+    desc: "profile.desc",
+    fullName: "profile.full_name",
+    emailLocked: "profile.email_locked",
+    phone: "profile.phone",
+    avatarUrl: "profile.avatar_url",
+    avatarPlaceholder: "profile.avatar_placeholder",
+    cancel: "profile.cancel",
+    saving: "profile.saving",
+    save: "profile.save",
+    email: "profile.email",
+    notUpdated: "profile.not_updated",
+    role: "profile.role",
+    edit: "profile.edit",
+  },
+  cancelDialog: {
+    title: "cancel_dialog.title",
+    desc: "cancel_dialog.desc",
+    reasonLabel: "cancel_dialog.reason_label",
+    reasonPlaceholder: "cancel_dialog.reason_placeholder",
+    back: "cancel_dialog.back",
+    submitting: "cancel_dialog.submitting",
+    submit: "cancel_dialog.submit",
+  },
+  reviewDialog: {
+    title: "review_dialog.title",
+    desc: "review_dialog.desc",
+    ratingLabel: "review_dialog.rating_label",
+    commentLabel: "review_dialog.comment_label",
+    commentPlaceholder: "review_dialog.comment_placeholder",
+    cancel: "review_dialog.cancel",
+    submitting: "review_dialog.submitting",
+    submit: "review_dialog.submit",
   },
 } as const

@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Badge } from "@/shared/ui/badge"
@@ -243,7 +242,6 @@ export default function ClinicDetailPage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   )
 }

@@ -1,10 +1,6 @@
 const auth = {
-  brand: {
-    title: "HEALTHCARE",
-    copyright: "© 2026 HEALTHCARE. Đã đăng ký bản quyền.",
-  },
+  back_home: "Về trang chủ",
   login: {
-    subtitle: "Hệ thống quản lý chăm sóc sức khỏe",
     title: "Đăng nhập",
     email_label: "Email",
     email_placeholder: "admin@healthcare.com",
@@ -17,7 +13,6 @@ const auth = {
     register_link: "Đăng ký ngay",
   },
   register: {
-    subtitle: "Tạo tài khoản để đặt lịch khám nhanh hơn",
     title: "Đăng ký",
     full_name_label: "Họ và tên",
     full_name_placeholder: "Nguyễn Văn A",

@@ -1,10 +1,6 @@
 const auth = {
-  brand: {
-    title: "HEALTHCARE",
-    copyright: "© 2026 HEALTHCARE. All rights reserved.",
-  },
+  back_home: "Back to home",
   login: {
-    subtitle: "Healthcare management system",
     title: "Sign in",
     email_label: "Email",
     email_placeholder: "admin@healthcare.com",
@@ -17,7 +13,6 @@ const auth = {
     register_link: "Register now",
   },
   register: {
-    subtitle: "Create an account to book appointments faster",
     title: "Register",
     full_name_label: "Full name",
     full_name_placeholder: "John Smith",

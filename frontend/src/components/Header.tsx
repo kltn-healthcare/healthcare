@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/shared/ui/button"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
@@ -23,6 +24,7 @@ import { User, LogOut, Calendar, LayoutDashboard } from "lucide-react"
 export function Header() {
   const { t } = useTranslation("nav")
   const { t: tc } = useTranslation("common")
+  const [isMounted, setIsMounted] = useState(false)
   const auth = useAuthStore()
   const rawRole = String(auth.user?.role || "").toUpperCase()
   const role = rawRole === "SUPER_ADMIN" ? "ADMIN" : rawRole
@@ -33,6 +35,13 @@ export function Header() {
     window.location.href = "/"
   }
 
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const navText = (key: string, fallback: string) => (isMounted ? t(key) : fallback)
+  const commonText = (key: string, fallback: string) => (isMounted ? tc(key) : fallback)
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shadow-sm">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -42,16 +51,16 @@ export function Header() {
 
         <nav className="hidden items-center gap-8 md:flex">
           <Link href={ROUTES.CLINICS} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t(NAV_I18N_KEYS.clinics)}
+            {navText(NAV_I18N_KEYS.clinics, "Phòng khám")}
           </Link>
           <Link href={ROUTES.PACKAGES} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t(NAV_I18N_KEYS.packages)}
+            {navText(NAV_I18N_KEYS.packages, "Gói khám")}
           </Link>
           <Link href={ROUTES.DOCTORS} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t(NAV_I18N_KEYS.doctors)}
+            {navText(NAV_I18N_KEYS.doctors, "Bác sĩ")}
           </Link>
           <Link href={ROUTES.HEALTH_GUIDE} className="text-sm font-semibold text-foreground/70 transition-colors hover:text-primary">
-            {t(NAV_I18N_KEYS.healthGuide)}
+            {navText(NAV_I18N_KEYS.healthGuide, "Cẩm nang")}
           </Link>
         </nav>
 
@@ -83,20 +92,20 @@ export function Header() {
                   <Link href="/account?tab=profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <User className="mr-2 h-4 w-4 text-primary" />
-                      <span>{tc(COMMON_I18N_KEYS.userMenuProfile)}</span>
+                      <span>{commonText(COMMON_I18N_KEYS.userMenuProfile, "Hồ sơ cá nhân")}</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/account?tab=appointments">
                     <DropdownMenuItem className="cursor-pointer">
                       <Calendar className="mr-2 h-4 w-4 text-primary" />
-                      <span>{tc(COMMON_I18N_KEYS.userMenuAppointments)}</span>
+                      <span>{commonText(COMMON_I18N_KEYS.userMenuAppointments, "Lịch hẹn của tôi")}</span>
                     </DropdownMenuItem>
                   </Link>
                   {canAccessAdmin && (
                     <Link href="/admin">
                       <DropdownMenuItem className="cursor-pointer">
                         <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
-                        <span>{tc(COMMON_I18N_KEYS.userMenuAdmin)}</span>
+                        <span>{commonText(COMMON_I18N_KEYS.userMenuAdmin, "Trang quản trị")}</span>
                       </DropdownMenuItem>
                     </Link>
                   )}
@@ -106,35 +115,35 @@ export function Header() {
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>{tc(COMMON_I18N_KEYS.logout)}</span>
+                    <span>{commonText(COMMON_I18N_KEYS.logout, "Đăng xuất")}</span>
                   </DropdownMenuItem>
                 </>
               ) : (
                 <>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-bold leading-none">{tc(COMMON_I18N_KEYS.userMenuCustomer)}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{tc(COMMON_I18N_KEYS.userMenuGuestHint)}</p>
+                      <p className="text-sm font-bold leading-none">{commonText(COMMON_I18N_KEYS.userMenuCustomer, "Khách hàng")}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{commonText(COMMON_I18N_KEYS.userMenuGuestHint, "Vui lòng đăng nhập để sử dụng")}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <Link href="/login?next=/account?tab=profile">
                     <DropdownMenuItem className="cursor-pointer">
                       <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <span>{tc(COMMON_I18N_KEYS.userMenuProfile)}</span>
+                      <span>{commonText(COMMON_I18N_KEYS.userMenuProfile, "Hồ sơ cá nhân")}</span>
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/login?next=/account?tab=appointments">
                     <DropdownMenuItem className="cursor-pointer">
                       <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <span>{tc(COMMON_I18N_KEYS.userMenuAppointments)}</span>
+                      <span>{commonText(COMMON_I18N_KEYS.userMenuAppointments, "Lịch hẹn của tôi")}</span>
                     </DropdownMenuItem>
                   </Link>
                   <DropdownMenuSeparator />
                   <Link href="/login">
                     <DropdownMenuItem className="cursor-pointer font-bold text-primary focus:text-primary focus:bg-primary/5">
                       <LogOut className="mr-2 h-4 w-4 rotate-180" />
-                      <span>{tc(COMMON_I18N_KEYS.userMenuLoginNow)}</span>
+                      <span>{commonText(COMMON_I18N_KEYS.userMenuLoginNow, "Đăng nhập ngay")}</span>
                     </DropdownMenuItem>
                   </Link>
                 </>
@@ -144,7 +153,7 @@ export function Header() {
 
           <Link href="/booking">
             <Button size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20 transition-all active:scale-95">
-              {tc(COMMON_I18N_KEYS.bookAppointment)}
+              {commonText(COMMON_I18N_KEYS.bookAppointment, "Đặt lịch khám")}
             </Button>
           </Link>
         </div>

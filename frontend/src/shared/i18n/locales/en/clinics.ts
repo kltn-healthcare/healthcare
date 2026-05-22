@@ -1,7 +1,9 @@
 const clinics = {
-  title: "Featured Clinics",
-  desc: "Prestigious and high-quality clinics",
-  view_all: "View All",
+  title: "Featured clinics",
+  desc: "Trusted, high-quality clinics",
+  page_title: "All clinics",
+  page_desc: "Find and book appointments at trusted clinics",
+  view_all: "View all",
   empty: "No clinics have been registered yet.",
   search_placeholder: "Search clinics...",
   location: "Location",
@@ -10,8 +12,9 @@ const clinics = {
   status_open: "Open",
   status_closed: "Closed",
   reviews: "reviews",
-  view_detail: "View Details",
-  book_now: "Book Now",
-};
+  view_detail: "View details",
+  book_now: "Book now",
+  no_opening_hours: "Opening hours not updated",
+}
 
-export default clinics;
+export default clinics

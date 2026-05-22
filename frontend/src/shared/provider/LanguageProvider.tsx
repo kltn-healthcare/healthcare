@@ -19,14 +19,23 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const { t: i18nTranslate } = useTranslation()
-  const [language, setLanguageState] = useState<Language>(i18n.language as Language || "vi")
+  const [language, setLanguageState] = useState<Language>("vi")
 
   const setLanguage = (lang: Language) => {
     i18n.changeLanguage(lang)
+    window.localStorage.setItem("i18nextLng", lang)
     setLanguageState(lang)
   }
 
   useEffect(() => {
+    const storedLanguage = window.localStorage.getItem("i18nextLng")
+    if (storedLanguage === "vi" || storedLanguage === "en") {
+      i18n.changeLanguage(storedLanguage)
+      setLanguageState(storedLanguage)
+    } else {
+      setLanguageState(i18n.language as Language)
+    }
+
     const handleLanguageChanged = (lng: string) => {
       setLanguageState(lng as Language)
     }

@@ -74,28 +74,32 @@ export function DoctorsSection() {
                     <CarouselContent className="-ml-4">
                         {doctors.map((doctor) => (
                             <CarouselItem key={doctor.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                                <Card className="overflow-hidden border-none shadow-md transition-all duration-300 hover:shadow-xl group h-full flex flex-col p-0 gap-0">
-                                    <div className="relative aspect-square overflow-hidden bg-slate-100 flex-none">
-                                        {doctor.image || doctor.avatar ? (
-                                            <Image
-                                                src={doctor.image || doctor.avatar || ""}
-                                                alt={doctor.name}
-                                                fill
-                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-slate-300">
-                                                <User className="h-20 w-20" />
+                                <Card className="overflow-hidden border-none shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group h-full flex flex-col p-0 gap-0">
+                                    <Link href={`/doctor/${doctor.id}`} className="block">
+                                        <div className="relative aspect-square overflow-hidden bg-slate-100 flex-none">
+                                            {doctor.image || doctor.avatar ? (
+                                                <Image
+                                                    src={doctor.image || doctor.avatar || ""}
+                                                    alt={doctor.name}
+                                                    fill
+                                                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                                />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center text-slate-300">
+                                                    <User className="h-20 w-20" />
+                                                </div>
+                                            )}
+                                            <div className="absolute top-3 right-3">
+                                                <Badge className="bg-white/90 text-primary backdrop-blur-sm border-none shadow-sm">
+                                                    {doctor.specialty?.name || td(DOCTOR_I18N_KEYS.defaultSpecialty)}
+                                                </Badge>
                                             </div>
-                                        )}
-                                        <div className="absolute top-3 right-3">
-                                            <Badge className="bg-white/90 text-primary backdrop-blur-sm border-none shadow-sm">
-                                                {doctor.specialty?.name || td(DOCTOR_I18N_KEYS.defaultSpecialty)}
-                                            </Badge>
                                         </div>
-                                    </div>
+                                    </Link>
                                     <CardHeader className="p-4 pt-5 pb-2 flex-1">
-                                        <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{doctor.name}</CardTitle>
+                                        <Link href={`/doctor/${doctor.id}`}>
+                                            <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{doctor.name}</CardTitle>
+                                        </Link>
                                         <div className="flex items-center gap-1 text-sm text-amber-500 font-medium">
                                             <Star className="h-4 w-4 fill-current" />
                                             <span>{doctor.rating || 5.0}</span>
@@ -106,11 +110,18 @@ export function DoctorsSection() {
                                         <p className="text-sm text-muted-foreground line-clamp-1 italic">
                                             {doctor.experience}+ {td(DOCTOR_I18N_KEYS.yearsExp)}
                                         </p>
-                                        <Link href={`${ROUTES.BOOKING}?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`} className="flex-1">
-                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
-                                                {td(DOCTOR_I18N_KEYS.bookNow)}
-                                            </Button>
-                                        </Link>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Link href={`/doctor/${doctor.id}`}>
+                                                <Button variant="outline" className="h-11 w-full bg-transparent">
+                                                    {td(DOCTOR_I18N_KEYS.viewDetail)}
+                                                </Button>
+                                            </Link>
+                                            <Link href={`${ROUTES.BOOKING}?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`}>
+                                                <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
+                                                    {td(DOCTOR_I18N_KEYS.bookNow)}
+                                                </Button>
+                                            </Link>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </CarouselItem>

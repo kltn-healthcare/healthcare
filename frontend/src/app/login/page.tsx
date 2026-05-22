@@ -8,13 +8,14 @@ import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { LockKeyhole, LogIn, Mail } from "lucide-react"
+import { ArrowLeft, LockKeyhole, LogIn, Mail } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
 import { postLogin } from "@/api/auth"
 import { useAuthStore } from "@/store"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslation } from "react-i18next"
 import { AUTH_I18N_KEYS } from "@/shared/i18n/keys"
+import { ROUTES } from "@/shared/constants"
 
 function normalizeRole(role?: string) {
   const normalized = String(role || "").toUpperCase()
@@ -61,19 +62,22 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="absolute left-4 top-4">
+        <Link href={ROUTES.HOME}>
+          <Button variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-sky-700">
+            <ArrowLeft className="h-4 w-4" />
+            {t(AUTH_I18N_KEYS.backHome)}
+          </Button>
+        </Link>
+      </div>
+
       <div className="absolute right-4 top-4">
         <LanguageSwitcher />
       </div>
 
       <div className="w-full max-w-[520px]">
-        <div className="mb-6 text-center">
+        <div className="mb-6 flex justify-center">
           <Logo className="mb-4 scale-90 justify-center" />
-          <h1 className="text-[28px] font-bold leading-tight text-sky-600">
-            {t(AUTH_I18N_KEYS.brandTitle)}
-          </h1>
-          <p className="mt-1 text-lg text-slate-600">
-            {t(AUTH_I18N_KEYS.login.subtitle)}
-          </p>
         </div>
 
         <Card className="rounded-2xl border-0 bg-white/95 px-4 py-3 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
@@ -155,9 +159,6 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-5 text-center text-sm text-slate-500">
-          <p>{t(AUTH_I18N_KEYS.copyright)}</p>
-        </div>
       </div>
     </main>
   )

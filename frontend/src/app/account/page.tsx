@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
+import { NotificationList } from "@/components/NotificationList"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Badge } from "@/shared/ui/badge"
@@ -20,6 +20,8 @@ import { updateProfile } from "@/api/users"
 import { createReview } from "@/api/reviews"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useTranslation } from "react-i18next"
+import { ACCOUNT_I18N_KEYS } from "@/shared/i18n/keys"
 
 function isBookingPast(bookingDate: string, bookingTime: string) {
   const datePart = String(bookingDate).slice(0, 10)
@@ -33,6 +35,7 @@ function isBookingPast(bookingDate: string, bookingTime: string) {
 }
 
 export default function AccountPage() {
+  const { t } = useTranslation("account")
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") || "appointments"
   const [activeTab, setActiveTab] = useState(defaultTab)
@@ -135,56 +138,56 @@ export default function AccountPage() {
       <main className="flex-1 bg-muted/30 py-12">
         <div className="container mx-auto max-w-5xl px-4">
           <div className="mb-8">
-            <h1 className="mb-2 text-3xl font-bold">Tài Khoản Của Tôi</h1>
-            <p className="text-muted-foreground">Quản lý lịch hẹn và thông tin cá nhân</p>
+            <h1 className="mb-2 text-3xl font-bold">{t(ACCOUNT_I18N_KEYS.pageTitle)}</h1>
+            <p className="text-muted-foreground">{t(ACCOUNT_I18N_KEYS.pageDesc)}</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
               <TabsTrigger value="appointments">
                 <Calendar className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Lịch Hẹn</span>
+                <span className="hidden sm:inline">{t(ACCOUNT_I18N_KEYS.tabs.appointments)}</span>
               </TabsTrigger>
               <TabsTrigger value="profile">
                 <User className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Hồ Sơ</span>
+                <span className="hidden sm:inline">{t(ACCOUNT_I18N_KEYS.tabs.profile)}</span>
               </TabsTrigger>
               <TabsTrigger value="notifications">
                 <Bell className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Thông Báo</span>
+                <span className="hidden sm:inline">{t(ACCOUNT_I18N_KEYS.tabs.notifications)}</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Appointments Tab */}
             <TabsContent value="appointments" className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Lịch Hẹn Của Tôi</h2>
+                <h2 className="text-xl font-semibold">{t(ACCOUNT_I18N_KEYS.appointments.title)}</h2>
                 <Link href="/clinics">
-                  <Button className="bg-primary hover:bg-primary/90">Đặt Lịch Mới</Button>
+                  <Button className="bg-primary hover:bg-primary/90">{t(ACCOUNT_I18N_KEYS.appointments.bookNew)}</Button>
                 </Link>
               </div>
 
               {!auth.isAuthenticated ? (
                 <Card>
                   <CardContent className="py-8 text-center border shadow-sm">
-                    <div className="mb-2 text-sm text-muted-foreground">Bạn chưa đăng nhập.</div>
+                    <div className="mb-2 text-sm text-muted-foreground">{t(ACCOUNT_I18N_KEYS.appointments.loginRequired)}</div>
                     <Link href="/login">
-                      <Button className="bg-primary">Đăng Nhập</Button>
+                      <Button className="bg-primary">{t(ACCOUNT_I18N_KEYS.appointments.login)}</Button>
                     </Link>
                   </CardContent>
                 </Card>
               ) : myBookingsQuery.isLoading ? (
                 <Card>
                   <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    Đang tải lịch hẹn...
+                    {t(ACCOUNT_I18N_KEYS.appointments.loading)}
                   </CardContent>
                 </Card>
               ) : myBookingsQuery.data?.items?.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center border shadow-sm">
                     <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                    <h3 className="mb-1 text-lg font-medium">Chưa có lịch hẹn nào</h3>
-                    <p className="text-sm text-muted-foreground">Bạn chưa đặt lịch hẹn khám nào trên hệ thống.</p>
+                    <h3 className="mb-1 text-lg font-medium">{t(ACCOUNT_I18N_KEYS.appointments.emptyTitle)}</h3>
+                    <p className="text-sm text-muted-foreground">{t(ACCOUNT_I18N_KEYS.appointments.emptyDesc)}</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -207,12 +210,12 @@ export default function AccountPage() {
                         <div className="flex-1 p-5">
                           <div className="mb-3 flex items-start justify-between">
                             <div>
-                              <h3 className="font-semibold text-lg">{b.clinic?.name ?? "Phòng khám"}</h3>
+                              <h3 className="font-semibold text-lg">{b.clinic?.name ?? t(ACCOUNT_I18N_KEYS.appointments.fallbackClinic)}</h3>
                               <div className="text-sm text-muted-foreground flex items-center mt-1">
                                 <User className="mr-1 h-3.5 w-3.5" />
-                                {isPackageBooking ? "Gói khám:" : "Bác sĩ:"}
+                                {isPackageBooking ? t(ACCOUNT_I18N_KEYS.appointments.packageLabel) : t(ACCOUNT_I18N_KEYS.appointments.doctorLabel)}
                                 <span className="font-medium text-foreground ml-1">
-                                  {isPackageBooking ? b.healthPackage?.name ?? "—" : b.doctor?.name ?? "—"}
+                                  {isPackageBooking ? b.healthPackage?.name ?? t(ACCOUNT_I18N_KEYS.appointments.emptyValue) : b.doctor?.name ?? t(ACCOUNT_I18N_KEYS.appointments.emptyValue)}
                                 </span>
                               </div>
                             </div>
@@ -251,12 +254,12 @@ export default function AccountPage() {
                                 setCancelModalOpen(true)
                               }}
                             >
-                              Hủy lịch
+                              {t(ACCOUNT_I18N_KEYS.appointments.cancel)}
                             </Button>
                           )}
                           {(b.status === "PENDING" || b.status === "CONFIRMED") && isPast && (
                             <Button variant="outline" className="w-full" disabled>
-                              Đã quá giờ hẹn
+                              {t(ACCOUNT_I18N_KEYS.appointments.past)}
                             </Button>
                           )}
                           {b.status === "COMPLETED" && !b.review && (
@@ -270,12 +273,12 @@ export default function AccountPage() {
                                 setReviewModalOpen(true)
                               }}
                             >
-                              <Star className="mr-2 h-4 w-4" /> Đánh giá
+                              <Star className="mr-2 h-4 w-4" /> {t(ACCOUNT_I18N_KEYS.appointments.review)}
                             </Button>
                           )}
                           {b.status === "COMPLETED" && b.review && (
                             <span className="text-sm font-medium text-emerald-600 flex items-center">
-                              <Star className="mr-1 h-3.5 w-3.5 fill-current" /> Đã đánh giá
+                              <Star className="mr-1 h-3.5 w-3.5 fill-current" /> {t(ACCOUNT_I18N_KEYS.appointments.reviewed)}
                             </span>
                           )}
                         </div>
@@ -290,38 +293,38 @@ export default function AccountPage() {
             <TabsContent value="profile">
               <Card>
                 <CardHeader>
-                  <CardTitle>Thông Tin Cá Nhân</CardTitle>
-                  <CardDescription>Cập nhật thông tin của bạn</CardDescription>
+                  <CardTitle>{t(ACCOUNT_I18N_KEYS.profile.title)}</CardTitle>
+                  <CardDescription>{t(ACCOUNT_I18N_KEYS.profile.desc)}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
-                          <Label>Họ và Tên</Label>
+                          <Label>{t(ACCOUNT_I18N_KEYS.profile.fullName)}</Label>
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Email (Không thể thay đổi)</Label>
+                          <Label>{t(ACCOUNT_I18N_KEYS.profile.emailLocked)}</Label>
                           <Input value={auth.user?.email || ""} disabled />
                         </div>
                         <div className="space-y-2">
-                          <Label>Số Điện Thoại</Label>
+                          <Label>{t(ACCOUNT_I18N_KEYS.profile.phone)}</Label>
                           <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
                         </div>
                         <div className="space-y-2 lg:col-span-2">
-                          <Label>Ảnh đại diện (URL)</Label>
-                          <Input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} placeholder="https://example.com/avatar.jpg" />
+                          <Label>{t(ACCOUNT_I18N_KEYS.profile.avatarUrl)}</Label>
+                          <Input value={editAvatar} onChange={(e) => setEditAvatar(e.target.value)} placeholder={t(ACCOUNT_I18N_KEYS.profile.avatarPlaceholder)} />
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 mt-6">
-                        <Button variant="outline" onClick={() => setIsEditingProfile(false)}>Hủy</Button>
+                        <Button variant="outline" onClick={() => setIsEditingProfile(false)}>{t(ACCOUNT_I18N_KEYS.profile.cancel)}</Button>
                         <Button 
                           className="bg-primary" 
                           onClick={handleUpdateProfile}
                           disabled={profileMutation.isPending}
                         >
-                          {profileMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+                          {profileMutation.isPending ? t(ACCOUNT_I18N_KEYS.profile.saving) : t(ACCOUNT_I18N_KEYS.profile.save)}
                         </Button>
                       </div>
                     </div>
@@ -329,24 +332,24 @@ export default function AccountPage() {
                     <div className="space-y-6">
                       <div className="grid gap-6 md:grid-cols-2">
                         <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">Họ và Tên</p>
+                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.fullName)}</p>
                           <p className="font-semibold text-lg">{auth.user?.name ?? "—"}</p>
                         </div>
                         <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">Email</p>
+                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.email)}</p>
                           <p className="font-semibold text-lg">{auth.user?.email ?? "—"}</p>
                         </div>
                         <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">Số Điện Thoại</p>
-                          <p className="font-semibold text-lg">{auth.user?.phone || "Chưa cập nhật"}</p>
+                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.phone)}</p>
+                          <p className="font-semibold text-lg">{auth.user?.phone || t(ACCOUNT_I18N_KEYS.profile.notUpdated)}</p>
                         </div>
                         <div className="rounded-lg border p-4 bg-muted/20">
-                          <p className="mb-1 text-sm font-medium text-muted-foreground">Vai trò</p>
+                          <p className="mb-1 text-sm font-medium text-muted-foreground">{t(ACCOUNT_I18N_KEYS.profile.role)}</p>
                           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 uppercase font-bold tracking-wider">{auth.user?.role}</Badge>
                         </div>
                       </div>
                       <Button className="bg-primary" onClick={() => setIsEditingProfile(true)}>
-                        Chỉnh Sửa Thông Tin
+                        {t(ACCOUNT_I18N_KEYS.profile.edit)}
                       </Button>
                     </div>
                   )}
@@ -356,52 +359,35 @@ export default function AccountPage() {
 
             {/* Notifications Tab */}
             <TabsContent value="notifications">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Thông Báo</CardTitle>
-                  <CardDescription>Các thông báo và cập nhật mới nhất (Tính năng sắp ra mắt)</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="rounded-lg border p-4 opacity-70">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-medium text-primary flex items-center"><Bell className="h-4 w-4 mr-2"/> Tính năng đang phát triển</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Hệ thống thông báo thời gian thực đang được xây dựng và sẽ sớm ra mắt trong thời gian tới.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <NotificationList enabled={auth.isAuthenticated} />
             </TabsContent>
           </Tabs>
         </div>
       </main>
 
-      <Footer />
-
       {/* Cancel Booking Dialog */}
       <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xác nhận hủy lịch hẹn</DialogTitle>
+            <DialogTitle>{t(ACCOUNT_I18N_KEYS.cancelDialog.title)}</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn hủy lịch hẹn này không? Hành động này không thể hoàn tác.
+              {t(ACCOUNT_I18N_KEYS.cancelDialog.desc)}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Label htmlFor="reason">Lý do hủy (không bắt buộc)</Label>
+            <Label htmlFor="reason">{t(ACCOUNT_I18N_KEYS.cancelDialog.reasonLabel)}</Label>
             <Textarea 
               id="reason"
-              placeholder="Vui lòng cho chúng tôi biết lý do..." 
+              placeholder={t(ACCOUNT_I18N_KEYS.cancelDialog.reasonPlaceholder)}
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               className="mt-2"
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelModalOpen(false)}>Quay lại</Button>
+            <Button variant="outline" onClick={() => setCancelModalOpen(false)}>{t(ACCOUNT_I18N_KEYS.cancelDialog.back)}</Button>
             <Button variant="destructive" onClick={handleCancelBooking} disabled={cancelMutation.isPending}>
-              {cancelMutation.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+              {cancelMutation.isPending ? t(ACCOUNT_I18N_KEYS.cancelDialog.submitting) : t(ACCOUNT_I18N_KEYS.cancelDialog.submit)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -411,14 +397,14 @@ export default function AccountPage() {
       <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Đánh giá bác sĩ / phòng khám</DialogTitle>
+            <DialogTitle>{t(ACCOUNT_I18N_KEYS.reviewDialog.title)}</DialogTitle>
             <DialogDescription>
-              Chia sẻ trải nghiệm của bạn để giúp những bệnh nhân khác.
+              {t(ACCOUNT_I18N_KEYS.reviewDialog.desc)}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label>Mức độ hài lòng (1 - 5 sao)</Label>
+              <Label>{t(ACCOUNT_I18N_KEYS.reviewDialog.ratingLabel)}</Label>
               <div className="flex gap-2 justify-center py-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button 
@@ -432,10 +418,10 @@ export default function AccountPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="comment">Nhận xét của bạn</Label>
+              <Label htmlFor="comment">{t(ACCOUNT_I18N_KEYS.reviewDialog.commentLabel)}</Label>
               <Textarea 
                 id="comment"
-                placeholder="Bác sĩ khám rất tận tâm..." 
+                placeholder={t(ACCOUNT_I18N_KEYS.reviewDialog.commentPlaceholder)}
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
                 rows={4}
@@ -443,9 +429,9 @@ export default function AccountPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewModalOpen(false)}>Hủy</Button>
+            <Button variant="outline" onClick={() => setReviewModalOpen(false)}>{t(ACCOUNT_I18N_KEYS.reviewDialog.cancel)}</Button>
             <Button className="bg-primary" onClick={handleReviewSubmit} disabled={reviewMutation.isPending}>
-              {reviewMutation.isPending ? "Đang gửi..." : "Gửi đánh giá"}
+              {reviewMutation.isPending ? t(ACCOUNT_I18N_KEYS.reviewDialog.submitting) : t(ACCOUNT_I18N_KEYS.reviewDialog.submit)}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,30 +1,27 @@
 "use client"
 
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card"
-import { Input } from "@/shared/ui/input"
 import { Badge } from "@/shared/ui/badge"
-import { Search, Star, MapPin, Clock } from "lucide-react"
+import { Star, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { getClinics } from "@/api/clinics"
-import { useLanguage } from "@/shared/provider/LanguageProvider"
-import { HOME_TEXTS } from "@/shared/constants/home"
+import { CLINIC_I18N_KEYS } from "@/shared/i18n/keys"
 
 export default function ClinicsPage() {
-  const { t } = useLanguage()
+  const { t } = useTranslation("clinics")
   const searchParams = useSearchParams()
   const specialtyId = searchParams.get("specialtyId") || undefined
-  const [q, setQ] = useState("")
 
   const { data, isLoading } = useQuery({
-    queryKey: ["clinics", { q, specialtyId }],
-    queryFn: () => getClinics({ q: q || undefined, specialtyId }),
+    queryKey: ["clinics", { specialtyId }],
+    queryFn: () => getClinics({ specialtyId }),
   })
 
   const clinics = useMemo(() => data?.items ?? [], [data])
@@ -35,34 +32,11 @@ export default function ClinicsPage() {
 
       <main className="flex-1 py-6 md:py-8">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-6">
-            <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t(HOME_TEXTS.PAGES.CLINICS.TITLE.vi, HOME_TEXTS.PAGES.CLINICS.TITLE.en)}</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">{t(HOME_TEXTS.PAGES.CLINICS.DESC.vi, HOME_TEXTS.PAGES.CLINICS.DESC.en)}</p>
+          <div className="mb-8">
+            <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t(CLINIC_I18N_KEYS.pageTitle)}</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">{t(CLINIC_I18N_KEYS.pageDesc)}</p>
           </div>
 
-          {/* Search and Filter */}
-          <Card className="mb-8 w-fit shadow-sm border-gray-100">
-            <CardContent className="px-3 py-2.5 sm:px-4 sm:py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <div className="relative w-full max-w-[320px]">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder={t(HOME_TEXTS.PAGES.CLINICS.SEARCH_PLACEHOLDER.vi, HOME_TEXTS.PAGES.CLINICS.SEARCH_PLACEHOLDER.en)}
-                    className="h-8 pl-8 text-sm"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs">{t(HOME_TEXTS.PAGES.CLINICS.LOCATION.vi, HOME_TEXTS.PAGES.CLINICS.LOCATION.en)}</Button>
-                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs">{t(HOME_TEXTS.PAGES.CLINICS.SERVICE.vi, HOME_TEXTS.PAGES.CLINICS.SERVICE.en)}</Button>
-                  <Button size="sm" className="h-8 bg-primary px-4 text-xs">{t(HOME_TEXTS.PAGES.CLINICS.SEARCH_BTN.vi, HOME_TEXTS.PAGES.CLINICS.SEARCH_BTN.en)}</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Clinics Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {isLoading ? (
               Array.from({ length: 6 }).map((_, idx) => (
@@ -78,73 +52,81 @@ export default function ClinicsPage() {
                   </CardContent>
                 </Card>
               ))
-            ) : (
+            ) : clinics.length > 0 ? (
               clinics.map((clinic) => (
-                <Card key={clinic.id} className="flex flex-col p-0 gap-0 overflow-hidden transition-shadow shadow-sm hover:shadow-lg group">
-                <div className="relative aspect-[2/1] w-full flex-none overflow-hidden bg-muted">
-                  <Image
-                    src={clinic.image || `/modern-clinic-.jpg?height=200&width=400&query=modern clinic ${clinic.id}`}
-                    alt={clinic.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
-                <CardHeader className="flex-none pt-4 pb-2">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-1 text-base sm:text-lg">{clinic.name}</CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        clinic.isOpen ? "shrink-0 bg-success/10 text-success" : "shrink-0 bg-muted text-muted-foreground"
-                      }
-                    >
-                      <span className="mr-1">●</span>
-                      {clinic.isOpen ? t(HOME_TEXTS.PAGES.CLINICS.STATUS_OPEN.vi, HOME_TEXTS.PAGES.CLINICS.STATUS_OPEN.en) : t(HOME_TEXTS.PAGES.CLINICS.STATUS_CLOSED.vi, HOME_TEXTS.PAGES.CLINICS.STATUS_CLOSED.en)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">{clinic.rating}</span>
-                    <span className="text-muted-foreground">({clinic.reviewCount} {t(HOME_TEXTS.PAGES.CLINICS.REVIEWS.vi, HOME_TEXTS.PAGES.CLINICS.REVIEWS.en)})</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-2.5 pt-0">
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="line-clamp-2 text-muted-foreground">{clinic.address}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="text-muted-foreground">{clinic.openingHours || "—"}</span>
-                  </div>
-                  {Array.isArray(clinic.specialties) && clinic.specialties.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {clinic.specialties.slice(0, 3).map((specialty: any) => (
-                        <Badge key={specialty.id || specialty} variant="outline" className="text-xs">
-                          {specialty.name || specialty}
-                        </Badge>
-                      ))}
+                <Card key={clinic.id} className="flex flex-col p-0 gap-0 overflow-hidden transition-all shadow-sm hover:-translate-y-1 hover:shadow-lg group">
+                  <Link href={`/clinic/${clinic.id}`} className="block">
+                    <div className="relative aspect-[2/1] w-full flex-none overflow-hidden bg-muted">
+                      <Image
+                        src={clinic.image || "/placeholder-clinic.jpg"}
+                        alt={clinic.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                     </div>
-                  ) : null}
-                </CardContent>
-                <CardFooter className="gap-2 pb-5 pt-4 flex-none mt-auto">
-                  <Link href={`/clinic/${clinic.id}`} className="flex-1">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      {t(HOME_TEXTS.PAGES.CLINICS.VIEW_DETAIL.vi, HOME_TEXTS.PAGES.CLINICS.VIEW_DETAIL.en)}
-                    </Button>
                   </Link>
-                  <Link href={`/booking?clinicId=${clinic.id}${specialtyId ? `&specialtyId=${specialtyId}` : ""}`} className="flex-1">
-                    <Button className="w-full bg-primary">{t(HOME_TEXTS.PAGES.CLINICS.BOOK_NOW.vi, HOME_TEXTS.PAGES.CLINICS.BOOK_NOW.en)}</Button>
-                  </Link>
-                </CardFooter>
-              </Card>
+                  <CardHeader className="flex-none pt-4 pb-2">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <Link href={`/clinic/${clinic.id}`}>
+                        <CardTitle className="line-clamp-1 text-base sm:text-lg transition-colors group-hover:text-primary">{clinic.name}</CardTitle>
+                      </Link>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          clinic.isOpen ? "shrink-0 bg-success/10 text-success" : "shrink-0 bg-muted text-muted-foreground"
+                        }
+                      >
+                        <span className="mr-1">●</span>
+                        {clinic.isOpen ? t(CLINIC_I18N_KEYS.statusOpen) : t(CLINIC_I18N_KEYS.statusClosed)}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">{clinic.rating}</span>
+                      <span className="text-muted-foreground">({clinic.reviewCount} {t(CLINIC_I18N_KEYS.reviews)})</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-2.5 pt-0">
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="line-clamp-2 text-muted-foreground">{clinic.address}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-muted-foreground">{clinic.openingHours || t(CLINIC_I18N_KEYS.noOpeningHours)}</span>
+                    </div>
+                    {Array.isArray(clinic.specialties) && clinic.specialties.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {clinic.specialties.slice(0, 3).map((specialty: any) => (
+                          <Badge key={specialty.id || specialty} variant="outline" className="text-xs">
+                            {specialty.name || specialty}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                  <CardFooter className="gap-2 pb-5 pt-4 flex-none mt-auto">
+                    <Link href={`/clinic/${clinic.id}`} className="flex-1">
+                      <Button variant="outline" className="w-full bg-transparent">
+                        {t(CLINIC_I18N_KEYS.viewDetail)}
+                      </Button>
+                    </Link>
+                    <Link href={`/booking?clinicId=${clinic.id}${specialtyId ? `&specialtyId=${specialtyId}` : ""}`} className="flex-1">
+                      <Button className="w-full bg-primary">{t(CLINIC_I18N_KEYS.bookNow)}</Button>
+                    </Link>
+                  </CardFooter>
+                </Card>
               ))
+            ) : (
+              <Card className="md:col-span-2 lg:col-span-3">
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  {t(CLINIC_I18N_KEYS.empty)}
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

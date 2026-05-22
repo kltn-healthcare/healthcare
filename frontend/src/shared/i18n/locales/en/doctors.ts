@@ -1,11 +1,12 @@
 const doctors = {
-  title: "Excellent Doctors",
-  desc: "Experienced expert team",
+  title: "Featured doctors",
+  desc: "Experienced medical specialists",
   view_all: "View all",
-  book_now: "Book Appointment",
+  book_now: "Book appointment",
+  view_detail: "View details",
   years_exp: "years of experience",
   medical_visit_count: "medical visits",
   default_specialty: "Doctor",
-};
+}
 
-export default doctors;
+export default doctors

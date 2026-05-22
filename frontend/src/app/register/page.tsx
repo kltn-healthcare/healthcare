@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
-import { KeyRound, LockKeyhole, Mail, Phone, UserRound } from "lucide-react"
+import { ArrowLeft, KeyRound, LockKeyhole, Mail, Phone, UserRound } from "lucide-react"
 import { Logo } from "@/components/Logo"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { postRegister, postVerifyRegisterOtp } from "@/api/auth"
@@ -15,6 +15,7 @@ import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { useTranslation } from "react-i18next"
 import { AUTH_I18N_KEYS } from "@/shared/i18n/keys"
+import { ROUTES } from "@/shared/constants"
 
 export default function RegisterPage() {
   const { t } = useTranslation("auth")
@@ -52,19 +53,22 @@ export default function RegisterPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-white to-teal-50 px-4 py-5">
+      <div className="absolute left-4 top-4">
+        <Link href={ROUTES.HOME}>
+          <Button variant="ghost" size="sm" className="gap-2 text-slate-600 hover:text-sky-700">
+            <ArrowLeft className="h-4 w-4" />
+            {t(AUTH_I18N_KEYS.backHome)}
+          </Button>
+        </Link>
+      </div>
+
       <div className="absolute right-4 top-4">
         <LanguageSwitcher />
       </div>
 
       <div className="w-full max-w-[560px]">
-        <div className="mb-5 text-center">
+        <div className="mb-5 flex justify-center">
           <Logo className="mb-3 scale-90 justify-center" />
-          <h1 className="text-[26px] font-bold leading-tight text-sky-600">
-            {t(AUTH_I18N_KEYS.brandTitle)}
-          </h1>
-          <p className="mt-1 text-base text-slate-600">
-            {t(AUTH_I18N_KEYS.register.subtitle)}
-          </p>
         </div>
 
         {step === "register" ? (
@@ -275,9 +279,6 @@ export default function RegisterPage() {
           </Card>
         )}
 
-        <div className="mt-4 text-center text-sm text-slate-500">
-          <p>{t(AUTH_I18N_KEYS.copyright)}</p>
-        </div>
       </div>
     </main>
   )

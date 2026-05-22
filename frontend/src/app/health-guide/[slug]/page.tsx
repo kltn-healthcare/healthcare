@@ -5,23 +5,20 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Clock } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { getArticleBySlug } from "@/api/articles"
 import { ARTICLE_QUERY_KEYS, ROUTES } from "@/shared/constants"
+import { ARTICLE_I18N_KEYS } from "@/shared/i18n/keys"
+import { useLanguage } from "@/shared/provider/LanguageProvider"
+import { formatHomeDate } from "@/features/home/home.utils"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 
-function formatPublishedDate(value: string) {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-        return value
-    }
-    return date.toLocaleDateString("vi-VN")
-}
-
 export default function HealthGuideDetailPage() {
+    const { t } = useTranslation("articles")
+    const { language } = useLanguage()
     const params = useParams<{ slug: string }>()
     const slug = params.slug
 
@@ -42,7 +39,7 @@ export default function HealthGuideDetailPage() {
                     <Link href={ROUTES.HEALTH_GUIDE}>
                         <Button variant="ghost" className="mb-4 pl-0 text-muted-foreground hover:text-foreground">
                             <ArrowLeft className="mr-2 h-4 w-4" />
-                            Quay lại cẩm nang
+                            {t(ARTICLE_I18N_KEYS.viewAll)}
                         </Button>
                     </Link>
 
@@ -62,12 +59,10 @@ export default function HealthGuideDetailPage() {
                     {!articleQuery.isLoading && !article ? (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Không tìm thấy bài viết</CardTitle>
+                                <CardTitle>{t(ARTICLE_I18N_KEYS.empty)}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">
-                                    Bài viết có thể đã bị xóa hoặc đường dẫn không còn hợp lệ.
-                                </p>
+                                <p className="text-sm text-muted-foreground">{t(ARTICLE_I18N_KEYS.emptyCategory)}</p>
                             </CardContent>
                         </Card>
                     ) : null}
@@ -76,7 +71,7 @@ export default function HealthGuideDetailPage() {
                         <article className="overflow-hidden rounded-xl border bg-white shadow-sm">
                             <div className="relative h-72 w-full bg-muted md:h-96">
                                 <Image
-                                    src={article.image || "/abstract-healthcare.png?height=420&width=900&query=medical article"}
+                                    src={article.image || "/placeholder-clinic.jpg"}
                                     alt={article.title}
                                     fill
                                     className="object-cover"
@@ -93,7 +88,7 @@ export default function HealthGuideDetailPage() {
                                         <Clock className="h-4 w-4" />
                                         <span>{article.readTime}</span>
                                     </div>
-                                    <span>{formatPublishedDate(article.publishedAt)}</span>
+                                    <span>{formatHomeDate(article.publishedAt, language)}</span>
                                 </div>
 
                                 <p className="leading-7 text-slate-700">{article.description}</p>
@@ -102,8 +97,6 @@ export default function HealthGuideDetailPage() {
                     ) : null}
                 </div>
             </main>
-
-            <Footer />
         </div>
     )
 }
