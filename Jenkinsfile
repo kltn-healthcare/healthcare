@@ -103,71 +103,122 @@ pipeline {
         script {
           echo "🚢 Đang chuẩn bị cập nhật cấu hình cho STAGING..."
           
-          def commitMsg = "Deploy Staging: Cập nhật [${env.CHANGED_SERVICES}] với tag [${env.DEPLOY_TAG}]"
-          
-          // Khai báo rõ ràng đường dẫn script của dự án này
-          def deployScript = "./scripts/update-k8s-manifest.sh"
-          
           withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
-              // Truyền deployScript vào làm tham số đầu tiên
-              deployManifest(deployScript, 'staging', env.CHANGED_SERVICES, env.DEPLOY_TAG, commitMsg)
+            deployManifest(
+              environment: 'staging', // Chỉ định môi trường Staging
+              changedServices: env.CHANGED_SERVICES,
+              
+              // Ở Staging, ta truyền thẳng mã DEPLOY_TAG (Short SHA) vào.
+              // Hàm sẽ tự hiểu và áp dụng Tag này cho toàn bộ service thay đổi.
+              imageTag: env.DEPLOY_TAG, 
+              
+              // Giữ nguyên mapping thư mục giống như Production
+              serviceFolderMap: [
+                 'frontend': 'frontend',
+                 'auth': 'auth-service',
+                 'backend': 'backend-service',
+                 'admin': 'admin-service'
+              ],
+              
+              manifestRepoUrl: env.MANIFEST_REPO_URL,
+              manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
+              gitUserName: env.GIT_USER_NAME,
+              gitUserEmail: env.GIT_USER_EMAIL,
+              giteaRegistry: env.GITEA_REGISTRY,
+              giteaOwner: env.GITEA_OWNER,
+              giteaRepo: env.GITEA_REPO,
+              token: TOKEN,
+              commitMessage: "Deploy Staging: Cập nhật [${env.CHANGED_SERVICES}] với tag [${env.DEPLOY_TAG}]"
+            )
           }
+          
+          echo "✅ Đã đẩy cấu hình Staging lên Gitea! ArgoCD sẽ tự động đồng bộ."
         }
       }
     }
-    // stage('Deploy to Staging') {
-    //   when {
-    //     allOf {
-    //       branch 'main'
-    //       expression { return env.CHANGED_SERVICES?.trim() }
-    //     }
-    //   }
-    //   steps {
-    //     script {
-    //       withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
-    //         sh '''
-    //           set -e
-    //           GIT_AUTH_URL="https://${GIT_USER_NAME}:${TOKEN}@${MANIFEST_REPO_URL#https://}" \
-    //           ENVIRONMENT="staging" \
-    //           SERVICES="${CHANGED_SERVICES}" \
-    //           IMAGE_TAG="${COMMIT_TAG}" \
-    //           MANIFEST_REPO_BRANCH="${MANIFEST_REPO_BRANCH}" \
-    //           GIT_USER_NAME="${GIT_USER_NAME}" \
-    //           GIT_USER_EMAIL="${GIT_USER_EMAIL}" \
-    //           GITEA_REGISTRY="${GITEA_REGISTRY}" \
-    //           GITEA_OWNER="${GITEA_OWNER}" \
-    //           COMMIT_MESSAGE="ci(staging): update healthcare images to ${COMMIT_TAG}" \
-    //           bash scripts/update-k8s-manifest.sh
-    //         '''
-    //       }
-    //     }
-    //   }
-    // }
 
-    // stage('Manual Approval & Retag') {
-    //   when {
-    //     allOf {
-    //       branch 'main'
-    //       expression { return env.CHANGED_SERVICES?.trim() }
-    //     }
-    //   }
-    //   steps {
-    //     script {
-    //       env.RELEASE_TAG = approveAndRetag(
-    //         services: env.CHANGED_SERVICES,
-    //         commitTag: env.COMMIT_TAG,
-    //         registry: env.GITEA_REGISTRY,
-    //         owner: env.GITEA_OWNER,
-    //         credsId: env.GITEA_CREDS_ID,
-    //         giteaApiUrl: env.GITEA_API_URL,
-    //         giteaOwner: env.GITEA_OWNER,
-    //         giteaRepo: env.GITEA_REPO,
-    //         gitCommit: env.GIT_COMMIT
-    //       )
-    //     }
-    //   }
-    // }
+    stage('Manual Approval & Retag') {
+      when {
+        allOf {
+          branch 'main'
+          expression { return env.CHANGED_SERVICES?.trim() }
+        }
+      }
+      steps {
+        script {
+          echo "⏳ Chờ phê duyệt từ quản trị viên..."
+          
+          // 1. Gọi Shared Library và hứng kết quả (Map) trả về vào một biến
+          def approvalResult = approveAndRetag(
+            services: env.CHANGED_SERVICES,
+            commitTag: env.DEPLOY_TAG,
+            adminEmail: env.GIT_USER_EMAIL ?: '', // Thêm ?: '' để tránh lỗi nếu biến email bị null
+            credsId: env.GITEA_CREDS_ID,
+            giteaApiUrl: env.GITEA_API_URL,
+            giteaOwner: env.GITEA_OWNER,
+            giteaRepo: env.GITEA_REPO,
+            giteaRegistry: env.GITEA_REGISTRY, // Đã bổ sung biến này
+            gitCommit: env.GIT_COMMIT
+          )
 
+          // 2. Lấy dữ liệu từ Map gán vào environment để các Stage sau sử dụng
+          env.RELEASE_TAG = approvalResult.mainReleaseTag
+          env.SERVICE_TAGS_MAPPING = approvalResult.serviceTags
+
+          // 3. In log ra cho đẹp và dễ debug
+          echo "✅ Phê duyệt hoàn tất!"
+          echo "🏷️ Release Tag chung: ${env.RELEASE_TAG ? env.RELEASE_TAG : 'Bỏ qua (Không tạo Release)'}"
+          echo "📦 Chi tiết Tag các service: ${env.SERVICE_TAGS_MAPPING}"
+        }
+      }
+    }
+
+  stage('Deploy to Production') {
+      when {
+        allOf {
+          branch 'main'
+          // Chỉ chạy khi quản trị viên có nhập Tag Release chung
+          expression { return env.SERVICE_TAGS_MAPPING?.trim() } 
+        }
+      }
+      steps {
+        script {
+          echo "🚀 Cập nhật Kustomize Production với các Tag: ${env.SERVICE_TAGS_MAPPING}"
+          
+          withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
+            deployManifest(
+              environment: 'production',
+              changedServices: env.CHANGED_SERVICES,
+              
+              // ĐÂY LÀ ĐIỂM ĂN TIỀN: Truyền nguyên chuỗi mapping vào đây
+              imageTag: env.SERVICE_TAGS_MAPPING, 
+              
+              // Mapping thư mục (giữ nguyên như Staging)
+              serviceFolderMap: [
+                 'frontend': 'frontend',
+                 'auth': 'auth-service',
+                 'backend': 'backend-service',
+                 'admin': 'admin-service'
+              ],
+              
+              manifestRepoUrl: env.MANIFEST_REPO_URL,
+              manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
+              gitUserName: env.GIT_USER_NAME,
+              gitUserEmail: env.GIT_USER_EMAIL,
+              giteaRegistry: env.GITEA_REGISTRY,
+              giteaOwner: env.GITEA_OWNER,
+              giteaRepo: env.GITEA_REPO,
+              token: TOKEN,
+              
+              // Ghi rõ Release Tag chung vào câu lệnh commit
+              commitMessage: "🚀 release(production): cập nhật lên phiên bản ${env.RELEASE_TAG}"
+            )
+          }
+          
+          echo "🎉 Đã đẩy cấu hình Production lên Gitea! ArgoCD sẽ tiếp quản công việc ngay bây giờ."
+        }
+      }
+    }
     // stage('Deploy to Production') {
     //   when {
     //     allOf {
