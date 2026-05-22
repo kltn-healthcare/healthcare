@@ -64,7 +64,7 @@ export function DoctorsSection() {
                     </div>
                     <Link href={ROUTES.DOCTORS} className="w-full sm:w-auto">
                         <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t("doctors.view_all")}
+                            {t("articles.view_all")}
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </Link>
@@ -113,7 +113,7 @@ export function DoctorsSection() {
                                             {doctor.experience}+ {td("years_exp")}
                                         </p>
                                         <Link href={`${ROUTES.BOOKING}?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`} className="flex-1">
-                                            <Button variant="secondary" className="w-full group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm active:scale-95">
+                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
                                                 {td("book_now")}
                                             </Button>
                                         </Link>

@@ -76,9 +76,9 @@ export function PackagesSection() {
                             {packages.map((pkg) => (
                                 <CarouselItem key={pkg.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                                     <Card className="flex h-full flex-col p-0 gap-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group">
-                                        <CardHeader className="relative bg-muted/30 pb-4 px-6 pt-6">
+                                        <CardHeader className="relative bg-muted/30 pb-4 px-6 pt-8">
                                             {pkg.isPopular && (
-                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                                                <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
                                                     <Badge className="bg-primary text-white shadow-sm">
                                                         <Star className="mr-1 h-3 w-3" /> {tp("popular_badge")}
                                                     </Badge>
@@ -114,7 +114,7 @@ export function PackagesSection() {
                                         </CardContent>
                                         <CardFooter className="mt-auto pt-4 pb-6 px-6">
                                             <Link href={getBookingHref(pkg)} className="w-full">
-                                                <Button variant={pkg.isPopular ? "default" : "outline"} className={`w-full group-hover:shadow-md transition-all ${!pkg.isPopular && 'border-primary/20 text-primary hover:bg-primary hover:text-white'}`}>
+                                                <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">
                                                     {tp("book_now")}
                                                 </Button>
                                             </Link>

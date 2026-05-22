@@ -115,7 +115,7 @@ export function ClinicsSection() {
                                             </div>
                                         </CardContent>
                                         <CardFooter className="flex-none pt-2 pb-6 px-6">
-                                            <Button className="w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">{tc("book_now")}</Button>
+                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">{tc("book_now")}</Button>
                                         </CardFooter>
                                     </Card>
                                 </Link>

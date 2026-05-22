@@ -84,9 +84,10 @@ function buildTimelineSlots(stepMinutes: number) {
 
 function buildTimelineGridTemplate(stepMinutes: number) {
     const slots = buildTimelineSlots(stepMinutes)
+    const minCellWidth = stepMinutes >= 60 ? 44 : 22
     return {
         slots,
-        gridTemplate: `92px repeat(${slots.length}, minmax(22px, 1fr))`,
+        gridTemplate: `92px repeat(${slots.length}, minmax(${minCellWidth}px, 1fr))`,
     }
 }
 
