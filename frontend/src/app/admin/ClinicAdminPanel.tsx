@@ -28,7 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ADMIN_DAY_OPTIONS, ADMIN_TEXT } from "./admin.constants"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Textarea } from "@/shared/ui/textarea"
-import { Building, Phone, Mail, Globe, Clock, FileText, Image as ImageIcon, MapPin, Check } from "lucide-react"
+import { Building, Phone, Mail, Globe, Clock, FileText, Image as ImageIcon, MapPin, Check, CalendarClock, Activity, CalendarCheck2, UserRoundCheck } from "lucide-react"
 import { ImageUpload } from "@/components"
 
 
@@ -77,6 +77,38 @@ function defaultSpecialtySchedules(slotDurationMinutes = 30): SpecialtyScheduleR
 
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString("vi-VN")
+}
+
+type BookingFilter = "ALL" | ClinicAdminBookingStatus
+
+function getBookingStatusLabel(status: ClinicAdminBookingStatus) {
+    switch (status) {
+        case "PENDING":
+            return ADMIN_TEXT.bookingStatus.pending
+        case "CONFIRMED":
+            return ADMIN_TEXT.bookingStatus.confirmed
+        case "COMPLETED":
+            return ADMIN_TEXT.bookingStatus.completed
+        case "CANCELLED":
+            return ADMIN_TEXT.bookingStatus.cancelled
+        default:
+            return status
+    }
+}
+
+function getBookingStatusClass(status: ClinicAdminBookingStatus) {
+    switch (status) {
+        case "PENDING":
+            return "bg-amber-100 text-amber-700 border-amber-200"
+        case "CONFIRMED":
+            return "bg-primary/10 text-primary border-primary/20"
+        case "COMPLETED":
+            return "bg-emerald-100 text-emerald-700 border-emerald-200"
+        case "CANCELLED":
+            return "bg-rose-100 text-rose-700 border-rose-200"
+        default:
+            return ""
+    }
 }
 
 const timelineStart = 0
@@ -329,6 +361,22 @@ export function ClinicAdminPanel() {
     const queryClient = useQueryClient()
     const profileQuery = useQuery({ queryKey: ["clinic-admin", "profile"], queryFn: getClinicAdminProfile })
     const bookingsQuery = useQuery({ queryKey: ["clinic-admin", "bookings"], queryFn: () => getClinicAdminBookings() })
+
+    const [bookingFilter, setBookingFilter] = useState<BookingFilter>("ALL")
+
+    const allBookings = bookingsQuery.data?.items ?? []
+    const bookingStats = useMemo(() => {
+        const total = allBookings.length
+        const pending = allBookings.filter((item) => item.status === "PENDING").length
+        const confirmed = allBookings.filter((item) => item.status === "CONFIRMED").length
+        const completed = allBookings.filter((item) => item.status === "COMPLETED").length
+        return { total, pending, confirmed, completed }
+    }, [allBookings])
+
+    const filteredBookings = useMemo(() => {
+        if (bookingFilter === "ALL") return allBookings
+        return allBookings.filter((item) => item.status === bookingFilter)
+    }, [allBookings, bookingFilter])
 
     const clinic = profileQuery.data?.clinic
     const packages = useMemo(() => clinic?.healthPackages ?? [], [clinic?.healthPackages])
@@ -643,47 +691,107 @@ export function ClinicAdminPanel() {
                 </TabsList>
 
                 {/* Tab 1: Bookings (Default) */}
-                <TabsContent value="bookings" className="space-y-4">
+                <TabsContent value="bookings" className="space-y-6">
+                    {/* Booking Stats Grid */}
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <StatCard icon={CalendarClock} title="Tổng lịch đặt gói" value={String(bookingStats.total)} />
+                        <StatCard icon={Activity} title="Chờ xác nhận" value={String(bookingStats.pending)} />
+                        <StatCard icon={CalendarCheck2} title="Đã xác nhận" value={String(bookingStats.confirmed)} />
+                        <StatCard icon={UserRoundCheck} title="Đã hoàn tất" value={String(bookingStats.completed)} />
+                    </div>
+
                     <Card>
-                        <CardHeader>
-                            <CardTitle>{text.bookings.title}</CardTitle>
+                        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle>{text.bookings.title}</CardTitle>
+                            </div>
+                            <div className="w-full md:w-56">
+                                <Select value={bookingFilter} onValueChange={(v) => setBookingFilter(v as BookingFilter)}>
+                                    <SelectTrigger className="w-full shadow-sm">
+                                        <SelectValue placeholder="Lọc trạng thái" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                                        <SelectItem value="PENDING">Chờ xác nhận</SelectItem>
+                                        <SelectItem value="CONFIRMED">Đã xác nhận</SelectItem>
+                                        <SelectItem value="COMPLETED">Đã hoàn tất</SelectItem>
+                                        <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>{text.bookings.headers.patient}</TableHead>
-                                        <TableHead>{text.bookings.headers.package}</TableHead>
-                                        <TableHead>{text.bookings.headers.dateTime}</TableHead>
-                                        <TableHead>{text.bookings.headers.status}</TableHead>
-                                        <TableHead>{text.bookings.headers.actions}</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {(bookingsQuery.data?.items ?? []).map((booking) => (
-                                        <TableRow key={booking.id}>
-                                            <TableCell>
-                                                <div className="font-medium">{booking.patientName}</div>
-                                                <div className="text-xs text-muted-foreground">{booking.patientPhone}</div>
-                                            </TableCell>
-                                            <TableCell>{booking.healthPackage?.name || "-"}</TableCell>
-                                            <TableCell>{formatDate(booking.bookingDate)} {booking.bookingTime}</TableCell>
-                                            <TableCell><Badge variant="outline">{booking.status}</Badge></TableCell>
-                                            <TableCell className="space-x-2">
-                                                {booking.status === "PENDING" ? (
-                                                    <>
-                                                        <Button size="sm" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}>{text.bookings.confirm}</Button>
-                                                        <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}>{text.bookings.cancel}</Button>
-                                                    </>
-                                                ) : null}
-                                                {booking.status === "CONFIRMED" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}>{text.bookings.complete}</Button>
-                                                ) : null}
-                                            </TableCell>
+                            {filteredBookings.length === 0 ? (
+                                <div className="py-8 text-center text-sm text-muted-foreground">
+                                    Không có dữ liệu lịch khám phù hợp bộ lọc.
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{text.bookings.headers.patient}</TableHead>
+                                            <TableHead>{text.bookings.headers.package}</TableHead>
+                                            <TableHead>{text.bookings.headers.dateTime}</TableHead>
+                                            <TableHead>{text.bookings.headers.status}</TableHead>
+                                            <TableHead>{text.bookings.headers.actions}</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredBookings.map((booking) => (
+                                            <TableRow key={booking.id}>
+                                                <TableCell>
+                                                    <div className="font-medium text-slate-800">{booking.patientName}</div>
+                                                    <div className="text-xs text-muted-foreground">{booking.patientPhone}</div>
+                                                </TableCell>
+                                                <TableCell className="font-medium text-slate-700">{booking.healthPackage?.name || "-"}</TableCell>
+                                                <TableCell className="text-slate-600">{formatDate(booking.bookingDate)} {booking.bookingTime}</TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`border font-semibold ${getBookingStatusClass(booking.status)}`}
+                                                    >
+                                                        {getBookingStatusLabel(booking.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="space-x-2">
+                                                    {booking.status === "PENDING" ? (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                className="shadow-sm transition-all"
+                                                                disabled={updateBookingMutation.isPending}
+                                                                onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}
+                                                            >
+                                                                {text.bookings.confirm}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                className="shadow-sm transition-all"
+                                                                disabled={updateBookingMutation.isPending}
+                                                                onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}
+                                                            >
+                                                                {text.bookings.cancel}
+                                                            </Button>
+                                                        </>
+                                                    ) : null}
+                                                    {booking.status === "CONFIRMED" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm transition-all"
+                                                            disabled={updateBookingMutation.isPending}
+                                                            onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}
+                                                        >
+                                                            {text.bookings.complete}
+                                                        </Button>
+                                                    ) : null}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -909,17 +1017,6 @@ export function ClinicAdminPanel() {
                                     </div>
 
                                     <ImageUpload onUploadSuccess={(url) => setProfileImage(url)} label="Tải logo lên" />
-
-                                    <div className="w-full space-y-2">
-                                        <Label htmlFor="logoUrl" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Logo</Label>
-                                        <Input
-                                            id="logoUrl"
-                                            value={profileImage}
-                                            onChange={(e) => setProfileImage(e.target.value)}
-                                            placeholder="https://example.com/logo.png"
-                                            className="w-full text-xs"
-                                        />
-                                    </div>
                                 </div>
 
                                 {/* Right column: Details form */}
@@ -1040,5 +1137,29 @@ export function ClinicAdminPanel() {
                 </TabsContent>
             </Tabs>
         </div>
+    )
+}
+
+function StatCard({
+    icon: Icon,
+    title,
+    value,
+}: Readonly<{
+    icon: any
+    title: string
+    value: string
+}>) {
+    return (
+        <Card className="border-primary/15 bg-white shadow-sm">
+            <CardContent className="flex items-center justify-between py-4">
+                <div>
+                    <p className="text-sm text-muted-foreground">{title}</p>
+                    <p className="text-2xl font-semibold text-slate-800">{value}</p>
+                </div>
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Icon className="h-5 w-5" />
+                </div>
+            </CardContent>
+        </Card>
     )
 }

@@ -327,17 +327,6 @@ export default function AccountPage() {
                       {isEditingProfile ? (
                         <div className="flex flex-col items-center w-full space-y-3">
                           <ImageUpload onUploadSuccess={(url) => setEditAvatar(url)} label="Tải ảnh lên" />
-                          
-                          <div className="w-full space-y-1">
-                            <Label htmlFor="avatarUrl" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">URL Ảnh đại diện</Label>
-                            <Input
-                              id="avatarUrl"
-                              value={editAvatar}
-                              onChange={(e) => setEditAvatar(e.target.value)}
-                              placeholder="https://example.com/avatar.png"
-                              className="w-full text-xs"
-                            />
-                          </div>
                         </div>
                       ) : (
                         <div className="text-center">
