@@ -1,9 +1,7 @@
 "use client"
 
-import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Badge } from "@/shared/ui/badge"
-import { ArrowRight } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useQuery } from "@tanstack/react-query"
@@ -18,9 +16,8 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
 } from "@/shared/ui/carousel"
+import { SectionHeader, SectionCarouselArrows } from "./SectionShared"
 
 export function HealthGuideSection() {
     const { t } = useTranslation("home")
@@ -35,20 +32,12 @@ export function HealthGuideSection() {
     return (
         <section id="guidebook" className="py-12 md:py-16">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
-                    <div>
-                        <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.articles.title)}</h2>
-                        <p className="text-sm text-muted-foreground text-pretty sm:text-base">
-                            {t(HOME_I18N_KEYS.articles.desc)}
-                        </p>
-                    </div>
-                    <Link href={ROUTES.HEALTH_GUIDE}>
-                        <Button variant="outline" className="gap-2 bg-transparent border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t(HOME_I18N_KEYS.articles.viewAll)}
-                            <ArrowRight className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                </div>
+                <SectionHeader
+                    title={t(HOME_I18N_KEYS.articles.title)}
+                    subtitle={t(HOME_I18N_KEYS.articles.desc)}
+                    viewAllHref={ROUTES.HEALTH_GUIDE}
+                    viewAllLabel={t(HOME_I18N_KEYS.articles.viewAll)}
+                />
 
                 <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
@@ -71,7 +60,7 @@ export function HealthGuideSection() {
                             : articles.map((article) => (
                                 <CarouselItem key={article.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                                     <Link href={`${ROUTES.HEALTH_GUIDE}/${article.slug}`} className="h-full block">
-                                        <Card className="h-full flex flex-col p-0 gap-0 overflow-hidden transition-shadow shadow-sm hover:shadow-lg group">
+                                        <Card className="h-full flex flex-col p-0 gap-0 overflow-hidden transition-shadow shadow-sm hover:shadow-lg group cursor-pointer hover:-translate-y-1">
                                             <div className="relative h-48 w-full bg-muted overflow-hidden flex-none">
                                                 <Image
                                                     src={article.image || "/placeholder-clinic.jpg"}
@@ -97,12 +86,7 @@ export function HealthGuideSection() {
                                 </CarouselItem>
                             ))}
                     </CarouselContent>
-                    {(articles.length > 3 || featuredArticlesQuery.isLoading) && (
-                        <>
-                            <CarouselPrevious className="hidden md:flex -left-6 lg:-left-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                            <CarouselNext className="hidden md:flex -right-6 lg:-right-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                        </>
-                    )}
+                    {(articles.length > 3 || featuredArticlesQuery.isLoading) && <SectionCarouselArrows />}
                 </Carousel>
 
                 {!featuredArticlesQuery.isLoading && articles.length === 0 ? (

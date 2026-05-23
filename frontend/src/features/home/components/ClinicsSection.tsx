@@ -3,7 +3,7 @@
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Badge } from "@/shared/ui/badge"
-import { Star, MapPin, Clock, ArrowRight } from "lucide-react"
+import { Star, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { ROUTES } from "@/shared/constants"
@@ -16,9 +16,8 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
 } from "@/shared/ui/carousel"
+import { SectionHeader, SectionCarouselArrows } from "./SectionShared"
 
 export function ClinicsSection() {
     const { t } = useTranslation("home")
@@ -55,18 +54,12 @@ export function ClinicsSection() {
     return (
         <section id="clinics" className="py-12 md:py-16">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
-                    <div>
-                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl">{t(HOME_I18N_KEYS.clinics.title)}</h2>
-                        <p className="text-sm text-muted-foreground sm:text-base">{t(HOME_I18N_KEYS.clinics.desc)}</p>
-                    </div>
-                    <Link href={ROUTES.CLINICS} className="w-full sm:w-auto">
-                        <Button variant="outline" className="gap-2 bg-transparent text-primary border-primary/20 hover:bg-primary/5 transition-colors">
-                            {t(HOME_I18N_KEYS.clinics.viewAll)}
-                            <ArrowRight className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                </div>
+                <SectionHeader
+                    title={t(HOME_I18N_KEYS.clinics.title)}
+                    subtitle={t(HOME_I18N_KEYS.clinics.desc)}
+                    viewAllHref={ROUTES.CLINICS}
+                    viewAllLabel={t(HOME_I18N_KEYS.clinics.viewAll)}
+                />
 
                 <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
@@ -123,12 +116,7 @@ export function ClinicsSection() {
                             </p>
                         )}
                     </CarouselContent>
-                    {clinics.length > 3 && (
-                        <>
-                            <CarouselPrevious className="hidden md:flex -left-6 lg:-left-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                            <CarouselNext className="hidden md:flex -right-6 lg:-right-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                        </>
-                    )}
+                    {clinics.length > 3 && <SectionCarouselArrows />}
                 </Carousel>
             </div>
         </section>

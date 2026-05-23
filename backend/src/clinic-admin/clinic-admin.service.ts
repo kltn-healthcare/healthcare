@@ -276,7 +276,6 @@ export class ClinicAdminService {
     const admin = await this.getClinicAdmin(userId);
     const where: Prisma.BookingWhereInput = {
       clinicId: admin.clinicId,
-      bookingType: BookingType.HEALTH_PACKAGE,
       ...(query.status ? { status: query.status } : {}),
     };
 
@@ -304,7 +303,9 @@ export class ClinicAdminService {
         patientEmail: true,
         patientPhone: true,
         notes: true,
+        bookingType: true,
         healthPackage: { select: { id: true, name: true, price: true } },
+        doctor: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
         createdAt: true,
       },
@@ -336,14 +337,17 @@ export class ClinicAdminService {
       },
     });
 
-    if (
-      !booking ||
-      booking.clinicId !== admin.clinicId ||
-      booking.bookingType !== BookingType.HEALTH_PACKAGE
-    ) {
+    if (!booking || booking.clinicId !== admin.clinicId) {
       throw new NotFoundException({
         code: 'BOOKING_NOT_FOUND',
         message: 'Booking not found',
+      });
+    }
+
+    if (booking.bookingType === BookingType.DOCTOR_CONSULTATION) {
+      throw new ForbiddenException({
+        code: 'DOCTOR_BOOKING_NOT_ALLOWED',
+        message: 'Clinic admins cannot manage doctor consultation bookings directly.',
       });
     }
 

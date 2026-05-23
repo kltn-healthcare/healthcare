@@ -46,6 +46,8 @@ export type ClinicAdminBookingItem = {
     patientName: string
     patientEmail: string
     patientPhone: string
+    bookingType: 'HEALTH_PACKAGE' | 'DOCTOR_CONSULTATION'
+    doctor?: { id: string; name: string } | null
     healthPackage?: { id: string; name: string; price: string } | null
     specialty?: { id: string; name: string } | null
 }

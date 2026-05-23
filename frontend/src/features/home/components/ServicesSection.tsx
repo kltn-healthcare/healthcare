@@ -12,9 +12,8 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
 } from "@/shared/ui/carousel"
+import { SectionHeader, SectionCarouselArrows } from "./SectionShared"
 
 export function ServicesSection() {
     const { t } = useTranslation("home")
@@ -52,12 +51,7 @@ export function ServicesSection() {
     return (
         <section className="relative py-12 md:py-16 bg-slate-50">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="mb-8 text-center md:mb-12">
-                    <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.services.title)}</h2>
-                    <p className="text-sm text-muted-foreground text-pretty sm:text-base">
-                        {t(HOME_I18N_KEYS.services.desc)}
-                    </p>
-                </div>
+                <SectionHeader title={t(HOME_I18N_KEYS.services.title)} subtitle={t(HOME_I18N_KEYS.services.desc)} center />
 
                 <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
@@ -83,10 +77,7 @@ export function ServicesSection() {
                         })}
                     </CarouselContent>
                     {specialties.length > 3 && (
-                        <>
-                            <CarouselPrevious className="hidden md:flex -left-6 lg:-left-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                            <CarouselNext className="hidden md:flex -right-6 lg:-right-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                        </>
+                        <SectionCarouselArrows />
                     )}
                 </Carousel>
             </div>

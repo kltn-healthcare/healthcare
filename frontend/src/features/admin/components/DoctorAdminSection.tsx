@@ -31,7 +31,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/shared/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { TabsContent } from "@/shared/ui/tabs"
+import { AdminTabs } from "./AdminTabs"
 import { Badge } from "@/shared/ui/badge"
 import {
     Table,
@@ -418,19 +419,14 @@ export function DoctorAdminSection() {
                 <StatCard icon={UserRoundCheck} title={doctorText.stats.completed} value={String(bookingStats.completed)} />
             </div>
 
-            <Tabs defaultValue="bookings" className="space-y-4">
-                <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted p-1">
-                    <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="bookings">
-                        {doctorText.tabs.bookings}
-                    </TabsTrigger>
-                    <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="schedule">
-                        {doctorText.tabs.schedule}
-                    </TabsTrigger>
-                    <TabsTrigger className="py-2 data-[state=active]:bg-primary data-[state=active]:text-white" value="profile">
-                        {doctorText.profile.tabTitle}
-                    </TabsTrigger>
-                </TabsList>
-
+            <AdminTabs 
+                defaultValue="bookings" 
+                tabs={[
+                    { value: "bookings", label: doctorText.tabs.bookings },
+                    { value: "schedule", label: doctorText.tabs.schedule },
+                    { value: "profile", label: doctorText.profile.tabTitle }
+                ]}
+            >
                 <TabsContent value="bookings" className="space-y-4">
                     <Card>
                         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -597,7 +593,6 @@ export function DoctorAdminSection() {
                     </Card>
                 </TabsContent>
 
-                {/* Tab 3: Hồ sơ cá nhân */}
                 <TabsContent value="profile" className="space-y-4">
                     <Card>
                         <CardHeader>
@@ -765,7 +760,7 @@ export function DoctorAdminSection() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-            </Tabs>
+            </AdminTabs>
 
             <Dialog
                 open={Boolean(cancelBookingTarget)}

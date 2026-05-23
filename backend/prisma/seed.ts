@@ -325,6 +325,41 @@ async function main() {
       });
     }
 
+    const articlesData = [
+      {
+        title: 'Chăm sóc răng miệng đúng cách cho trẻ em',
+        slug: 'cham-soc-rang-mieng-tre-em',
+        description: 'Hướng dẫn chi tiết cách vệ sinh và chăm sóc răng miệng cho trẻ nhỏ để phòng ngừa sâu răng hiệu quả.',
+        image: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&q=80&w=800',
+        category: 'Nhi khoa',
+        readTime: '5 phút'
+      },
+      {
+        title: 'Dấu hiệu nhận biết sớm bệnh tiểu đường',
+        slug: 'dau-hieu-nhan-biet-som-benh-tieu-duong',
+        description: 'Những triệu chứng cảnh báo sớm của bệnh tiểu đường mà bạn không nên bỏ qua để được điều trị kịp thời.',
+        image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800',
+        category: 'Nội khoa',
+        readTime: '7 phút'
+      },
+      {
+        title: 'Chế độ dinh dưỡng cho người bị cao huyết áp',
+        slug: 'che-do-dinh-duong-cao-huyet-ap',
+        description: 'Thực đơn và những lưu ý về dinh dưỡng giúp kiểm soát chỉ số huyết áp an toàn và tự nhiên.',
+        image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&q=80&w=800',
+        category: 'Dinh dưỡng',
+        readTime: '6 phút'
+      }
+    ];
+
+    for (const article of articlesData) {
+      await prisma.article.upsert({
+        where: { slug: article.slug },
+        update: {},
+        create: article
+      });
+    }
+
     const summary = await Promise.all([
       prisma.user.count(),
       prisma.clinic.count(),
@@ -332,11 +367,12 @@ async function main() {
       prisma.doctor.count(),
       prisma.healthPackage.count(),
       prisma.clinicSpecialtySchedule.count(),
+      prisma.article.count(),
     ]);
 
     console.log('Seed completed');
     console.log(
-      `users=${summary[0]}, clinics=${summary[1]}, clinicAdmins=${summary[2]}, doctors=${summary[3]}, packages=${summary[4]}, specialtySchedules=${summary[5]}`,
+      `users=${summary[0]}, clinics=${summary[1]}, clinicAdmins=${summary[2]}, doctors=${summary[3]}, packages=${summary[4]}, specialtySchedules=${summary[5]}, articles=${summary[6]}`,
     );
     console.log(`ADMIN: admin@gmail.com / ${adminPassword}`);
     console.log(`CLINIC: clinicA@gmail.com / ${clinicPassword}`);

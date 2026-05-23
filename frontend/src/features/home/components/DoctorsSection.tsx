@@ -6,7 +6,7 @@ import type { Doctor } from "@/shared/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
-import { Star, ArrowRight, User } from "lucide-react"
+import { Star, User } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { ROUTES } from "@/shared/constants"
@@ -16,9 +16,8 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
 } from "@/shared/ui/carousel"
+import { SectionHeader, SectionCarouselArrows } from "./SectionShared"
 
 export function DoctorsSection() {
     const { t } = useTranslation("home")
@@ -57,18 +56,12 @@ export function DoctorsSection() {
     return (
         <section className="py-12 md:py-16 bg-white">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-12">
-                    <div>
-                        <h2 className="mb-2 text-2xl font-bold sm:text-3xl font-heading">{t(HOME_I18N_KEYS.doctors.title)}</h2>
-                        <p className="text-sm text-muted-foreground sm:text-base">{t(HOME_I18N_KEYS.doctors.desc)}</p>
-                    </div>
-                    <Link href={ROUTES.DOCTORS} className="w-full sm:w-auto">
-                        <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-colors">
-                            {t(HOME_I18N_KEYS.doctors.viewAll)}
-                            <ArrowRight className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                </div>
+                <SectionHeader
+                    title={t(HOME_I18N_KEYS.doctors.title)}
+                    subtitle={t(HOME_I18N_KEYS.doctors.desc)}
+                    viewAllHref={ROUTES.DOCTORS}
+                    viewAllLabel={t(HOME_I18N_KEYS.doctors.viewAll)}
+                />
 
                 <Carousel opts={{ align: "start", loop: false }} className="w-full">
                     <CarouselContent className="-ml-4">
@@ -129,12 +122,7 @@ export function DoctorsSection() {
                             </CarouselItem>
                         ))}
                     </CarouselContent>
-                    {doctors.length > 3 && (
-                        <>
-                            <CarouselPrevious className="hidden md:flex -left-6 lg:-left-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                            <CarouselNext className="hidden md:flex -right-6 lg:-right-12 bg-white shadow-xl hover:bg-primary hover:text-white border-primary/10 disabled:hidden" />
-                        </>
-                    )}
+                    {doctors.length > 3 && <SectionCarouselArrows />}
                 </Carousel>
             </div>
         </section>

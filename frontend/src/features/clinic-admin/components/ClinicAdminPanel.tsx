@@ -26,7 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/shared/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { ADMIN_DAY_OPTIONS, ADMIN_TEXT } from "@/app/admin/admin.constants"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { TabsContent } from "@/shared/ui/tabs"
+import { AdminTabs } from "../../admin/components/AdminTabs"
 import { Textarea } from "@/shared/ui/textarea"
 import { Building, Phone, Mail, Globe, Clock, FileText, Image as ImageIcon, MapPin, Check, CalendarClock, Activity, CalendarCheck2, UserRoundCheck } from "lucide-react"
 import { ImageUpload } from "@/components"
@@ -683,12 +684,14 @@ export function ClinicAdminPanel() {
                 </CardHeader>
             </Card>
 
-            <Tabs defaultValue="bookings" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
-                    <TabsTrigger value="bookings">Quản lý đặt lịch</TabsTrigger>
-                    <TabsTrigger value="schedule_services">Lịch & Dịch vụ</TabsTrigger>
-                    <TabsTrigger value="profile">Hồ sơ phòng khám</TabsTrigger>
-                </TabsList>
+            <AdminTabs 
+                defaultValue="bookings" 
+                tabs={[
+                    { value: "bookings", label: "Quản lý đặt lịch" },
+                    { value: "schedule_services", label: "Lịch & Dịch vụ" },
+                    { value: "profile", label: "Hồ sơ phòng khám" }
+                ]}
+            >
 
                 {/* Tab 1: Bookings (Default) */}
                 <TabsContent value="bookings" className="space-y-6">
@@ -743,7 +746,11 @@ export function ClinicAdminPanel() {
                                                     <div className="font-medium text-slate-800">{booking.patientName}</div>
                                                     <div className="text-xs text-muted-foreground">{booking.patientPhone}</div>
                                                 </TableCell>
-                                                <TableCell className="font-medium text-slate-700">{booking.healthPackage?.name || "-"}</TableCell>
+                                                <TableCell className="font-medium text-slate-700">
+                                                    {booking.bookingType === 'DOCTOR_CONSULTATION' 
+                                                        ? booking.doctor?.name 
+                                                        : (booking.healthPackage?.name || "-")}
+                                                </TableCell>
                                                 <TableCell className="text-slate-600">{formatDate(booking.bookingDate)} {booking.bookingTime}</TableCell>
                                                 <TableCell>
                                                     <Badge
@@ -754,38 +761,44 @@ export function ClinicAdminPanel() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="space-x-2">
-                                                    {booking.status === "PENDING" ? (
+                                                    {booking.bookingType === 'DOCTOR_CONSULTATION' ? (
+                                                        <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-500 font-normal">Bác sĩ quản lý</Badge>
+                                                    ) : (
                                                         <>
-                                                            <Button
-                                                                size="sm"
-                                                                className="shadow-sm transition-all"
-                                                                disabled={updateBookingMutation.isPending}
-                                                                onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}
-                                                            >
-                                                                {text.bookings.confirm}
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                className="shadow-sm transition-all"
-                                                                disabled={updateBookingMutation.isPending}
-                                                                onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}
-                                                            >
-                                                                {text.bookings.cancel}
-                                                            </Button>
+                                                            {booking.status === "PENDING" ? (
+                                                                <>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="shadow-sm transition-all"
+                                                                        disabled={updateBookingMutation.isPending}
+                                                                        onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CONFIRMED" })}
+                                                                    >
+                                                                        {text.bookings.confirm}
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="destructive"
+                                                                        className="shadow-sm transition-all"
+                                                                        disabled={updateBookingMutation.isPending}
+                                                                        onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "CANCELLED" })}
+                                                                    >
+                                                                        {text.bookings.cancel}
+                                                                    </Button>
+                                                                </>
+                                                            ) : null}
+                                                            {booking.status === "CONFIRMED" ? (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm transition-all"
+                                                                    disabled={updateBookingMutation.isPending}
+                                                                    onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}
+                                                                >
+                                                                    {text.bookings.complete}
+                                                                </Button>
+                                                            ) : null}
                                                         </>
-                                                    ) : null}
-                                                    {booking.status === "CONFIRMED" ? (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm transition-all"
-                                                            disabled={updateBookingMutation.isPending}
-                                                            onClick={() => updateBookingMutation.mutate({ id: booking.id, status: "COMPLETED" })}
-                                                        >
-                                                            {text.bookings.complete}
-                                                        </Button>
-                                                    ) : null}
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -1135,7 +1148,7 @@ export function ClinicAdminPanel() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-            </Tabs>
+            </AdminTabs>
         </div>
     )
 }
