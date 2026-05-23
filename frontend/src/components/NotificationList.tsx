@@ -8,7 +8,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   type AppNotification,
-} from "@/api/notifications"
+} from "@/features/account/api/notifications.api"
 import { registerWebPushToken } from "@/shared/lib/firebase-messaging"
 import { Button } from "@/shared/ui/button"
 import { ACCOUNT_I18N_KEYS } from "@/shared/i18n/keys"

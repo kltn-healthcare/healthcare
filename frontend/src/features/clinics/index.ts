@@ -3,13 +3,15 @@
  */
 
 // Components
+export { ClinicsListView } from './components/ClinicsListView'
+export { ClinicDetailView } from './components/ClinicDetailView'
+export { DoctorsListView } from './components/DoctorsListView'
 // export { ClinicCard } from './components/ClinicCard'
 // export { ClinicList } from './components/ClinicList'
 // export { ClinicDetail } from './components/ClinicDetail'
 
 // Hooks
-// export { useClinics } from './hooks/useClinics'
-// export { useClinicDetail } from './hooks/useClinicDetail'
+export { useClinicsList, useClinicDetail } from './hooks/useClinics'
 
 // Services
 export { clinicService, packageService } from './services'

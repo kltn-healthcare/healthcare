@@ -1,4 +1,4 @@
-import { registerDeviceToken } from '@/api/notifications'
+import { registerDeviceToken } from '@/features/account/api/notifications.api'
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Bell } from "lucide-react"
-import { getNotifications } from "@/api/notifications"
+import { getNotifications } from "@/features/account/api/notifications.api"
 import { Button } from "@/shared/ui/button"
 import {
   DropdownMenu,

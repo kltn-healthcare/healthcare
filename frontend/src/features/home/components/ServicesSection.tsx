@@ -4,7 +4,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { ROUTES } from "@/shared/constants"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { getSpecialties, type Specialty } from "@/api/specialties"
+import { getSpecialties, type Specialty } from "@/features/clinics/api/specialties.api"
 import { useTranslation } from "react-i18next"
 import { HOME_I18N_KEYS } from "@/shared/i18n/keys"
 import { HOME_SPECIALTY_CARD_STYLES } from "@/features/home/home.constants"
@@ -50,7 +50,7 @@ export function ServicesSection() {
     if (specialties.length === 0) return null
 
     return (
-        <section className="py-12 md:py-16 bg-slate-50/50">
+        <section className="relative py-12 md:py-16 bg-slate-50">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mb-8 text-center md:mb-12">
                     <h2 className="mb-3 text-2xl font-bold text-balance sm:text-3xl md:mb-4">{t(HOME_I18N_KEYS.services.title)}</h2>

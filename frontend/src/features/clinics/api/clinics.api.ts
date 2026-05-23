@@ -43,7 +43,6 @@ export async function getClinics(params?: { q?: string; specialtyId?: string; pa
   }
 }
 
-
 export async function getClinicById(id: string) {
   const res = await apiClient.get<any>(`/v1/clinics/${id}`)
   const c = res.data
@@ -69,4 +68,3 @@ export async function getClinicById(id: string) {
     healthPackages?: import('@/shared/types').HealthPackage[]
   }
 }
-

@@ -9,7 +9,7 @@ import {
     getAdminPackages,
     updateAdminPackage,
     type AdminPackage,
-} from "@/api/admin"
+} from "@/features/admin/api/admin.api"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"

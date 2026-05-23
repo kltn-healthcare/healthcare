@@ -54,4 +54,3 @@ export async function postResetPassword(input: {
   const res = await axios.post<{ message: string }>('/api/auth/reset-password', input)
   return res.data
 }
-

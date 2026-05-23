@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getDoctors } from "@/api/doctors"
+import { getDoctors } from "@/features/clinics/api/doctors.api"
 import type { Doctor } from "@/shared/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Button } from "@/shared/ui/button"

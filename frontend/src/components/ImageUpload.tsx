@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState, useRef } from "react"
 import { UploadCloud, Loader2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { uploadImage } from "@/api/upload"
+import { uploadImage } from "@/shared/api/upload.api"
 import { toast } from "sonner"
 
 interface ImageUploadProps {

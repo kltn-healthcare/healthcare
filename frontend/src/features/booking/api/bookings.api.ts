@@ -33,4 +33,3 @@ export async function rescheduleBooking(id: string, data: { bookingDate: string;
   const res = await apiClient.patch(`/v1/bookings/${id}/reschedule`, data)
   return res.data
 }
-

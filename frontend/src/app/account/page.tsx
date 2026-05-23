@@ -14,15 +14,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Calendar, Clock, Bell, User, Star, MapPin } from "lucide-react"
 import { useAuthStore } from "@/store"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getMe } from "@/api/auth"
-import { getMyBookings, cancelBooking } from "@/api/bookings"
-import { updateProfile } from "@/api/users"
-import { createReview } from "@/api/reviews"
+import { getMe } from "@/features/auth/api/auth.api"
+import { getMyBookings, cancelBooking } from "@/features/booking/api/bookings.api"
+import { updateProfile } from "@/features/account/api/users.api"
+import { createReview } from "@/features/booking/api/reviews.api"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useTranslation } from "react-i18next"
 import { ACCOUNT_I18N_KEYS } from "@/shared/i18n/keys"
-
 function isBookingPast(bookingDate: string, bookingTime: string) {
   const datePart = String(bookingDate).slice(0, 10)
   const bookingDateTime = new Date(`${datePart}T${bookingTime}:00`)

@@ -4,7 +4,7 @@ import {
     getArticlesByCategory,
     getFeaturedArticles,
     type PublicArticle,
-} from "@/api/articles"
+} from "../api/articles.api"
 import { ARTICLE_DEFAULTS } from "@/shared/constants"
 import type { Article, ApiResponse, PaginatedResponse } from "@/shared/types"
 

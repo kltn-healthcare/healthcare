@@ -9,7 +9,7 @@ import Image from "next/image"
 import { ROUTES } from "@/shared/constants"
 import { useTranslation } from "react-i18next"
 import { useEffect, useState } from "react"
-import { getClinics } from "@/api/clinics"
+import { getClinics } from "@/features/clinics/api/clinics.api"
 import type { Clinic } from "@/shared/types"
 import { CLINIC_I18N_KEYS, HOME_I18N_KEYS } from "@/shared/i18n/keys"
 import {
