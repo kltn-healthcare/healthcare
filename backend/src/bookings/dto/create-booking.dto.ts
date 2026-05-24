@@ -64,6 +64,11 @@ export class CreateBookingDto {
   @IsString()
   notes?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentReceiptUrl?: string;
+
   @ApiProperty({ description: 'YYYY-MM-DD' })
   @IsDateString()
   bookingDate: string;

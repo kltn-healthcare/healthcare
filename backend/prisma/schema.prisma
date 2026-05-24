@@ -131,6 +131,8 @@ model Clinic {
   openingHours String?  @map("opening_hours") @db.Text
   latitude     Decimal? @db.Decimal(10, 8)
   longitude    Decimal? @db.Decimal(11, 8)
+  bankInfo     String?  @map("bank_info") @db.Text
+  depositAmount Int      @default(100000) @map("deposit_amount")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -273,6 +275,8 @@ model Booking {
   bookingDate  DateTime      @map("booking_date") @db.Date
   bookingTime  String        @map("booking_time") @db.VarChar(10)
   status       BookingStatus @default(PENDING)
+
+  paymentReceiptUrl String?  @map("payment_receipt_url") @db.Text
 
   cancellationReason String?  @map("cancellation_reason") @db.Text
   cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz

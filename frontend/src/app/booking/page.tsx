@@ -18,6 +18,9 @@ import { packageService } from "@/features/clinics/services/packageService"
 import { useAuthStore } from "@/store"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar } from "@/shared/ui/calendar"
+import { useI18n } from "@/shared/hooks/useI18n"
+import { BOOKING_I18N_KEYS } from "@/shared/i18n/keys"
+import { ImageUpload } from "@/components/ImageUpload"
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover"
 import { cn } from "@/shared/utils"
 import {
@@ -66,6 +69,7 @@ export default function BookingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const auth = useAuthStore()
+  const { t } = useI18n()
 
   const [step, setStep] = useState(1)
 
@@ -87,6 +91,7 @@ export default function BookingPage() {
   const [patientName, setPatientName] = useState("")
   const [patientPhone, setPatientPhone] = useState("")
   const [patientEmail, setPatientEmail] = useState("")
+  const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("")
 
   useEffect(() => {
     if (auth.user) {
@@ -496,62 +501,108 @@ export default function BookingPage() {
             {step === 3 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Xác Nhận Thông Tin Đặt Lịch</CardTitle>
-                  <CardDescription>Vui lòng kiểm tra lại tất cả thông tin</CardDescription>
+                  <CardTitle>{t(BOOKING_I18N_KEYS.confirmInfo.title)}</CardTitle>
+                  <CardDescription>{t(BOOKING_I18N_KEYS.confirmInfo.desc)}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="rounded-lg bg-muted/30 p-6 border">
-                    <h3 className="mb-4 font-semibold text-lg border-b pb-2">Thông tin người bệnh</h3>
+                    <h3 className="mb-4 font-semibold text-lg border-b pb-2">{t(BOOKING_I18N_KEYS.confirmInfo.patientInfoTitle)}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 text-sm mb-6">
                       <div>
-                        <span className="text-muted-foreground block mb-1">Họ và tên:</span>
+                        <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.patientName)}</span>
                         <span className="font-medium text-base">{patientName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground block mb-1">Số điện thoại:</span>
+                        <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.patientPhone)}</span>
                         <span className="font-medium text-base">{patientPhone}</span>
                       </div>
                       <div className="md:col-span-2">
-                        <span className="text-muted-foreground block mb-1">Email:</span>
+                        <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.patientEmail)}</span>
                         <span className="font-medium text-base">{patientEmail}</span>
                       </div>
                     </div>
 
-                    <h3 className="mb-4 font-semibold text-lg border-b pb-2">Chi tiết lịch khám</h3>
+                    <h3 className="mb-4 font-semibold text-lg border-b pb-2">{t(BOOKING_I18N_KEYS.confirmInfo.bookingDetailTitle)}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 text-sm bg-background p-4 rounded-lg border">
                       {isPackageBooking ? (
                         <div>
-                          <span className="text-muted-foreground block mb-1">Gói khám:</span>
+                          <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.package)}</span>
                           <span className="font-medium text-base text-primary">{selectedPackage?.name}</span>
                         </div>
                       ) : (
                         <div>
-                          <span className="text-muted-foreground block mb-1">Bác sĩ:</span>
+                          <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.doctor)}</span>
                           <span className="font-medium text-base text-primary">{doctorDetailQuery.data?.name}</span>
                         </div>
                       )}
                       <div>
-                        <span className="text-muted-foreground block mb-1">Phòng khám:</span>
+                        <span className="text-muted-foreground block mb-1">{t(BOOKING_I18N_KEYS.confirmInfo.clinic)}</span>
                         <span className="font-medium">{isPackageBooking ? selectedPackage?.clinic?.name || selectedClinic?.name : doctorDetailQuery.data?.clinic?.name}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground block mb-1"><CalendarIcon className="h-4 w-4 inline mr-1" />Ngày khám:</span>
+                        <span className="text-muted-foreground block mb-1"><CalendarIcon className="h-4 w-4 inline mr-1" />{t(BOOKING_I18N_KEYS.confirmInfo.date)}</span>
                         <span className="font-medium text-base">{format(date, "dd/MM/yyyy", { locale: vi })}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground block mb-1"><Clock className="h-4 w-4 inline mr-1" />Giờ khám:</span>
+                        <span className="text-muted-foreground block mb-1"><Clock className="h-4 w-4 inline mr-1" />{t(BOOKING_I18N_KEYS.confirmInfo.time)}</span>
                         <span className="font-medium text-base text-amber-600">{selectedTime}</span>
                       </div>
                     </div>
                   </div>
 
+                  <div className="rounded-lg bg-blue-50/50 p-6 border border-blue-100">
+                    <h3 className="mb-4 font-semibold text-lg border-b border-blue-200 pb-2 text-blue-800">{t(BOOKING_I18N_KEYS.deposit.title)}</h3>
+                    <div className="text-sm text-blue-700 mb-4 space-y-2">
+                      <p dangerouslySetInnerHTML={{
+                        __html: t(BOOKING_I18N_KEYS.deposit.desc, {
+                          amount: (isPackageBooking
+                            ? (selectedPackage?.clinic?.depositAmount ?? selectedClinic?.depositAmount ?? 100000)
+                            : (doctorDetailQuery.data?.clinic?.depositAmount ?? selectedClinic?.depositAmount ?? 100000)
+                          ).toLocaleString("vi-VN") + "đ"
+                        })
+                      }} />
+                      <div className="bg-white p-3 rounded border whitespace-pre-line font-medium text-slate-800">
+                        {isPackageBooking 
+                          ? (selectedPackage?.clinic?.bankInfo || selectedClinic?.bankInfo || t(BOOKING_I18N_KEYS.deposit.contactClinic))
+                          : (doctorDetailQuery.data?.clinic?.bankInfo || selectedClinic?.bankInfo || t(BOOKING_I18N_KEYS.deposit.contactClinic))}
+                      </div>
+                      <p>{t(BOOKING_I18N_KEYS.deposit.transferNotePrefix)} <strong>{t(BOOKING_I18N_KEYS.deposit.transferNoteSuffix, { phone: patientPhone })}</strong></p>
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-lg border flex flex-col items-center justify-center space-y-4">
+                      {paymentReceiptUrl ? (
+                        <div className="flex flex-col items-center space-y-3 w-full">
+                          <p className="text-sm font-medium text-green-600 flex items-center">
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> {t(BOOKING_I18N_KEYS.deposit.uploadSuccess)}
+                          </p>
+                          <div className="relative w-full max-w-[200px] aspect-[1/2] rounded-md overflow-hidden border">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={paymentReceiptUrl} alt="Biên lai" className="object-cover w-full h-full" />
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => setPaymentReceiptUrl("")}>
+                            {t(BOOKING_I18N_KEYS.deposit.uploadAnother)}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center space-y-3 w-full">
+                          <p className="text-sm text-slate-600 font-medium">{t(BOOKING_I18N_KEYS.deposit.uploadInstruction)}</p>
+                          <ImageUpload
+                            onUploadSuccess={(url) => setPaymentReceiptUrl(url)}
+                            label={t(BOOKING_I18N_KEYS.deposit.chooseImage)}
+                            variant="default"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex justify-between pt-4">
                     <Button variant="outline" onClick={() => setStep(2)}>
-                      Quay Lại
+                      {t(BOOKING_I18N_KEYS.actions.back)}
                     </Button>
                     <Button
                       className="bg-primary"
-                      disabled={createBookingMutation.isPending}
+                      disabled={createBookingMutation.isPending || !paymentReceiptUrl}
                       onClick={() =>
                         createBookingMutation.mutate({
                           clinicId: clinicId,
@@ -564,11 +615,12 @@ export default function BookingPage() {
                           patientPhone,
                           bookingDate: format(date, "yyyy-MM-dd"),
                           bookingTime: selectedTime,
+                          paymentReceiptUrl,
                         })
                       }
                     >
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      {createBookingMutation.isPending ? "Đang xử lý..." : "Xác Nhận Đặt Lịch"}
+                      {createBookingMutation.isPending ? t(BOOKING_I18N_KEYS.actions.bookingInProgress) : t(BOOKING_I18N_KEYS.actions.confirmBooking)}
                     </Button>
                   </div>
                   {createBookingMutation.isError && (

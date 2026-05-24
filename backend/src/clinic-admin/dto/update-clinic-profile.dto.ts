@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateClinicProfileDto {
   @ApiPropertyOptional()
@@ -46,4 +46,14 @@ export class UpdateClinicProfileDto {
   @IsOptional()
   @IsString()
   openingHours?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bankInfo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  depositAmount?: number;
 }

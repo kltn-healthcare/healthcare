@@ -71,6 +71,7 @@ export class DoctorAdminService {
         patientEmail: true,
         patientPhone: true,
         notes: true,
+        paymentReceiptUrl: true,
         clinic: { select: { id: true, name: true, address: true } },
         createdAt: true,
       },

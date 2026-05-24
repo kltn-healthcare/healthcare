@@ -14,6 +14,7 @@ export async function postBooking(input: {
   notes?: string
   bookingDate: string
   bookingTime: string
+  paymentReceiptUrl?: string
 }) {
   const res = await apiClient.post('/v1/bookings', input)
   return res.data

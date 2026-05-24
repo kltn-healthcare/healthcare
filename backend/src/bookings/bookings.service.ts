@@ -181,6 +181,7 @@ export class BookingsService {
           bookingType === BookingType.HEALTH_PACKAGE
             ? dto.packageId
             : undefined,
+        paymentReceiptUrl: dto.paymentReceiptUrl,
         bookingDate,
         bookingTime: dto.bookingTime,
       },
@@ -218,6 +219,7 @@ export class BookingsService {
         status: true,
         bookingDate: true,
         bookingTime: true,
+        paymentReceiptUrl: true,
         patientName: true,
         clinic: { select: { id: true, name: true, address: true } },
         doctor: { select: { id: true, name: true } },
@@ -240,6 +242,7 @@ export class BookingsService {
         status: true,
         bookingDate: true,
         bookingTime: true,
+        paymentReceiptUrl: true,
         patientName: true,
         patientEmail: true,
         patientPhone: true,

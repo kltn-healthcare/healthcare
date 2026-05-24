@@ -313,3 +313,46 @@ export const ACCOUNT_I18N_KEYS = {
     submit: "review_dialog.submit",
   },
 } as const
+
+export const BOOKING_I18N_KEYS = {
+  steps: {
+    selectSpecialty: "steps.select_specialty",
+    selectDoctorTime: "steps.select_doctor_time",
+    confirmInfo: "steps.confirm_info",
+  },
+  confirmInfo: {
+    title: "confirm_info.title",
+    desc: "confirm_info.desc",
+    patientInfoTitle: "confirm_info.patient_info_title",
+    patientName: "confirm_info.patient_name",
+    patientPhone: "confirm_info.patient_phone",
+    patientEmail: "confirm_info.patient_email",
+    bookingDetailTitle: "confirm_info.booking_detail_title",
+    package: "confirm_info.package",
+    doctor: "confirm_info.doctor",
+    clinic: "confirm_info.clinic",
+    date: "confirm_info.date",
+    time: "confirm_info.time",
+  },
+  deposit: {
+    title: "deposit.title",
+    desc: "deposit.desc",
+    contactClinic: "deposit.contact_clinic",
+    transferNotePrefix: "deposit.transfer_note_prefix",
+    transferNoteSuffix: "deposit.transfer_note_suffix",
+    uploadSuccess: "deposit.upload_success",
+    uploadAnother: "deposit.upload_another",
+    uploadInstruction: "deposit.upload_instruction",
+    chooseImage: "deposit.choose_image",
+  },
+  actions: {
+    back: "actions.back",
+    confirmBooking: "actions.confirm_booking",
+    bookingInProgress: "actions.booking_in_progress",
+  },
+  alerts: {
+    success: "alerts.success",
+    successDesc: "alerts.success_desc",
+    goToMyBookings: "alerts.go_to_my_bookings",
+  }
+} as const

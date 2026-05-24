@@ -43,6 +43,8 @@ export class ClinicAdminService {
     if (dto.image !== undefined) updateData.image = dto.image?.trim() || null;
     if (dto.isOpen !== undefined) updateData.isOpen = dto.isOpen;
     if (dto.openingHours !== undefined) updateData.openingHours = dto.openingHours?.trim() || null;
+    if (dto.bankInfo !== undefined) updateData.bankInfo = dto.bankInfo?.trim() || null;
+    if (dto.depositAmount !== undefined) updateData.depositAmount = dto.depositAmount;
 
     await this.prisma.clinic.update({
       where: { id: admin.clinicId },
@@ -304,6 +306,7 @@ export class ClinicAdminService {
         patientPhone: true,
         notes: true,
         bookingType: true,
+        paymentReceiptUrl: true,
         healthPackage: { select: { id: true, name: true, price: true } },
         doctor: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },

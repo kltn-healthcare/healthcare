@@ -454,8 +454,21 @@ export function DoctorAdminSection() {
                             <BookingTable
                                 items={filteredBookings}
                                 emptyText={doctorText.allCard.empty}
+                                renderReceipt={(item) => (
+                                    (item as any).paymentReceiptUrl ? (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                            onClick={() => window.open((item as any).paymentReceiptUrl, '_blank')}
+                                            title="Xem biên lai"
+                                        >
+                                            Biên lai
+                                        </Button>
+                                    ) : null
+                                )}
                                 renderActions={(item) => (
-                                    <div className="space-x-2">
+                                    <div className="space-x-2 flex items-center">
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -826,10 +839,12 @@ export function DoctorAdminSection() {
 function BookingTable({
     items,
     renderActions,
+    renderReceipt,
     emptyText,
 }: Readonly<{
     items: DoctorBookingItem[]
     renderActions: (item: DoctorBookingItem) => React.ReactNode
+    renderReceipt?: (item: DoctorBookingItem) => React.ReactNode
     emptyText: string
 }>) {
     if (!items.length) {
@@ -844,6 +859,7 @@ function BookingTable({
                     <TableHead>{text.bookingTable.date}</TableHead>
                     <TableHead>{text.bookingTable.time}</TableHead>
                     <TableHead>{text.bookingTable.status}</TableHead>
+                    <TableHead>Biên lai</TableHead>
                     <TableHead>{text.bookingTable.actions}</TableHead>
                 </TableRow>
             </TableHeader>
@@ -864,6 +880,7 @@ function BookingTable({
                                 {getBookingStatusLabel(item.status)}
                             </Badge>
                         </TableCell>
+                        <TableCell>{renderReceipt ? renderReceipt(item) : null}</TableCell>
                         <TableCell>{renderActions(item)}</TableCell>
                     </TableRow>
                 ))}

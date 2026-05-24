@@ -45,6 +45,8 @@ export class ClinicsService {
           image: true,
           isOpen: true,
           openingHours: true,
+          bankInfo: true,
+          depositAmount: true,
           specialties: {
             select: { specialty: { select: { id: true, name: true } } },
             orderBy: { specialty: { name: 'asc' } },
@@ -82,6 +84,8 @@ export class ClinicsService {
         image: true,
         isOpen: true,
         openingHours: true,
+        bankInfo: true,
+        depositAmount: true,
         doctors: {
           select: {
             id: true,

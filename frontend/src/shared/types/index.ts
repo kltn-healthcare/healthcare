@@ -17,8 +17,9 @@ export interface Clinic {
     numReviews?: number
     image: string
     isOpen: boolean
-
     openingHours: string
+    bankInfo?: string
+    depositAmount?: number
     website?: string
     specialties?: Array<{ id: string; name: string }> | string[]
     services?: string[]
@@ -74,6 +75,7 @@ export interface Booking {
     date: Date
     time: string
     status: "pending" | "confirmed" | "completed" | "cancelled"
+    paymentReceiptUrl?: string
     patientInfo: PatientInfo
     review?: Partial<Review>
 }

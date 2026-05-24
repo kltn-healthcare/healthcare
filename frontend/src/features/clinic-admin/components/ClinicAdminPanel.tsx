@@ -400,6 +400,8 @@ export function ClinicAdminPanel() {
     const [profileWebsite, setProfileWebsite] = useState("")
     const [profileImage, setProfileImage] = useState("")
     const [profileOpeningHours, setProfileOpeningHours] = useState("")
+    const [profileBankInfo, setProfileBankInfo] = useState("")
+    const [profileDepositAmount, setProfileDepositAmount] = useState<number>(100000)
 
     useEffect(() => {
         if (clinic) {
@@ -411,6 +413,8 @@ export function ClinicAdminPanel() {
             setProfileWebsite(clinic.website || "")
             setProfileImage(clinic.image || "")
             setProfileOpeningHours(clinic.openingHours || "")
+            setProfileBankInfo(clinic.bankInfo || "")
+            setProfileDepositAmount(clinic.depositAmount ?? 100000)
         }
     }, [clinic])
 
@@ -424,7 +428,9 @@ export function ClinicAdminPanel() {
             profileEmail.trim() !== (clinic.email || "").trim() ||
             profileWebsite.trim() !== (clinic.website || "").trim() ||
             profileImage.trim() !== (clinic.image || "").trim() ||
-            profileOpeningHours.trim() !== (clinic.openingHours || "").trim()
+            profileOpeningHours.trim() !== (clinic.openingHours || "").trim() ||
+            profileBankInfo.trim() !== (clinic.bankInfo || "").trim() ||
+            profileDepositAmount !== (clinic.depositAmount ?? 100000)
         )
     }, [
         clinic,
@@ -436,6 +442,8 @@ export function ClinicAdminPanel() {
         profileWebsite,
         profileImage,
         profileOpeningHours,
+        profileBankInfo,
+        profileDepositAmount,
     ])
 
     const saveProfileMutation = useMutation({
@@ -455,6 +463,8 @@ export function ClinicAdminPanel() {
             website: profileWebsite,
             image: profileImage,
             openingHours: profileOpeningHours,
+            bankInfo: profileBankInfo,
+            depositAmount: profileDepositAmount,
         })
     }
 
@@ -1125,6 +1135,36 @@ export function ClinicAdminPanel() {
                                                 onChange={(e) => setProfileDescription(e.target.value)}
                                                 placeholder="Mô tả chi tiết về phòng khám, các thế mạnh chuyên khoa..."
                                                 rows={4}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="clinicBankInfo" className="flex items-center gap-2">
+                                                <Activity className="h-4 w-4 text-primary" />
+                                                Thông tin chuyển khoản (Dành cho bệnh nhân đặt cọc)
+                                            </Label>
+                                            <Textarea
+                                                id="clinicBankInfo"
+                                                value={profileBankInfo}
+                                                onChange={(e) => setProfileBankInfo(e.target.value)}
+                                                placeholder={`Ngân hàng: Vietcombank\nSố tài khoản: 0123456789\nChủ tài khoản: NGUYEN VAN A\nChi nhánh: Hà Nội`}
+                                                rows={4}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="clinicDepositAmount" className="flex items-center gap-2">
+                                                <Activity className="h-4 w-4 text-primary" />
+                                                Số tiền cọc bắt buộc (VNĐ)
+                                            </Label>
+                                            <Input
+                                                id="clinicDepositAmount"
+                                                type="number"
+                                                min={0}
+                                                step={10000}
+                                                value={profileDepositAmount}
+                                                onChange={(e) => setProfileDepositAmount(Number(e.target.value))}
+                                                placeholder="100000"
                                             />
                                         </div>
                                     </div>
