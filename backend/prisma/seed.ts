@@ -181,8 +181,11 @@ async function main() {
     }
 
     let doctorIndex = 0;
-    for (const clinicSeed of clinicsSeed) {
-      const clinic = await prisma.clinic.create({
+    const existingClinicsCount = await prisma.clinic.count();
+    
+    if (existingClinicsCount === 0) {
+      for (const clinicSeed of clinicsSeed) {
+        const clinic = await prisma.clinic.create({
         data: {
           name: clinicSeed.name,
           description: clinicSeed.description,
@@ -296,13 +299,15 @@ async function main() {
 
         doctorIndex += 1;
       }
+      }
     }
 
+    const existingBookingCount = await prisma.booking.count();
     const firstDoctor = await prisma.doctor.findFirst({
       orderBy: { createdAt: 'asc' },
       select: { id: true, clinicId: true, specialtyId: true },
     });
-    if (firstDoctor) {
+    if (firstDoctor && existingBookingCount === 0) {
       const bookingDate = new Date();
       bookingDate.setDate(bookingDate.getDate() + 1);
       bookingDate.setHours(0, 0, 0, 0);
