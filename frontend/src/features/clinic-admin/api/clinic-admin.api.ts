@@ -106,6 +106,8 @@ export type UpdateClinicProfileInput = {
     image?: string
     isOpen?: boolean
     openingHours?: string
+    bankInfo?: string
+    depositAmount?: number
 }
 
 export async function patchClinicAdminProfile(input: UpdateClinicProfileInput) {

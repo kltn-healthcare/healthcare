@@ -41,7 +41,7 @@ export interface HealthPackage {
     category: string
     imageUrl?: string | null
     clinicId?: string | null
-    clinic?: { id: string; name: string; address?: string | null; image?: string | null } | null
+    clinic?: { id: string; name: string; address?: string | null; image?: string | null; depositAmount?: number | null; bankInfo?: string | null } | null
     specialtyId?: string | null
     specialty?: { id: string; name: string } | null
 }
