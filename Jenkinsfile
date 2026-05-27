@@ -1,7 +1,7 @@
 @Library('healthcare-shared-lib@main') _
 
 pipeline {
-  agent any
+  agent { label 'worker-2' }
 
   options {
     timestamps()
