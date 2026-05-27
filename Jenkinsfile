@@ -39,26 +39,48 @@ pipeline {
       steps {
         checkout scm
         script {
-          // 1. Lấy mã short SHA của commit hiện tại làm mã định danh Image Tag duy nhất (Immutable Tag)
           env.SHORT_SHA = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
           env.DEPLOY_TAG = env.SHORT_SHA
-          
+
           echo "Branch: ${env.BRANCH_NAME ?: 'N/A'} | Commit Tag: ${env.DEPLOY_TAG}"
 
-          // 2. Xác định Base Commit (Commit thành công trước đó) để so sánh git diff
-          def baseCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
-          if (!baseCommit) {
+          def baseCommit = ""
+          def currentCommit = "HEAD" // ← Dùng HEAD thay vì env.GIT_COMMIT
+
+          if (env.CHANGE_ID) {
+            // CHANGE_TARGET = "develop" (nhánh đích của PR)
+            // Fetch về để có ref so sánh
+            echo "PR #${env.CHANGE_ID} → target: ${env.CHANGE_TARGET}"
+            sh "git fetch --no-tags origin ${env.CHANGE_TARGET}"
+
+            // Base = đầu nhánh develop trên remote
+            // Diff từ đây đến HEAD (merge commit ảo) = đúng những gì PR thêm vào
+            baseCommit = sh(
+              script: "git merge-base HEAD origin/${env.CHANGE_TARGET}",
+              returnStdout: true
+            ).trim()
+            echo "Base commit (merge-base): ${baseCommit}"
+
+          } else {
+            // ── BRANCH PUSH BÌNH THƯỜNG ──
+            baseCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
+            if (!baseCommit) {
               try {
-                  baseCommit = sh(script: 'git rev-parse HEAD~1', returnStdout: true).trim()
+                baseCommit = sh(script: 'git rev-parse HEAD~1', returnStdout: true).trim()
               } catch (ignored) {
-                  baseCommit = null
+                baseCommit = null
               }
+            }
           }
 
-          // 3. Gọi hàm từ Shared Library để phân tích Monorepo
-          // Hàm này nhận vào baseCommit, currentCommit và trả về chuỗi (VD: "frontend,auth")
-          env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, env.GIT_COMMIT)
-          
+          if (baseCommit) {
+            echo "git diff: [${baseCommit}] → [${currentCommit}]"
+            env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, currentCommit)
+          } else {
+            echo "Không xác định được baseCommit."
+            env.CHANGED_SERVICES = ""
+          }
+
           echo "Changed services detected: ${env.CHANGED_SERVICES ?: 'none'}"
         }
       }
