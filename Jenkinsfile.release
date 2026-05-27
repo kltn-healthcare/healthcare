@@ -1,0 +1,159 @@
+@Library('healthcare-shared-lib@main') _
+
+pipeline {
+  agent { label 'worker-1'}
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+  }
+
+  environment {
+    GITEA_REGISTRY = "gitea.healthcare.com"
+    GITEA_OWNER = "kltn"
+    GITEA_CREDS_ID = "gitea-token-admin"
+
+    GIT_USER_NAME = "thanhdc"
+    GIT_USER_EMAIL = "chithanh040804@gmail.com"
+    MANIFEST_REPO_URL = "https://gitea.healthcare.com/KLTN/healthcare-manifests.git"
+    MANIFEST_REPO_BRANCH = "main"
+
+    GITEA_API_URL = "https://gitea.healthcare.com/api/v1"
+    GITEA_REPO = "healthcare"
+  }
+
+  stages {
+    stage('System Information') {
+      steps {
+        script {
+          printSystemInfo()
+        }
+      }
+    }
+
+    stage('Validate Tag') {
+      steps {
+        script {
+          if (!env.TAG_NAME?.trim()) {
+            error 'TAG_NAME is empty. This pipeline must be triggered by a tag.'
+          }
+          if (!(env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/)) {
+            error "Invalid tag format: ${env.TAG_NAME}. Expected vX.Y.Z"
+          }
+        }
+      }
+    }
+
+    stage('Detect Changes') {
+      steps {
+        checkout scm
+        script {
+          env.SHORT_SHA = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+          env.DEPLOY_TAG = env.SHORT_SHA
+
+          def previousTag = sh(
+            script: "git describe --tags --abbrev=0 --match 'v[0-9]*' ${env.TAG_NAME}^ || true",
+            returnStdout: true
+          ).trim()
+
+          def baseCommit = null
+          if (previousTag) {
+            baseCommit = sh(script: "git rev-list -n 1 ${previousTag}", returnStdout: true).trim()
+          }
+
+          env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, env.GIT_COMMIT)
+
+          echo "Tag: ${env.TAG_NAME}"
+          echo "Commit SHA: ${env.DEPLOY_TAG}"
+          echo "Changed services detected: ${env.CHANGED_SERVICES ?: 'none'}"
+        }
+      }
+    }
+
+    stage('Deploy Production') {
+      when {
+        expression { return env.CHANGED_SERVICES?.trim() }
+      }
+      steps {
+        script {
+          withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
+            deployManifest(
+              environment: 'production',
+              changedServices: env.CHANGED_SERVICES,
+              imageTag: env.DEPLOY_TAG,
+              serviceFolderMap: [
+                 'frontend': 'frontend',
+                 'auth': 'auth-service',
+                 'backend': 'backend-service',
+                 'admin': 'admin-service'
+              ],
+              manifestRepoUrl: env.MANIFEST_REPO_URL,
+              manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
+              gitUserName: env.GIT_USER_NAME,
+              gitUserEmail: env.GIT_USER_EMAIL,
+              giteaRegistry: env.GITEA_REGISTRY,
+              giteaOwner: env.GITEA_OWNER,
+              giteaRepo: env.GITEA_REPO,
+              token: TOKEN,
+              commitMessage: "release(${env.TAG_NAME}): deploy production with ${env.DEPLOY_TAG}"
+            )
+          }
+        }
+      }
+    }
+
+    stage('Create Release') {
+      steps {
+        script {
+          def releaseInfo = null
+          withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
+            releaseInfo = buildReleaseNotes(
+              environment: 'production',
+              manifestRepoUrl: env.MANIFEST_REPO_URL,
+              manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
+              serviceFolderMap: [
+                 'frontend': 'frontend',
+                 'auth': 'auth-service',
+                 'backend': 'backend-service',
+                 'admin': 'admin-service'
+              ],
+              token: TOKEN
+            )
+
+            def releaseBody = "Release ${env.TAG_NAME}\n\n${releaseInfo?.notes ?: ''}"
+            def payloadMap = [
+              tag_name: env.TAG_NAME,
+              name: "Release ${env.TAG_NAME}",
+              body: releaseBody,
+              target_commitish: env.GIT_COMMIT
+            ]
+
+            writeFile(file: 'gitea-release.json', text: groovy.json.JsonOutput.toJson(payloadMap))
+
+            sh """
+              set -e
+              curl --silent --show-error --fail-with-body \\
+                -X POST '${env.GITEA_API_URL}/repos/${env.GITEA_OWNER}/${env.GITEA_REPO}/releases' \\
+                -H 'accept: application/json' \\
+                -H "Authorization: token ${TOKEN}" \\
+                -H 'Content-Type: application/json' \\
+                --data @gitea-release.json
+            """
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      script {
+        sh "docker builder prune -f || true"
+        sh "docker image prune -a -f"
+        sh "docker logout ${GITEA_REGISTRY} || true"
+        cleanWs()
+      }
+    }
+  }
+}
