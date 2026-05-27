@@ -182,10 +182,8 @@ pipeline {
     always {
       script {
         echo 'Post-build cleanup'
+        sh "docker image prune -a -f || true"
         sh "docker logout ${GITEA_REGISTRY} || true"
-        sh "docker image prune -f || true"
-        sh "docker builder prune -f || true"
-        sh "sudo docker image prune -a -f"
         cleanWs()
       }
     }
