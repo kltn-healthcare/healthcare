@@ -37,7 +37,7 @@ pipeline {
           if (!(env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/)) {
             error "Invalid tag format: '${env.TAG_NAME}'. Expected format: vX.Y.Z (e.g. v1.2.3)"
           }
-          echo "✅ Tag hợp lệ: ${env.TAG_NAME}"
+          echo "Tag validated: ${env.TAG_NAME}"
         }
       }
     }
@@ -58,7 +58,7 @@ pipeline {
         env.SHORT_SHA  = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
         env.DEPLOY_TAG = env.SHORT_SHA
 
-        // ── Tìm tag trước theo SemVer (không cần lịch sử) ──
+        // Find the previous SemVer tag (no history required).
         def tagsStr = sh(
             script: 'git tag -l "v*" --sort=-v:refname',
             returnStdout: true
@@ -76,12 +76,12 @@ pipeline {
         if (previousTag) {
             echo "Previous tag: ${previousTag}"
 
-            // Fetch đúng 1 commit của tag cũ — không cần lịch sử xung quanh
+          // Fetch only the old tag commit without extra history.
             sh "git fetch --depth=1 origin tag ${previousTag} --no-tags"
 
-            // diff-tree: so sánh 2 tree object trực tiếp
-            // KHÔNG cần common ancestor → không bị lỗi "no merge base"
-            // --no-commit-id -r: liệt kê file thay đổi giữa 2 tree
+          // diff-tree compares two tree objects directly.
+          // No common ancestor required, avoids "no merge base" errors.
+          // --no-commit-id -r lists files changed between two trees.
             changedFiles = sh(
             script: "git diff-tree --no-commit-id -r --name-only ${previousTag} HEAD",
             returnStdout: true
@@ -90,16 +90,16 @@ pipeline {
             echo "Changed files:\n${changedFiles ?: '(none)'}"
 
         } else {
-            // Lần release đầu tiên → lấy toàn bộ file trong commit hiện tại
-            // git ls-tree: liệt kê tất cả file trong HEAD tree, không cần lịch sử
-            echo "First release → listing all files in HEAD"
+          // First release: list all files in the current commit.
+          // git ls-tree lists all files in the HEAD tree without history.
+          echo "First release - listing all files in HEAD"
             changedFiles = sh(
             script: "git ls-tree -r --name-only HEAD",
             returnStdout: true
             ).trim()
         }
 
-        // Parse danh sách file → danh sách service
+        // Parse file list into service list.
         env.CHANGED_SERVICES = detectMonorepoChanges(null, null, changedFiles)
 
         echo "Tag:              ${env.TAG_NAME}"
@@ -142,7 +142,7 @@ pipeline {
     }
 
     stage('Create Release') {
-      // Chỉ tạo release khi thực sự có service được deploy
+      // Only create a release when services were deployed.
       when {
         expression { return env.CHANGED_SERVICES?.trim() }
       }
@@ -171,7 +171,7 @@ pipeline {
 
             writeFile(file: 'gitea-release.json', text: groovy.json.JsonOutput.toJson(payloadMap))
 
-            // Dùng single quote để TOKEN không bị Groovy interpolate → không lộ trong log
+            // Use single quotes so TOKEN is not interpolated and does not leak into logs.
             sh '''
               set -e
               curl --silent --show-error --fail-with-body \
@@ -182,7 +182,7 @@ pipeline {
                 --data @gitea-release.json
             '''
 
-            echo "🎉 Gitea Release ${env.TAG_NAME} đã được tạo thành công!"
+            echo "Gitea release ${env.TAG_NAME} created successfully."
           }
         }
       }
@@ -199,10 +199,10 @@ pipeline {
       }
     }
     success {
-      echo "✅ Release ${env.TAG_NAME} deployed to production successfully."
+      echo "Release ${env.TAG_NAME} deployed to production successfully."
     }
     failure {
-      echo "❌ Release pipeline failed. Check logs above."
+      echo "Release pipeline failed. Check logs above."
     }
   }
 }

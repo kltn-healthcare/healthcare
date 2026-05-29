@@ -37,24 +37,23 @@ pipeline {
 
     stage('Detect Changes') {
       steps {
-        checkout scm
+        checkout([
+          $class: 'GitSCM',
+          branches: scm.branches,
+          userRemoteConfigs: scm.userRemoteConfigs,
+          extensions: [
+            [$class: 'CloneOption', depth: 100, shallow: true, noTags: false]
+          ]
+        ])
         script {
-          env.SHORT_SHA = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
-          env.DEPLOY_TAG = env.SHORT_SHA
-
-          echo "Branch: ${env.BRANCH_NAME ?: 'N/A'} | Commit Tag: ${env.DEPLOY_TAG}"
-
-          def baseCommit = ""
-          def currentCommit = "HEAD" // ← Dùng HEAD thay vì env.GIT_COMMIT
+          env.SHORT_SHA     = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+          env.DEPLOY_TAG    = env.SHORT_SHA
+          def currentCommit = 'HEAD'
+          def baseCommit    = null
 
           if (env.CHANGE_ID) {
-            // CHANGE_TARGET = "develop" (nhánh đích của PR)
-            // Fetch về để có ref so sánh
-            echo "PR #${env.CHANGE_ID} → target: ${env.CHANGE_TARGET}"
+            echo "PR #${env.CHANGE_ID} -> target: ${env.CHANGE_TARGET}"
             sh "git fetch --no-tags origin ${env.CHANGE_TARGET}"
-
-            // Base = đầu nhánh develop trên remote
-            // Diff từ đây đến HEAD (merge commit ảo) = đúng những gì PR thêm vào
             baseCommit = sh(
               script: "git merge-base HEAD origin/${env.CHANGE_TARGET}",
               returnStdout: true
@@ -62,7 +61,7 @@ pipeline {
             echo "Base commit (merge-base): ${baseCommit}"
 
           } else {
-            // ── BRANCH PUSH BÌNH THƯỜNG ──
+            // Normal branch push.
             baseCommit = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: env.GIT_PREVIOUS_COMMIT
             if (!baseCommit) {
               try {
@@ -74,10 +73,10 @@ pipeline {
           }
 
           if (baseCommit) {
-            echo "git diff: [${baseCommit}] → [${currentCommit}]"
+            echo "git diff: [${baseCommit}] -> [${currentCommit}]"
             env.CHANGED_SERVICES = detectMonorepoChanges(baseCommit, currentCommit)
           } else {
-            echo "Không xác định được baseCommit."
+            echo "Unable to determine base commit."
             env.CHANGED_SERVICES = ""
           }
 
@@ -87,31 +86,28 @@ pipeline {
     }
 
     stage('Security Scan') {
-    // Jenkins sẽ tự động BỎ QUA stage này nếu không có service nào thay đổi
+    // Jenkins skips this stage when no services change.
       when {
           expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
       }
       steps {
           script {
-              echo "🔍 Bắt đầu quét bảo mật (SonarQube, Hadolint, Trivy) cho: ${env.CHANGED_SERVICES}"
-              
-              // Truyền danh sách service (VD: "admin,frontend") và tên project gốc ("healthcare") vào
+          echo "Starting security scan (SonarQube, Hadolint, Trivy) for: ${env.CHANGED_SERVICES}"
               scanSecurity(env.CHANGED_SERVICES, "healthcare")
           }
       }
     }
 
     stage('Build & Push') {
-      // Vẫn câu thần chú: Không có code đổi thì tự động Skip bước này
       when {
           expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
       }
       steps {
         script {
-          echo "🚀 Bắt đầu Build & Push Docker Image cho: ${env.CHANGED_SERVICES}"
-          echo "🏷️ Sử dụng Immutable Tag: ${env.DEPLOY_TAG}"
+          echo "Starting build and push of Docker images for: ${env.CHANGED_SERVICES}"
+          echo "Using immutable tag: ${env.DEPLOY_TAG}"
           
-          // Gọi hàm từ Shared Library và truyền 4 tham số vào
+          // Call the shared library helper with the required parameters.
           buildAndPush(env.CHANGED_SERVICES, env.DEPLOY_TAG)
         }
       }
@@ -163,18 +159,18 @@ pipeline {
       }
       steps {
         script {
-          echo "🚢 Đang chuẩn bị cập nhật cấu hình cho STAGING..."
+          echo "Preparing to update staging manifests..."
           
           withCredentials([string(credentialsId: env.GITEA_CREDS_ID, variable: 'TOKEN')]) {
             deployManifest(
-              environment: 'staging', // Chỉ định môi trường Staging
+              environment: 'staging', // Specify the staging environment.
               changedServices: env.CHANGED_SERVICES,
               
-              // Ở Staging, ta truyền thẳng mã DEPLOY_TAG (Short SHA) vào.
-              // Hàm sẽ tự hiểu và áp dụng Tag này cho toàn bộ service thay đổi.
+              // In staging, pass the DEPLOY_TAG (short SHA) directly.
+              // The helper applies this tag to all changed services.
               imageTag: env.DEPLOY_TAG, 
               
-              // Giữ nguyên mapping thư mục giống như Production
+              // Keep the same folder mapping as production.
               serviceFolderMap: [
                  'frontend': 'frontend',
                  'auth': 'auth-service',
@@ -190,11 +186,11 @@ pipeline {
               giteaOwner: env.GITEA_OWNER,
               giteaRepo: env.GITEA_REPO,
               token: TOKEN,
-              commitMessage: "Deploy Staging: Cập nhật [${env.CHANGED_SERVICES}] với tag [${env.DEPLOY_TAG}]"
+              commitMessage: "Deploy staging: update [${env.CHANGED_SERVICES}] with tag [${env.DEPLOY_TAG}]"
             )
           }
           
-          echo "✅ Đã đẩy cấu hình Staging lên Gitea! ArgoCD sẽ tự động đồng bộ."
+          echo "Staging manifests pushed to Gitea. ArgoCD will sync automatically."
         }
       }
     }

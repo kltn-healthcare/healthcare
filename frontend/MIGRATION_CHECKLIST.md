@@ -1,11 +1,11 @@
-# 🚀 Migration Checklist - Feature-Sliced Design
+# Migration Checklist - Feature-Sliced Design
 
 > **Start Date:** December 29, 2025  
 > **Target:** Refactor clinic-booking-ui to FSD architecture
 
 ---
 
-## Phase 1: Cấu Trúc Cơ Bản ✅
+## Phase 1: Cấu Trúc Cơ Bản 
 
 ### 1.1 Tạo src/ folder structure
 - [x] Tạo `src/` folder

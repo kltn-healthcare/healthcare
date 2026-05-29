@@ -1,277 +1,220 @@
 # Healthcare Booking System
 
-Hệ thống đặt lịch khám bệnh — kiến trúc **Microservices Monorepo** với NestJS, Next.js, PostgreSQL và Redis.
+A cloud-native healthcare appointment platform built with a microservices architecture, Kubernetes, GitOps, and modern DevOps practices.
+
+The project demonstrates the migration from a traditional monolithic system to a scalable cloud-native ecosystem, combining containerized services, serverless components, automated CI/CD pipelines, and GitOps-based deployments.
 
 ---
 
-## Kiến trúc hệ thống
+## Related Repositories
 
-```
-healthcare/
-├── frontend/               # Next.js 14 (App Router) — cổng 3000
-├── backend/                # NestJS Monorepo
-│   ├── apps/
-│   │   ├── auth/           # Auth Service — cổng 3001
-│   │   ├── backend/        # Backend Service (API chính) — cổng 8080
-│   │   └── admin/          # Admin Service — cổng 3002
-│   ├── libs/
-│   │   ├── common/         # Thư viện dùng chung (guards, decorators, redis, mail...)
-│   │   └── database/       # DatabaseModule (PrismaClient wrapper)
-│   ├── src/                # Business modules gốc (users, clinics, doctors, bookings...)
-│   └── prisma/             # Schema & migrations
-├── database/               # Scripts khởi tạo DB (nếu có)
-├── docker-compose.yaml     # Stack đầy đủ (production-like)
-└── docker-compose.yml      # Stack dev đơn giản (chỉ postgres + redis)
-```
+| Repository | Purpose |
+|------------|---------|
+| [healthcare](https://github.com/kltn-healthcare/healthcare) | Main healthcare application (Frontend, Backend, Microservices) |
+| [healthcare-shared-library](https://github.com/kltn-healthcare/healthcare-shared-library) | Jenkins Shared Library for CI/CD automation |
+| [healthcare-manifests](https://github.com/kltn-healthcare/healthcare-manifests) | GitOps repository containing Kubernetes deployment manifests |
 
-### Các service & port
+## Architecture Overview
 
-| Service                   | Port | Mô tả                                    |
-| ------------------------- | ---- | ------------------------------------------ |
-| **frontend**        | 3000 | Giao diện người dùng (Next.js)         |
-| **auth-service**    | 3001 | Đăng ký / đăng nhập / OTP email      |
-| **backend-service** | 8080 | API chính (clinics, doctors, bookings...) |
-| **admin-service**   | 3002 | Quản trị (admin, doctor-admin)           |
-| **PostgreSQL**      | 5432 | Cơ sở dữ liệu                          |
-| **Redis**           | 6379 | Cache / OTP session                        |
+### Frontend
+- Next.js
 
-### Công nghệ sử dụng
+### Backend
+- NestJS Microservices
+- API Gateway
+- REST APIs
 
-| Layer     | Stack                                                |
-| --------- | ---------------------------------------------------- |
-| Frontend  | Next.js 14, React Query, Zustand, Axios              |
-| Backend   | NestJS 11, Prisma 7, PostgreSQL 15, Redis 7          |
-| Auth      | JWT Bearer token, Bcrypt, OTP qua Email (Nodemailer) |
-| API Docs  | Swagger (`/docs` trên mỗi service)               |
-| Container | Docker, Docker Compose, pnpm                         |
+### Databases
+- PostgreSQL
+- Redis
+
+### Cloud Services (AWS)
+- Lambda
+- DynamoDB
+- EventBridge
+- S3
+
+### DevOps & Platform
+- Docker
+- Kubernetes
+- Jenkins
+- ArgoCD
+- GitOps
+- SonarQube
+- Trivy
+- Hadolint
 
 ---
 
-## Cách 1: Chạy local (Development)
+## Repository Structure
 
-### Yêu cầu
+The system is divided into three repositories:
 
-- Node.js >= 20
-- pnpm >= 10 (`npm i -g pnpm`)
-- Docker Desktop (để chạy PostgreSQL + Redis)
+### healthcare
 
-### Bước 1 — Khởi động PostgreSQL + Redis
+Main application repository containing:
 
-```bash
-# Tại thư mục root
-docker-compose -f docker-compose.yml up -d
-```
+- Next.js frontend
+- NestJS microservices
+- API Gateway
+- Business logic
+- Database integrations
 
-### Bước 2 — Cấu hình Backend
+### healthcare-shared-library
 
-```bash
-cd backend
+Reusable Jenkins Shared Library that provides:
 
-# Copy file env
-cp .env.example .env
-```
+- Monorepo-aware change detection
+- Print system information
+- Security scanning
+- Build and push docker images
+- Deployment workflows
+- Release management
 
-Chỉnh sửa `backend/.env`:
+### healthcare-manifests
 
-```env
-NODE_ENV=development
-PORT=8080
-AUTH_PORT=3001
-ADMIN_PORT=3002
+GitOps repository containing:
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/healthcare?schema=public
-REDIS_URL=redis://localhost:6379
+- Kubernetes manifests
+- Kustomize overlays
+- Environment configurations
+- Deployment definitions
 
-JWT_SECRET=dev-secret-change-me
-JWT_EXPIRATION=7d
-
-CORS_ORIGIN=http://localhost:3000
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-SMTP_FROM="Healthcare Support <your-email@gmail.com>"
-
-REGISTER_OTP_TTL_SECONDS=300
-```
-
-### Bước 3 — Setup Database & cài dependencies Backend
-
-```bash
-cd backend
-
-# Cài dependencies
-pnpm install
-
-# Tạo Prisma client
-pnpm prisma:generate
-
-# Chạy migration
-pnpm prisma:migrate
-
-# (Tuỳ chọn) Seed dữ liệu mẫu
-pnpm prisma db seed
-```
-
-### Bước 4 — Chạy các Backend Service
-
-Mở **3 terminal riêng biệt** tại `backend/`:
-
-```bash
-# Terminal 1 — Auth Service (port 3001)
-pnpm nest start auth --watch
-
-# Terminal 2 — Backend Service (port 8080)
-pnpm nest start backend --watch
-
-# Terminal 3 — Admin Service (port 3002)
-pnpm nest start admin --watch
-```
-
-### Bước 5 — Cấu hình & chạy Frontend
-
-```bash
-cd frontend
-```
-
-Tạo file `frontend/.env.local`:
-
-```env
-BACKEND_URL=http://localhost:8080
-AUTH_URL=http://localhost:3001
-ADMIN_URL=http://localhost:3002
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_APP_NAME=HealthCare
-```
-
-```bash
-# Cài dependencies
-pnpm install
-
-# Chạy dev server
-pnpm dev
-```
-
-### Kiểm tra hoạt động
-
-| URL                        | Mô tả                |
-| -------------------------- | ---------------------- |
-| http://localhost:3000      | Frontend               |
-| http://localhost:8080/docs | Swagger — Backend API |
-| http://localhost:3001/docs | Swagger — Auth API    |
-| http://localhost:3002/docs | Swagger — Admin API   |
+ArgoCD continuously monitors this repository and synchronizes changes to Kubernetes clusters.
 
 ---
 
-## Cách 2: Chạy bằng Docker Compose (Production-like)
+## System Architecture
 
-### Yêu cầu
-
-- Docker Desktop
-
-### Bước 1 — Cấu hình SMTP (bắt buộc nếu dùng tính năng OTP)
-
-Tạo file `.env` tại thư mục root:
-
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
+```text
+Developer
+    │
+    ▼
+Gitea Repository
+    │
+    ▼
+Jenkins Pipeline
+    ├── Change Detection
+    ├── Security Scan
+    ├── Docker Build
+    ├── Push Container Images
+    └── Update GitOps Manifests
+             │
+             ▼
+      ArgoCD GitOps
+             │
+             ▼
+      Kubernetes Cluster
+             │
+             ▼
+        Microservices   
 ```
-
-> **Lưu ý:** Nếu không cần OTP email, có thể bỏ qua — các biến này có giá trị mặc định rỗng.
-
-### Bước 2 — Build & chạy toàn bộ stack
-
-```bash
-# Tại thư mục root
-docker-compose -f docker-compose.yaml up --build
-```
-
-> Lần đầu build mất khoảng **3–5 phút** do cài dependencies và compile TypeScript.
-
-### Bước 3 — Chạy Database Migration
-
-Sau khi các container đã up, chạy migration vào container backend:
-
-```bash
-docker exec -it healthcare-backend sh -c "npx prisma migrate deploy"
-```
-
-### Dừng stack
-
-```bash
-docker-compose -f docker-compose.yaml down
-
-# Dừng và xoá toàn bộ data (volumes)
-docker-compose -f docker-compose.yaml down -v
-```
-
-### Kiểm tra hoạt động
-
-| URL                        | Mô tả                |
-| -------------------------- | ---------------------- |
-| http://localhost:3000      | Frontend               |
-| http://localhost:8080/docs | Swagger — Backend API |
-| http://localhost:3001/docs | Swagger — Auth API    |
-| http://localhost:3002/docs | Swagger — Admin API   |
 
 ---
 
-## API Reference
+## CI/CD Workflow
 
-### Auth Service — `http://localhost:3001/v1`
+### Feature Development
 
-| Method | Endpoint                      | Auth   | Mô tả                          |
-| ------ | ----------------------------- | ------ | -------------------------------- |
-| POST   | `/auth/register`            | Public | Gửi OTP đăng ký              |
-| POST   | `/auth/verify-register-otp` | Public | Xác nhận OTP, tạo tài khoản |
-| POST   | `/auth/login`               | Public | Đăng nhập, nhận JWT          |
+1. Developer pushes code to a feature branch.
+2. Jenkins detects modified services within the monorepo.
+3. Security checks are executed:
+   - SonarQube
+   - Hadolint
+   - Trivy
+4. Only changed services are built.
+5. Docker images are tagged using immutable Git commit SHAs.
+6. No deployment is performed for feature branches.
+7. A Pull Request is created for review.
 
-### Backend Service — `http://localhost:8080/v1`
+### Staging Deployment
 
-| Method | Endpoint         | Auth   | Mô tả                  |
-| ------ | ---------------- | ------ | ------------------------ |
-| GET    | `/health`      | Public | Health check             |
-| GET    | `/clinics`     | Public | Danh sách phòng khám  |
-| GET    | `/clinics/:id` | Public | Chi tiết phòng khám   |
-| GET    | `/doctors`     | Public | Danh sách bác sĩ      |
-| GET    | `/specialties` | Public | Danh sách chuyên khoa  |
-| GET    | `/users/me`    | 🔒 JWT | Thông tin người dùng |
-| POST   | `/bookings`    | 🔒 JWT | Tạo lịch hẹn          |
-| GET    | `/bookings/me` | 🔒 JWT | Lịch hẹn của tôi     |
+1. Pull Request is merged into the `develop` branch.
+2. Jenkins rebuilds only affected services.
+3. New Docker images are pushed to the registry.
+4. Jenkins updates Kubernetes manifests in the GitOps repository.
+5. ArgoCD automatically synchronizes changes to the staging cluster.
+6. QA performs validation and testing.
 
-### Admin Service — `http://localhost:3002/v1`
+### Production Release
 
-| Method | Endpoint            | Auth      | Mô tả                 |
-| ------ | ------------------- | --------- | ----------------------- |
-| GET    | `/admin/users`    | 🔒 ADMIN  | Quản lý người dùng |
-| GET    | `/admin/bookings` | 🔒 ADMIN  | Quản lý đặt lịch   |
-| *      | `/doctor-admin/*` | 🔒 DOCTOR | Quản lý bác sĩ      |
+1. Approved changes are merged into the `main` branch.
+2. Jenkins executes the production build pipeline.
+3. A release candidate is prepared.
+4. Production deployment requires creating a Git release tag (e.g. `v1.2.3`).
+5. Tag creation triggers the release pipeline.
+6. Jenkins updates production manifests.
+7. ArgoCD deploys changes to the production cluster.
+8. Release notes are automatically generated.
 
 ---
 
-## Lệnh hữu ích
+## Key DevOps Features
 
-```bash
+### Monorepo-Aware CI/CD
 
+Only modified services are:
 
-# Xem logs một service cụ thể (Docker)
-docker logs healthcare-backend -f
-docker logs healthcare-auth -f
-docker logs healthcare-admin -f
+- Scanned
+- Built
+- Containerized
+- Deployed
 
-# Build riêng từng service (local)
-cd backend
-pnpm nest build auth
-pnpm nest build backend
-pnpm nest build admin
+This significantly reduces pipeline execution time.
 
-# Prisma Studio (xem/sửa data trực quan)
-cd backend && pnpm prisma:studio
+### GitOps Deployment Model
 
-# Xem Prisma schema
-cat backend/prisma/schema.prisma
+- Git serves as the single source of truth.
+- Infrastructure and application deployments are fully version-controlled.
+- ArgoCD continuously reconciles cluster state.
+
+### Immutable Deployments
+
+Container images are tagged using Git commit SHAs.
+
+Example:
+
+```text
+healthcare-auth:abc12345
+healthcare-frontend:def67890
 ```
+
+This ensures:
+
+- Traceability
+- Reproducibility
+- Easy rollback capability
+
+### Security-First Pipeline
+
+Every deployment passes through:
+
+- SonarQube code analysis
+- Hadolint Dockerfile validation
+- Trivy vulnerability scanning
+
+---
+
+## Engineering Highlights
+
+This project demonstrates practical experience with:
+
+- Microservices Architecture
+- Cloud-Native Application Development
+- Kubernetes Administration
+- GitOps using ArgoCD
+- Jenkins Shared Libraries
+- Docker Containerization
+- AWS Serverless Services
+- Infrastructure as Code
+- Automated CI/CD Pipelines
+- Production Release Management
+- Monorepo Engineering
+
+---
+
+## Author
+
+Bachelor Thesis Project
+
+**Topic:** Migrating a Monolithic Healthcare Booking System to a Cloud-Native Microservices Architecture with DevOps Automation and GitOps Deployment.
