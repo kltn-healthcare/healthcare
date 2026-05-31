@@ -1,61 +1,16 @@
-import { BookingType, Gender, PrismaClient, UserRole } from '@prisma/client';
+import { BookingStatus, BookingType, Gender, PrismaClient, UserRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const adminPassword = 'Admin@12345';
-const clinicPassword = 'Clinic@12345';
-const doctorPassword = 'Doctor@12345';
-const patientPassword = 'Patient@12345';
-
-const specialtiesSeed = [
-  'Nội khoa',
-  'Nhi khoa',
-  'Răng Hàm Mặt',
-  'Da liễu',
-  'Mắt',
-  'Tai Mũi Họng',
-];
-
-const clinicsSeed = [
-  {
-    key: 'A',
-    name: 'Phòng khám An Khang',
-    description: 'Phòng khám đa khoa tập trung vào khám tổng quát, nhi khoa và răng hàm mặt.',
-    address: '12 Nguyễn Huệ, Quận 1, TP.HCM',
-    phone: '0281000001',
-    email: 'clinicA@healthcare.local',
-    website: 'https://ankhang.example',
-    specialties: ['Nội khoa', 'Nhi khoa', 'Răng Hàm Mặt'],
-  },
-  {
-    key: 'B',
-    name: 'Trung tâm Sức khỏe Bình Minh',
-    description: 'Trung tâm chăm sóc sức khỏe gia đình với các chuyên khoa phổ biến.',
-    address: '45 Cách Mạng Tháng 8, Quận 3, TP.HCM',
-    phone: '0281000002',
-    email: 'clinicB@healthcare.local',
-    website: 'https://binhminh.example',
-    specialties: ['Nội khoa', 'Da liễu', 'Mắt'],
-  },
-  {
-    key: 'C',
-    name: 'Phòng khám Gia đình CarePlus',
-    description: 'Phòng khám gia đình có thể đặt lịch bác sĩ và gói khám theo chuyên khoa.',
-    address: '78 Lê Văn Việt, TP. Thủ Đức, TP.HCM',
-    phone: '0281000003',
-    email: 'clinicC@healthcare.local',
-    website: 'https://careplus.example',
-    specialties: ['Nhi khoa', 'Tai Mũi Họng', 'Răng Hàm Mặt'],
-  },
-];
+const DEFAULT_PASS = 'Pass@123';
 
 const imageByClinicKey: Record<string, string> = {
-  A: 'https://images.unsplash.com/photo-1519494026892-80bbd2d3fd0d?auto=format&fit=crop&q=80&w=900',
-  B: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=900',
-  C: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=900',
+  hanhphuc: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=900',
+  quocte: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=900',
+  toanmy: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=900',
 };
 
 const doctorImages = [
@@ -65,14 +20,78 @@ const doctorImages = [
   'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=400',
   'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=400',
   'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&q=80&w=400',
-  'https://images.unsplash.com/photo-1605684954998-685c79d6a018?auto=format&fit=crop&q=80&w=400',
-  'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&q=80&w=400',
-  'https://images.unsplash.com/photo-1637059824899-a441006a6875?auto=format&fit=crop&q=80&w=400',
+];
+
+const packageImages = [
+  'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=900',
+  'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&q=80&w=900',
+  'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=900',
+];
+
+const articleImages = [
+  'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=900',
+  'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&q=80&w=900',
+  'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=900',
+  'https://images.unsplash.com/photo-1550831107-1553da8c8464?auto=format&fit=crop&q=80&w=900',
+];
+
+const clinicsData = [
+  {
+    key: 'hanhphuc',
+    name: 'Phòng khám Hạnh Phúc',
+    description: 'Phòng khám chuyên khoa tiêu chuẩn quốc tế.',
+    address: '102 Nguyễn Văn Cừ, Quận 5, TP.HCM',
+    phone: '0901234567',
+    email: 'clinichanhphuc@gmail.com',
+    website: 'https://hanhphuc.clinic',
+    specialties: ['Nội khoa', 'Nhi khoa'],
+    doctors: [
+      { name: 'BS Minh Huy', email: 'doctorminhhuy@gmail.com', spec: 'Nội khoa', shortDesc: 'Chuyên gia Nội khoa với 15 năm kinh nghiệm' },
+      { name: 'BS Thu Hằng', email: 'doctorthuhang@gmail.com', spec: 'Nhi khoa', shortDesc: 'Bác sĩ Nhi khoa tận tâm' }
+    ],
+    packageName: 'Gói khám sức khỏe tổng quát Hạnh Phúc',
+    packagePrice: 1500000,
+    packagePromotional: 1200000,
+  },
+  {
+    key: 'quocte',
+    name: 'Phòng khám Đa khoa Quốc tế',
+    description: 'Trang thiết bị hiện đại, đội ngũ bác sĩ hàng đầu.',
+    address: '45 Lê Duẩn, Quận 1, TP.HCM',
+    phone: '0902345678',
+    email: 'clinicquocte@gmail.com',
+    website: 'https://quocte.clinic',
+    specialties: ['Tai Mũi Họng', 'Răng Hàm Mặt'],
+    doctors: [
+      { name: 'BS Quốc Khánh', email: 'doctorquockhanh@gmail.com', spec: 'Tai Mũi Họng', shortDesc: 'Chuyên gia Tai Mũi Họng' },
+      { name: 'BS Tuấn Anh', email: 'doctortuananh@gmail.com', spec: 'Răng Hàm Mặt', shortDesc: 'Bác sĩ Răng Hàm Mặt thẩm mỹ' }
+    ],
+    packageName: 'Gói khám Tầm soát chuyên sâu Quốc tế',
+    packagePrice: 3500000,
+    packagePromotional: 3000000,
+  },
+  {
+    key: 'toanmy',
+    name: 'Trung tâm Y khoa Toàn Mỹ',
+    description: 'Chăm sóc toàn diện, vẻ đẹp hoàn mỹ.',
+    address: '78 Nguyễn Thị Minh Khai, Quận 3, TP.HCM',
+    phone: '0903456789',
+    email: 'clinictoanmy@gmail.com',
+    website: 'https://toanmy.clinic',
+    specialties: ['Da liễu', 'Mắt'],
+    doctors: [
+      { name: 'BS Phương Trinh', email: 'doctorphuongtrinh@gmail.com', spec: 'Da liễu', shortDesc: 'Bác sĩ chuyên khoa Da liễu' },
+      { name: 'BS Hoàng Long', email: 'doctorhoanglong@gmail.com', spec: 'Mắt', shortDesc: 'Bác sĩ nhãn khoa giàu kinh nghiệm' }
+    ],
+    packageName: 'Gói khám Tầm soát ung thư Toàn Mỹ',
+    packagePrice: 5000000,
+    packagePromotional: null,
+  }
 ];
 
 function weekdayRows() {
-  return [1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
-    dayOfWeek,
+  return [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({
+    dayOfWeek: dayOfWeek === 7 ? 0 : dayOfWeek, // Prisma uses 0 for Sunday
     isOpen: true,
     startTime: '08:00',
     endTime: '17:00',
@@ -80,9 +99,9 @@ function weekdayRows() {
 }
 
 function specialtySchedules(slotDurationMinutes: number, capacity = 1) {
-  return [1, 2, 3, 4, 5, 6].flatMap((dayOfWeek) => [
+  return [1, 2, 3, 4, 5, 6, 7].flatMap((dayOfWeek) => [
     {
-      dayOfWeek,
+      dayOfWeek: dayOfWeek === 7 ? 0 : dayOfWeek,
       isActive: true,
       startTime: '08:00',
       endTime: '11:30',
@@ -90,7 +109,7 @@ function specialtySchedules(slotDurationMinutes: number, capacity = 1) {
       capacity,
     },
     {
-      dayOfWeek,
+      dayOfWeek: dayOfWeek === 7 ? 0 : dayOfWeek,
       isActive: true,
       startTime: '14:00',
       endTime: '17:00',
@@ -101,11 +120,11 @@ function specialtySchedules(slotDurationMinutes: number, capacity = 1) {
 }
 
 function packageAvailability(slotDurationMinutes: number, capacity = 3) {
-  return [1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
-    dayOfWeek,
+  return [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({
+    dayOfWeek: dayOfWeek === 7 ? 0 : dayOfWeek,
     isActive: true,
     startTime: '08:00',
-    endTime: '11:30',
+    endTime: '17:00',
     slotDurationMinutes,
     capacity,
   }));
@@ -115,18 +134,17 @@ async function upsertUser(
   prisma: PrismaClient,
   input: {
     email: string;
-    password: string;
     role: UserRole;
     name: string;
-    phone: string;
+    phone?: string;
   },
 ) {
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await bcrypt.hash(DEFAULT_PASS, 10);
   return prisma.user.upsert({
     where: { email: input.email },
     update: {
       name: input.name,
-      phone: input.phone,
+      phone: input.phone || '0999999999',
       role: input.role,
       passwordHash,
       emailVerified: true,
@@ -135,7 +153,7 @@ async function upsertUser(
     create: {
       email: input.email,
       name: input.name,
-      phone: input.phone,
+      phone: input.phone || '0999999999',
       role: input.role,
       passwordHash,
       emailVerified: true,
@@ -154,9 +172,9 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   try {
+    // 1. Setup Admin
     await upsertUser(prisma, {
       email: 'admin@gmail.com',
-      password: adminPassword,
       role: UserRole.ADMIN,
       name: 'Quản trị hệ thống',
       phone: '0900000000',
@@ -164,14 +182,15 @@ async function main() {
 
     const patient = await upsertUser(prisma, {
       email: 'patient@gmail.com',
-      password: patientPassword,
       role: UserRole.PATIENT,
-      name: 'Bệnh nhân demo',
+      name: 'Bệnh nhân Demo',
       phone: '0900000999',
     });
 
+    // 2. Insert Specialties
     const specialties = new Map<string, string>();
-    for (const name of specialtiesSeed) {
+    const allSpecialties = ['Nội khoa', 'Nhi khoa', 'Tai Mũi Họng', 'Răng Hàm Mặt', 'Da liễu', 'Mắt'];
+    for (const name of allSpecialties) {
       const specialty = await prisma.specialty.upsert({
         where: { name },
         update: {},
@@ -180,215 +199,223 @@ async function main() {
       specialties.set(name, specialty.id);
     }
 
-    let doctorIndex = 0;
-    const existingClinicsCount = await prisma.clinic.count();
-    
-    if (existingClinicsCount === 0) {
-      for (const clinicSeed of clinicsSeed) {
-        const clinic = await prisma.clinic.create({
-        data: {
-          name: clinicSeed.name,
-          description: clinicSeed.description,
-          address: clinicSeed.address,
-          phone: clinicSeed.phone,
-          email: clinicSeed.email,
-          website: clinicSeed.website,
-          image: imageByClinicKey[clinicSeed.key],
-          openingHours: 'Thứ 2 - Thứ 7: 08:00-11:30, 14:00-17:00',
-          isOpen: true,
-          rating: 4.7,
-          reviewCount: 24,
-        },
-      });
+    // 3. Insert Clinics and Doctors
+    let doctorImageIdx = 0;
+    let packageImageIdx = 0;
 
+    for (const clinicData of clinicsData) {
+      // Upsert Clinic Admin User
       const clinicAdminUser = await upsertUser(prisma, {
-        email: `clinic${clinicSeed.key}@gmail.com`,
-        password: clinicPassword,
+        email: clinicData.email,
         role: UserRole.CLINIC_ADMIN,
-        name: `Quản lý phòng khám ${clinicSeed.key}`,
-        phone: `090000010${clinicSeed.key.charCodeAt(0) - 64}`,
+        name: `Admin ${clinicData.name}`,
       });
 
-      await prisma.clinicAdmin.create({
-        data: { userId: clinicAdminUser.id, clinicId: clinic.id },
-      });
+      let clinic = await prisma.clinic.findFirst({ where: { email: clinicData.email } });
+      
+      const clinicPayload = {
+          name: clinicData.name,
+          description: clinicData.description,
+          address: clinicData.address,
+          phone: clinicData.phone,
+          email: clinicData.email,
+          website: clinicData.website,
+          image: imageByClinicKey[clinicData.key],
+          openingHours: 'Thứ 2 - CN: 08:00-11:30, 14:00-17:00',
+          isOpen: true,
+          rating: 5.0,
+          reviewCount: 15,
+      };
 
-      await prisma.clinicWorkingHour.createMany({
-        data: weekdayRows().map((row) => ({ ...row, clinicId: clinic.id })),
-      });
-
-      for (const specialtyName of clinicSeed.specialties) {
-        const specialtyId = specialties.get(specialtyName);
-        if (!specialtyId) {
-          continue;
-        }
-
-        await prisma.clinicSpecialty.create({
-          data: { clinicId: clinic.id, specialtyId },
+      if (clinic) {
+        clinic = await prisma.clinic.update({
+          where: { id: clinic.id },
+          data: clinicPayload,
         });
-
-        const slotDurationMinutes =
-          specialtyName === 'Răng Hàm Mặt' ? 30 : 60;
-        await prisma.clinicSpecialtySchedule.createMany({
-          data: specialtySchedules(slotDurationMinutes).map((row) => ({
-            ...row,
-            clinicId: clinic.id,
-            specialtyId,
-          })),
-        });
-
-        const letter = String.fromCharCode(65 + doctorIndex);
-        const doctorUser = await upsertUser(prisma, {
-          email: `doctor${letter}@gmail.com`,
-          password: doctorPassword,
-          role: UserRole.DOCTOR,
-          name: `Bác sĩ ${letter}`,
-          phone: `09000002${doctorIndex.toString().padStart(2, '0')}`,
-        });
-
-        await prisma.doctor.create({
+      } else {
+        clinic = await prisma.clinic.create({
           data: {
-            userId: doctorUser.id,
-            clinicId: clinic.id,
-            specialtyId,
-            name: `BS. ${letter}`,
-            experience: 5 + doctorIndex,
-            avatar: doctorImages[doctorIndex],
-            bio: `Bác sĩ phụ trách chuyên khoa ${specialtyName} tại ${clinicSeed.name}.`,
-            isAvailable: true,
-            qualifications: {
-              adminSettings: {
-                slotDurationMinutes,
-                workingHours: [
-                  { dayOfWeek: 1, startTime: '08:00', endTime: '11:30' },
-                  { dayOfWeek: 2, startTime: '08:00', endTime: '11:30' },
-                  { dayOfWeek: 3, startTime: '14:00', endTime: '17:00' },
-                  { dayOfWeek: 4, startTime: '08:00', endTime: '11:30' },
-                  { dayOfWeek: 5, startTime: '14:00', endTime: '17:00' },
-                ],
-                services: [],
-              },
+            ...clinicPayload,
+            workingHours: {
+              create: weekdayRows(),
             },
           },
         });
+      }
 
-        if (doctorIndex % 2 === 0) {
-          const healthPackage = await prisma.healthPackage.create({
-            data: {
+      // Create ClinicAdmin
+      await prisma.clinicAdmin.upsert({
+        where: { userId: clinicAdminUser.id },
+        update: { clinicId: clinic.id },
+        create: {
+          userId: clinicAdminUser.id,
+          clinicId: clinic.id,
+        }
+      });
+
+      // Link Specialties
+      for (const specName of clinicData.specialties) {
+        const specId = specialties.get(specName);
+        if (specId) {
+          const clinicSpec = await prisma.clinicSpecialty.upsert({
+            where: {
+              clinicId_specialtyId: {
+                clinicId: clinic.id,
+                specialtyId: specId,
+              },
+            },
+            update: {},
+            create: {
               clinicId: clinic.id,
-              specialtyId,
-              name: `Gói khám ${specialtyName} - ${clinicSeed.key}`,
-              shortDescription: `Gói khám theo chuyên khoa ${specialtyName}.`,
-              description: `Gói khám ${specialtyName} tại ${clinicSeed.name}, phù hợp để test booking không cần chọn bác sĩ.`,
-              price: 500000 + doctorIndex * 50000,
-              promotionalPrice: 450000 + doctorIndex * 50000,
-              category: 'clinic_package',
-              isActive: true,
-              isPopular: doctorIndex < 3,
-              features: ['Khám ban đầu', 'Tư vấn kết quả', 'Hướng dẫn theo dõi'],
+              specialtyId: specId,
+              schedules: {
+                create: specialtySchedules(30, 2),
+              },
             },
           });
 
-          await prisma.packageAvailability.createMany({
-            data: packageAvailability(slotDurationMinutes, 3).map((row) => ({
-              ...row,
-              packageId: healthPackage.id,
-            })),
-          });
+          // Find doctor for this specialty
+          const docData = clinicData.doctors.find(d => d.spec === specName);
+          if (docData) {
+            const docUser = await upsertUser(prisma, {
+              email: docData.email,
+              role: UserRole.DOCTOR,
+              name: docData.name,
+            });
+
+            const doctor = await prisma.doctor.upsert({
+              where: { userId: docUser.id },
+              update: {},
+              create: {
+                userId: docUser.id,
+                clinicId: clinic.id,
+                specialtyId: specId,
+                name: docData.name,
+                avatar: doctorImages[doctorImageIdx % doctorImages.length],
+                bio: docData.shortDesc,
+                experience: 10,
+                isAvailable: true,
+              },
+            });
+            doctorImageIdx++;
+
+            // Create fake bookings for Sunday, May 31, 2026
+            const bookingDate = new Date('2026-05-31T00:00:00.000Z');
+            
+            await prisma.booking.create({
+              data: {
+                userId: patient.id,
+                clinicId: clinic.id,
+                doctorId: doctor.id,
+                specialtyId: clinicSpec.id,
+                bookingType: BookingType.DOCTOR_CONSULTATION,
+                patientName: 'Nguyễn Văn A',
+                patientEmail: patient.email,
+                patientPhone: '0911222333',
+                patientGender: Gender.MALE,
+                bookingDate,
+                bookingTime: '08:30',
+                status: BookingStatus.CONFIRMED,
+              }
+            });
+
+            await prisma.booking.create({
+              data: {
+                userId: patient.id,
+                clinicId: clinic.id,
+                doctorId: doctor.id,
+                specialtyId: clinicSpec.id,
+                bookingType: BookingType.DOCTOR_CONSULTATION,
+                patientName: 'Trần Thị B',
+                patientEmail: patient.email,
+                patientPhone: '0944555666',
+                patientGender: Gender.FEMALE,
+                bookingDate,
+                bookingTime: '14:30',
+                status: BookingStatus.PENDING,
+              }
+            });
+          }
         }
+      }
 
-        doctorIndex += 1;
+      // Insert Health Package
+      let pkg = await prisma.healthPackage.findFirst({ where: { name: clinicData.packageName } });
+      const pkgPayload = {
+          clinicId: clinic.id,
+          name: clinicData.packageName,
+          description: `Gói khám tiêu chuẩn của ${clinicData.name}`,
+          shortDescription: 'Gói khám nhanh chóng, tiện lợi',
+          price: clinicData.packagePrice,
+          promotionalPrice: clinicData.packagePromotional,
+          imageUrl: packageImages[packageImageIdx % packageImages.length],
+          features: ['Khám tổng quát', 'Xét nghiệm máu', 'Siêu âm', 'Tư vấn'],
+          isActive: true,
+          isPopular: true,
+      };
+
+      if (pkg) {
+        pkg = await prisma.healthPackage.update({
+          where: { id: pkg.id },
+          data: pkgPayload,
+        });
+      } else {
+        pkg = await prisma.healthPackage.create({
+          data: {
+            ...pkgPayload,
+            availabilities: {
+              create: packageAvailability(60, 5),
+            }
+          }
+        });
       }
-      }
+      packageImageIdx++;
     }
 
-    const existingBookingCount = await prisma.booking.count();
-    const firstDoctor = await prisma.doctor.findFirst({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, clinicId: true, specialtyId: true },
-    });
-    if (firstDoctor && existingBookingCount === 0) {
-      const bookingDate = new Date();
-      bookingDate.setDate(bookingDate.getDate() + 1);
-      bookingDate.setHours(0, 0, 0, 0);
-
-      await prisma.booking.create({
-        data: {
-          userId: patient.id,
-          clinicId: firstDoctor.clinicId,
-          doctorId: firstDoctor.id,
-          specialtyId: firstDoctor.specialtyId,
-          bookingType: BookingType.DOCTOR_CONSULTATION,
-          patientName: patient.name,
-          patientEmail: patient.email,
-          patientPhone: patient.phone ?? '0900000999',
-          patientGender: Gender.OTHER,
-          bookingDate,
-          bookingTime: '08:00',
-          notes: 'Booking mẫu để doctor admin test xác nhận.',
-        },
+    // 4. Insert Articles
+    const existingArticles = await prisma.article.count();
+    if (existingArticles === 0) {
+      await prisma.article.createMany({
+        data: [
+          {
+            title: '5 dấu hiệu cảnh báo bạn cần đi khám bác sĩ ngay',
+            slug: '5-dau-hieu-canh-bao',
+            description: 'Đừng chủ quan với sức khỏe của mình, hãy chú ý các dấu hiệu này.',
+            image: articleImages[0],
+            category: 'Cẩm nang',
+          },
+          {
+            title: 'Chăm sóc sức khỏe mùa nắng nóng',
+            slug: 'cham-soc-suc-khoe-mua-nang',
+            description: 'Các biện pháp phòng tránh sốc nhiệt và mất nước.',
+            image: articleImages[1],
+            category: 'Sức khỏe',
+          },
+          {
+            title: 'Dinh dưỡng hợp lý cho người bệnh tiểu đường',
+            slug: 'dinh-duong-cho-nguoi-tieu-duong',
+            description: 'Ăn gì và kiêng gì để duy trì đường huyết ổn định.',
+            image: articleImages[2],
+            category: 'Dinh dưỡng',
+          },
+          {
+            title: 'Hướng dẫn chuẩn bị trước khi khám tổng quát',
+            slug: 'huong-dan-kham-tong-quat',
+            description: 'Những điều cần lưu ý để kết quả khám chính xác nhất.',
+            image: articleImages[3],
+            category: 'Cẩm nang',
+          }
+        ]
       });
     }
 
-    const articlesData = [
-      {
-        title: 'Chăm sóc răng miệng đúng cách cho trẻ em',
-        slug: 'cham-soc-rang-mieng-tre-em',
-        description: 'Hướng dẫn chi tiết cách vệ sinh và chăm sóc răng miệng cho trẻ nhỏ để phòng ngừa sâu răng hiệu quả.',
-        image: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&q=80&w=800',
-        category: 'Nhi khoa',
-        readTime: '5 phút'
-      },
-      {
-        title: 'Dấu hiệu nhận biết sớm bệnh tiểu đường',
-        slug: 'dau-hieu-nhan-biet-som-benh-tieu-duong',
-        description: 'Những triệu chứng cảnh báo sớm của bệnh tiểu đường mà bạn không nên bỏ qua để được điều trị kịp thời.',
-        image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800',
-        category: 'Nội khoa',
-        readTime: '7 phút'
-      },
-      {
-        title: 'Chế độ dinh dưỡng cho người bị cao huyết áp',
-        slug: 'che-do-dinh-duong-cao-huyet-ap',
-        description: 'Thực đơn và những lưu ý về dinh dưỡng giúp kiểm soát chỉ số huyết áp an toàn và tự nhiên.',
-        image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&q=80&w=800',
-        category: 'Dinh dưỡng',
-        readTime: '6 phút'
-      }
-    ];
-
-    for (const article of articlesData) {
-      await prisma.article.upsert({
-        where: { slug: article.slug },
-        update: {},
-        create: article
-      });
-    }
-
-    const summary = await Promise.all([
-      prisma.user.count(),
-      prisma.clinic.count(),
-      prisma.clinicAdmin.count(),
-      prisma.doctor.count(),
-      prisma.healthPackage.count(),
-      prisma.clinicSpecialtySchedule.count(),
-      prisma.article.count(),
-    ]);
-
-    console.log('Seed completed');
-    console.log(
-      `users=${summary[0]}, clinics=${summary[1]}, clinicAdmins=${summary[2]}, doctors=${summary[3]}, packages=${summary[4]}, specialtySchedules=${summary[5]}, articles=${summary[6]}`,
-    );
-    console.log(`ADMIN: admin@gmail.com / ${adminPassword}`);
-    console.log(`CLINIC: clinicA@gmail.com / ${clinicPassword}`);
-    console.log(`DOCTOR: doctorA@gmail.com / ${doctorPassword}`);
-    console.log(`PATIENT: patient@gmail.com / ${patientPassword}`);
+    console.log('Production Data Seed completed successfully!');
+  } catch (error) {
+    console.error('Error seeding data:', error);
+    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main();
