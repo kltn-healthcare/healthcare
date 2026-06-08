@@ -10,15 +10,21 @@ pipeline {
   }
 
   environment {
-    GITEA_REGISTRY     = "gitea.healthcare.com"
-    GITEA_OWNER        = "kltn"
-    GITEA_CREDS_ID     = "gitea-token-admin"
-    GIT_USER_NAME      = "thanhdc"
-    GIT_USER_EMAIL     = "chithanh040804@gmail.com"
-    MANIFEST_REPO_URL  = "https://gitea.healthcare.com/KLTN/healthcare-manifests.git"
+    GITEA_REGISTRY = "gitea.healthcare.com"
+    GITEA_OWNER    = "kltn"
+    GITEA_CREDS_ID = "gitea-token-admin"
+
+    SONAR_SERVER = "sonar-server"
+    SONAR_SCANNER = "sonar-scanner"
+
+    GIT_USER_NAME  = "thanhdc"
+    GIT_USER_EMAIL = "chithanh040804@gmail.com"
+
+    MANIFEST_REPO_URL    = "https://gitea.healthcare.com/KLTN/healthcare-manifests.git"
     MANIFEST_REPO_BRANCH = "main"
-    GITEA_API_URL      = "https://gitea.healthcare.com/api/v1"
-    GITEA_REPO         = "healthcare"
+
+    GITEA_API_URL = "https://gitea.healthcare.com/api/v1"
+    GITEA_REPO    = "healthcare"
   }
 
   stages {
@@ -35,7 +41,7 @@ pipeline {
             error 'TAG_NAME is empty. This pipeline must be triggered by a git tag.'
           }
           if (!(env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/)) {
-            error "Invalid tag format: '${env.TAG_NAME}'. Expected format: vX.Y.Z (e.g. v1.2.3)"
+            error "Invalid tag format: '${env.TAG_NAME}'. Expected: vX.Y.Z"
           }
           echo "Tag validated: ${env.TAG_NAME}"
         }
@@ -43,70 +49,80 @@ pipeline {
     }
 
     stage('Detect Changes') {
-    steps {
-        // Shallow clone depth=1, fetch full tags
+      steps {
         checkout([
-        $class: 'GitSCM',
-        branches: scm.branches,
-        userRemoteConfigs: scm.userRemoteConfigs,
-        extensions: [
+          $class: 'GitSCM',
+          branches: scm.branches,
+          userRemoteConfigs: scm.userRemoteConfigs,
+          extensions: [
             [$class: 'CloneOption', depth: 1, shallow: true, noTags: false]
-        ]
+          ]
         ])
-
         script {
-        env.SHORT_SHA  = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
-        env.DEPLOY_TAG = env.SHORT_SHA
+          env.SHORT_SHA  = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+          env.DEPLOY_TAG = env.TAG_NAME
 
-        // Find the previous SemVer tag (no history required).
-        def tagsStr = sh(
+          def tagsStr = sh(
             script: 'git tag -l "v*" --sort=-v:refname',
             returnStdout: true
-        ).trim()
+          ).trim()
 
-        def tagList = tagsStr ? tagsStr.split('\n').collect { it.trim() }.findAll { it } : []
-        def currentIndex = tagList.indexOf(env.TAG_NAME)
+          def tagList     = tagsStr ? tagsStr.split('\n').collect { it.trim() }.findAll { it } : []
+          def currentIndex = tagList.indexOf(env.TAG_NAME)
+          def previousTag  = (currentIndex != -1 && currentIndex + 1 < tagList.size())
+                               ? tagList[currentIndex + 1]
+                               : ""
 
-        def previousTag = (currentIndex != -1 && currentIndex + 1 < tagList.size())
-                            ? tagList[currentIndex + 1]
-                            : ""
+          def changedFiles = ""
 
-        def changedFiles = ""
-
-        if (previousTag) {
+          if (previousTag) {
             echo "Previous tag: ${previousTag}"
-
-          // Fetch only the old tag commit without extra history.
             sh "git fetch --depth=1 origin tag ${previousTag} --no-tags"
-
-          // diff-tree compares two tree objects directly.
-          // No common ancestor required, avoids "no merge base" errors.
-          // --no-commit-id -r lists files changed between two trees.
             changedFiles = sh(
-            script: "git diff-tree --no-commit-id -r --name-only ${previousTag} HEAD",
-            returnStdout: true
+              script: "git diff-tree --no-commit-id -r --name-only ${previousTag} HEAD",
+              returnStdout: true
             ).trim()
-
             echo "Changed files:\n${changedFiles ?: '(none)'}"
-
-        } else {
-          // First release: list all files in the current commit.
-          // git ls-tree lists all files in the HEAD tree without history.
-          echo "First release - listing all files in HEAD"
+          } else {
+            echo "First release — listing all files in HEAD"
             changedFiles = sh(
-            script: "git ls-tree -r --name-only HEAD",
-            returnStdout: true
+              script: "git ls-tree -r --name-only HEAD",
+              returnStdout: true
             ).trim()
-        }
+          }
 
-        // Parse file list into service list.
-        env.CHANGED_SERVICES = detectMonorepoChanges(null, null, changedFiles)
+          env.CHANGED_SERVICES = detectMonorepoChanges(null, null, changedFiles)
 
-        echo "Tag:              ${env.TAG_NAME}"
-        echo "Commit SHA:       ${env.DEPLOY_TAG}"
-        echo "Changed services: ${env.CHANGED_SERVICES ?: 'none'}"
+          echo "Tag:              ${env.TAG_NAME}"
+          echo "Commit SHA:       ${env.DEPLOY_TAG}"
+          echo "Changed services: ${env.CHANGED_SERVICES ?: 'none'}"
         }
+      }
     }
+
+    stage('Security Scan') {
+      when {
+        expression { return env.CHANGED_SERVICES?.trim() }
+      }
+      steps {
+        script {
+          echo "Security scan (SonarQube, Hadolint, Trivy) for: ${env.CHANGED_SERVICES}"
+          scanSecurity(env.CHANGED_SERVICES, "healthcare")
+        }
+      }
+    }
+
+    stage('Build & Push') {
+      when {
+        expression { return env.CHANGED_SERVICES?.trim() }
+      }
+      steps {
+        script {
+          echo "Building production images for: ${env.CHANGED_SERVICES}"
+          echo "Image tag: ${env.DEPLOY_TAG}"
+          buildAndPush(env.CHANGED_SERVICES, env.DEPLOY_TAG)
+        }
+      }
     }
 
     stage('Deploy Production') {
@@ -134,7 +150,7 @@ pipeline {
               giteaOwner:         env.GITEA_OWNER,
               giteaRepo:          env.GITEA_REPO,
               token:              TOKEN,
-              commitMessage:      "release(${env.TAG_NAME}): deploy production with ${env.DEPLOY_TAG}"
+              commitMessage: "release(${env.TAG_NAME}): deploy production [${env.SHORT_SHA}]"
             )
           }
         }
@@ -142,7 +158,6 @@ pipeline {
     }
 
     stage('Create Release') {
-      // Only create a release when services were deployed.
       when {
         expression { return env.CHANGED_SERVICES?.trim() }
       }
@@ -171,7 +186,6 @@ pipeline {
 
             writeFile(file: 'gitea-release.json', text: groovy.json.JsonOutput.toJson(payloadMap))
 
-            // Use single quotes so TOKEN is not interpolated and does not leak into logs.
             sh '''
               set -e
               curl --silent --show-error --fail-with-body \
@@ -198,11 +212,7 @@ pipeline {
         cleanWs()
       }
     }
-    success {
-      echo "Release ${env.TAG_NAME} deployed to production successfully."
-    }
-    failure {
-      echo "Release pipeline failed. Check logs above."
-    }
+    success { echo "Release ${env.TAG_NAME} deployed to production successfully." }
+    failure { echo "Release pipeline failed. Check logs above." }
   }
 }

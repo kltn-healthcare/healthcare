@@ -86,20 +86,21 @@ pipeline {
     }
 
     stage('Security Scan') {
-    // Jenkins skips this stage when no services change.
       when {
-          expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
+        // Jenkins skips this stage when no services change.
+        expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
       }
       steps {
-          script {
+        script {
           echo "Starting security scan (SonarQube, Hadolint, Trivy) for: ${env.CHANGED_SERVICES}"
-              scanSecurity(env.CHANGED_SERVICES, "healthcare")
-          }
+          scanSecurity(env.CHANGED_SERVICES, "healthcare")
+        }
       }
     }
 
     stage('Build & Push') {
       when {
+          not { branch 'main' }
           expression { return env.CHANGED_SERVICES != null && env.CHANGED_SERVICES != '' }
       }
       steps {
@@ -122,19 +123,27 @@ pipeline {
       }
       steps {
         script {
-          def subject = "Release ready: ${env.CHANGED_SERVICES} (${env.DEPLOY_TAG})"
-          def body = "Services ready for production release:\n" +
-            "- Services: ${env.CHANGED_SERVICES}\n" +
-            "- Commit SHA: ${env.DEPLOY_TAG}\n" +
-            "- Build URL: ${env.BUILD_URL ?: 'N/A'}\n" +
-            "\nCreate a tag vX.Y.Z on this commit to trigger production release."
+          def subject = "Ready to release: [${env.CHANGED_SERVICES}] @ ${env.SHORT_SHA}"
+          def body = """The following services have changes merged to main and are ready for production release:
+
+          - Services  : ${env.CHANGED_SERVICES}
+          - Commit SHA: ${env.SHORT_SHA}
+          - Build URL : ${env.BUILD_URL ?: 'N/A'}
+
+          No image was built at this step.
+          To trigger production deployment, create a tag on commit ${env.SHORT_SHA}:
+
+            git tag v<X.Y.Z> ${env.SHORT_SHA}
+            git push origin v<X.Y.Z>
+
+          The tag pipeline will run Security Scan, Build & Push, Deploy Production, and Create Release automatically."""
 
           if (!env.GIT_USER_EMAIL?.trim()) {
             echo "No admin email configured."
             echo body
             return
           }
-
+          
           try {
             mail(
               to: env.GIT_USER_EMAIL,
