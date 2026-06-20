@@ -212,7 +212,69 @@ pipeline {
         cleanWs()
       }
     }
-    success { echo "Release ${env.TAG_NAME} deployed to production successfully." }
-    failure { echo "Release pipeline failed. Check logs above." }
+    success {
+      script {
+        echo "Release ${env.TAG_NAME} deployed to production successfully."
+
+        def subject = "[PRODUCTION] Pipeline SUCCESS - ${env.TAG_NAME ?: env.BUILD_TAG}"
+        def body = """Production pipeline completed successfully.
+
+- Tag       : ${env.TAG_NAME ?: 'N/A'}
+- Commit SHA: ${env.SHORT_SHA ?: 'N/A'}
+- Services  : ${env.CHANGED_SERVICES ?: 'none'}
+- Build URL : ${env.BUILD_URL ?: 'N/A'}
+"""
+
+        if (!env.GIT_USER_EMAIL?.trim()) {
+          echo "No admin email configured for production success notification."
+          echo body
+          return
+        }
+
+        try {
+          mail(
+            to: env.GIT_USER_EMAIL,
+            subject: subject,
+            body: body
+          )
+          echo "Production success notification sent to admin: ${env.GIT_USER_EMAIL}"
+        } catch (Exception e) {
+          echo "Production success notification failed: ${e.message}"
+          echo body
+        }
+      }
+    }
+    failure {
+      script {
+        echo "Release pipeline failed. Check logs above."
+
+        def subject = "[PRODUCTION] Pipeline FAILED - ${env.TAG_NAME ?: env.BUILD_TAG}"
+        def body = """Production pipeline failed.
+
+- Tag       : ${env.TAG_NAME ?: 'N/A'}
+- Commit SHA: ${env.SHORT_SHA ?: 'N/A'}
+- Services  : ${env.CHANGED_SERVICES ?: 'none'}
+- Build URL : ${env.BUILD_URL ?: 'N/A'}
+"""
+
+        if (!env.GIT_USER_EMAIL?.trim()) {
+          echo "No admin email configured for production failure notification."
+          echo body
+          return
+        }
+
+        try {
+          mail(
+            to: env.GIT_USER_EMAIL,
+            subject: subject,
+            body: body
+          )
+          echo "Production failure notification sent to admin: ${env.GIT_USER_EMAIL}"
+        } catch (Exception e) {
+          echo "Production failure notification failed: ${e.message}"
+          echo body
+        }
+      }
+    }
   }
 }

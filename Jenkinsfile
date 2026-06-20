@@ -18,7 +18,7 @@ pipeline {
     SONAR_SCANNER = "sonar-scanner"
 
     GIT_USER_NAME = "thanhdc"
-    GIT_USER_EMAIL = "chithanh080804@gmail.com"
+    GIT_USER_EMAIL = "chithanh040804@gmail.com"
     MANIFEST_REPO_URL = "https://gitea.healthcare.com/KLTN/healthcare-manifests.git"
     MANIFEST_REPO_BRANCH = "main"
 
