@@ -27,7 +27,3 @@ async function bootstrap() {
   logger.log(`Auth Service is running on: http://localhost:${port}`);
 }
 bootstrap();
-
-
-
-

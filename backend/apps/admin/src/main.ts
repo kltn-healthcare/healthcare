@@ -28,6 +28,3 @@ async function bootstrap() {
   logger.log(`Admin Service is running on: http://localhost:${port}`);
 }
 bootstrap();
-
-
-

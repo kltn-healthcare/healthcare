@@ -34,6 +34,3 @@ async function bootstrap() {
   logger.log(`Backend Service is running on: http://localhost:${port}`);
 }
 bootstrap();
-
-
-
