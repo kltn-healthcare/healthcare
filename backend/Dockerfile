@@ -1,6 +1,5 @@
 # Dockerfile cho NestJS Microservices
 FROM node:20-alpine AS base
-# FROM node:latest AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
