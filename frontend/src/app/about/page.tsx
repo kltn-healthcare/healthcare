@@ -119,7 +119,7 @@ export default function AboutPage() {
 
         {/* Stats Section */}
         <section className="py-16">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
                 <div className="mb-2 text-4xl font-bold text-primary">500+</div>
@@ -139,7 +139,7 @@ export default function AboutPage() {
 
         {/* Contact Section */}
         <section className="bg-muted/30 py-16">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mx-auto text-center">
               <h2 className="mb-4 text-3xl font-bold">Liên Hệ Với Chúng Tôi</h2>
               <p className="mb-6 text-muted-foreground">

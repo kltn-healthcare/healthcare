@@ -186,49 +186,7 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
 
-                {/* Password Strength Checklist Indicator */}
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Password Requirements
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isMinLength ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
-                        {isMinLength ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
-                      </span>
-                      <span className={isMinLength ? "text-emerald-700 font-medium" : "text-slate-500"}>
-                        {t(AUTH_I18N_KEYS.resetPassword.ruleMinLength)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasUppercase ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
-                        {hasUppercase ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
-                      </span>
-                      <span className={hasUppercase ? "text-emerald-700 font-medium" : "text-slate-500"}>
-                        {t(AUTH_I18N_KEYS.resetPassword.ruleUppercase)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasLowercase ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
-                        {hasLowercase ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
-                      </span>
-                      <span className={hasLowercase ? "text-emerald-700 font-medium" : "text-slate-500"}>
-                        {t(AUTH_I18N_KEYS.resetPassword.ruleLowercase)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasNumber ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
-                        {hasNumber ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
-                      </span>
-                      <span className={hasNumber ? "text-emerald-700 font-medium" : "text-slate-500"}>
-                        {t(AUTH_I18N_KEYS.resetPassword.ruleNumber)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                
 
                 {/* Confirm Password field */}
                 <div className="space-y-2">
@@ -268,6 +226,50 @@ export default function ResetPasswordPage() {
                     </p>
                   )}
                 </div>
+
+                  {/* Password Strength Checklist Indicator */}
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2.5">
+                    {/* <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Password Requirements
+                  </div> */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isMinLength ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
+                          {isMinLength ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
+                        </span>
+                        <span className={isMinLength ? "text-emerald-700 font-medium" : "text-slate-500"}>
+                          {t(AUTH_I18N_KEYS.resetPassword.ruleMinLength)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasUppercase ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
+                          {hasUppercase ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
+                        </span>
+                        <span className={hasUppercase ? "text-emerald-700 font-medium" : "text-slate-500"}>
+                          {t(AUTH_I18N_KEYS.resetPassword.ruleUppercase)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasLowercase ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
+                          {hasLowercase ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
+                        </span>
+                        <span className={hasLowercase ? "text-emerald-700 font-medium" : "text-slate-500"}>
+                          {t(AUTH_I18N_KEYS.resetPassword.ruleLowercase)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${hasNumber ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
+                          {hasNumber ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
+                        </span>
+                        <span className={hasNumber ? "text-emerald-700 font-medium" : "text-slate-500"}>
+                          {t(AUTH_I18N_KEYS.resetPassword.ruleNumber)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
                 {resetPasswordMutation.isError && (
                   <div className="text-sm text-destructive flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100">

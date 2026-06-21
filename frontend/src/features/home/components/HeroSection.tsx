@@ -282,7 +282,13 @@ export function HeroSection() {
                                             className="border-0 focus-visible:ring-0 text-base"
                                         />
                                     </div>
-                                    <Button onClick={handleSearch} className="w-full shrink-0 bg-primary hover:bg-primary/95 text-base font-semibold px-6 h-12 rounded-xl sm:w-auto">
+                                    <Button
+                                        onClick={handleSearch}
+                                        disabled={!searchValue.trim()}
+                                        className={`w-full shrink-0 bg-primary hover:bg-primary/95 text-base font-semibold px-6 h-12 rounded-xl sm:w-auto transition-all ${
+                                            !searchValue.trim() ? "opacity-50 cursor-not-allowed pointer-events-none" : "cursor-pointer"
+                                        }`}
+                                    >
                                         {text(HOME_I18N_KEYS.hero.searchButton, "Search")}
                                     </Button>
                                 </div>
@@ -299,7 +305,7 @@ export function HeroSection() {
                                     }
                                     return (
                                         <button key={filter} type="button" onClick={() => setActiveFilter(filter)}
-                                            className={`rounded-full px-3.5 py-1.5 font-semibold transition-all duration-200 shadow-sm border ${
+                                            className={`rounded-full px-3.5 py-1.5 font-semibold transition-all duration-200 shadow-sm border cursor-pointer ${
                                                 activeFilter === filter
                                                     ? "bg-primary text-white border-primary"
                                                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"

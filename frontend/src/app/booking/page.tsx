@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
@@ -291,7 +290,7 @@ export default function BookingPage() {
                           setDoctorId("") // Reset specialty & doctor when clinic changes
                           setPackageId("")
                         }}>
-                          <SelectTrigger className="bg-white border-gray-200">
+                          <SelectTrigger className="bg-white border-gray-200 cursor-pointer">
                             <SelectValue placeholder="Chọn phòng khám" />
                           </SelectTrigger>
                           <SelectContent>
@@ -314,7 +313,7 @@ export default function BookingPage() {
                           }}
                           disabled={!clinicId || isPackageBooking}
                         >
-                          <SelectTrigger className="bg-white border-gray-200">
+                          <SelectTrigger className="bg-white border-gray-200 cursor-pointer">
                             <SelectValue placeholder={!clinicId ? "Vui lòng chọn phòng khám" : "Chọn chuyên khoa"} />
                           </SelectTrigger>
                           <SelectContent>
@@ -334,7 +333,7 @@ export default function BookingPage() {
                           onValueChange={setDoctorId}
                           disabled={isPackageBooking || !clinicId || !specialtyId || doctorsQuery.isLoading}
                         >
-                          <SelectTrigger className="bg-white border-gray-200">
+                          <SelectTrigger className="bg-white border-gray-200 cursor-pointer">
                             <SelectValue placeholder={
                               doctorsQuery.isLoading 
                                 ? "Đang tải..." 
@@ -399,7 +398,7 @@ export default function BookingPage() {
                         }
                         setStep(2)
                       }}
-                      className="bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95 px-8"
+                      className="bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95 px-8 cursor-pointer"
                     >
                       Tiếp Theo: Chọn Thời Gian
                       <ChevronRight className="ml-2 h-4 w-4" />
@@ -460,7 +459,7 @@ export default function BookingPage() {
                                   title={hint}
                                   aria-label={`${timeValue} - ${hint}`}
                                   className={cn(
-                                    "transition-all duration-200",
+                                    "transition-all duration-200 cursor-pointer",
                                     selectedTime === timeValue && slot.isAvailable
                                       ? "bg-primary shadow-md scale-[1.02]"
                                       : slot.isPast || slot.reason === "PAST"
@@ -486,10 +485,10 @@ export default function BookingPage() {
                   </div>
 
                   <div className="flex justify-between pt-4 border-t">
-                    <Button variant="outline" onClick={() => setStep(1)}>
+                    <Button variant="outline" className="cursor-pointer" onClick={() => setStep(1)}>
                       Quay Lại
                     </Button>
-                    <Button onClick={() => setStep(3)} disabled={!selectedTime} className="bg-primary">
+                    <Button onClick={() => setStep(3)} disabled={!selectedTime} className="bg-primary cursor-pointer">
                       Tiếp Theo: Xác nhận
                     </Button>
                   </div>
@@ -579,7 +578,7 @@ export default function BookingPage() {
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={paymentReceiptUrl} alt="Biên lai" className="object-cover w-full h-full" />
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => setPaymentReceiptUrl("")}>
+                          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setPaymentReceiptUrl("")}>
                             {t(BOOKING_I18N_KEYS.deposit.uploadAnother)}
                           </Button>
                         </div>
@@ -597,11 +596,11 @@ export default function BookingPage() {
                   </div>
 
                   <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={() => setStep(2)}>
+                    <Button variant="outline" className="cursor-pointer" onClick={() => setStep(2)}>
                       {t(BOOKING_I18N_KEYS.actions.back)}
                     </Button>
                     <Button
-                      className="bg-primary"
+                      className="bg-primary cursor-pointer"
                       disabled={createBookingMutation.isPending || !paymentReceiptUrl}
                       onClick={() =>
                         createBookingMutation.mutate({
@@ -634,8 +633,6 @@ export default function BookingPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }
