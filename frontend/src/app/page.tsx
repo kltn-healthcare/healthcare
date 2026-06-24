@@ -21,9 +21,9 @@ export default function HomePage() {
         <HeroSection />
         <ServicesSection />
         <PackagesSection />
-        <HealthGuideSection />
         <ClinicsSection />
         <DoctorsSection />
+        <HealthGuideSection />
 
         <HowItWorksSection />
         <CTASection />

@@ -44,7 +44,7 @@ export function SectionHeader({
 }) {
     if (center) {
         return (
-            <div className="mb-8 text-center md:mb-10">
+            <div className="mb-4 text-center md:mb-6">
                 <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
                 {subtitle && (
                     <p className="mt-2 text-sm text-slate-500 sm:text-base leading-relaxed">{subtitle}</p>
@@ -54,7 +54,7 @@ export function SectionHeader({
     }
 
     return (
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-10">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between md:mb-6">
             <div className="max-w-xl">
                 <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
                 {subtitle && (

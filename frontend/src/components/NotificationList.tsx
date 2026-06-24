@@ -119,21 +119,38 @@ export function NotificationList({ enabled, compact = false, onUnreadCountChange
             {t(ACCOUNT_I18N_KEYS.notifications.empty)}
           </div>
         ) : (
-          items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`flex w-full gap-3 text-left transition-colors hover:bg-muted/40 ${compact ? "px-3 py-3" : "p-4"} ${!item.readAt ? "bg-primary/5" : ""}`}
-              onClick={() => void markRead(item)}
-            >
-              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${item.readAt ? "bg-muted-foreground/30" : "bg-primary"}`} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.body}</span>
-                <span className="mt-1.5 block text-[11px] text-muted-foreground">{formatNotificationDate(item.createdAt, language)}</span>
-              </span>
-            </button>
-          ))
+          items.map((item) => {
+            const { title: displayTitle, body: displayBody } = translateNotification(item.title, item.body, language)
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`group flex w-full gap-3 text-left transition-all duration-200 hover:bg-slate-50/80 dark:hover:bg-slate-900/40 relative border-l-2 ${
+                  !item.readAt 
+                    ? "bg-primary/[0.02] border-primary" 
+                    : "border-transparent hover:border-slate-200 dark:hover:border-slate-800"
+                } ${compact ? "px-4 py-3" : "p-4"}`}
+                onClick={() => void markRead(item)}
+              >
+                {!item.readAt && (
+                  <span className="absolute top-4 right-4 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-xs sm:text-sm font-semibold transition-colors group-hover:text-primary ${
+                    !item.readAt ? "text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"
+                  }`}>
+                    {displayTitle}
+                  </span>
+                  <span className="mt-1 block text-[11px] sm:text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    {displayBody}
+                  </span>
+                  <span className="mt-1.5 block text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                    {formatNotificationDate(item.createdAt, language)}
+                  </span>
+                </span>
+              </button>
+            )
+          })
         )}
       </div>
     </div>
@@ -141,8 +158,90 @@ export function NotificationList({ enabled, compact = false, onUnreadCountChange
 }
 
 function formatNotificationDate(value: string, language: string) {
-  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value))
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ""
+  
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  const hours = pad(d.getHours())
+  const minutes = pad(d.getMinutes())
+  const day = pad(d.getDate())
+  const month = pad(d.getMonth() + 1)
+  const year = d.getFullYear()
+  
+  if (language === "en") {
+    return `${hours}:${minutes} ${month}/${day}/${year}`
+  }
+  return `${hours}:${minutes} ${day}/${month}/${year}`
+}
+
+function translateNotification(title: string, body: string, language: string): { title: string; body: string } {
+  if (language !== "vi") {
+    if (title === "Nhac lich kham sap toi") {
+      return {
+        title: "Upcoming Appointment Reminder",
+        body: body
+          .replace("Ban co lich kham tai ", "You have an appointment at ")
+          .replace(" luc ", " at "),
+      }
+    }
+    return { title, body }
+  }
+
+  let translatedTitle = title
+  let translatedBody = body
+
+  // Translate titles
+  if (title === "Booking request received") {
+    translatedTitle = "Yêu cầu đặt lịch mới"
+  } else if (title === "Booking rescheduled") {
+    translatedTitle = "Lịch hẹn đã đổi giờ"
+  } else if (title === "Appointment confirmed") {
+    translatedTitle = "Lịch hẹn đã xác nhận"
+  } else if (title === "Booking cancelled" || title === "Appointment cancelled") {
+    translatedTitle = "Lịch hẹn đã hủy"
+  } else if (title === "Package booking confirmed") {
+    translatedTitle = "Lịch hẹn gói khám đã xác nhận"
+  } else if (title === "Package booking cancelled") {
+    translatedTitle = "Lịch hẹn gói khám đã hủy"
+  } else if (title === "Nhac lich kham sap toi") {
+    translatedTitle = "Nhắc lịch khám sắp tới"
+  }
+
+  // Translate bodies
+  if (body.includes("Your appointment request at") && body.includes("is waiting for confirmation")) {
+    const clinicName = body.replace("Your appointment request at ", "").replace(" is waiting for confirmation.", "")
+    translatedBody = `Yêu cầu đặt lịch hẹn của bạn tại ${clinicName} đang chờ xác nhận.`
+  } else if (body.includes("Your appointment at") && body.includes("was rescheduled and is waiting for confirmation")) {
+    const clinicName = body.replace("Your appointment at ", "").replace(" was rescheduled and is waiting for confirmation.", "")
+    translatedBody = `Lịch hẹn của bạn tại ${clinicName} đã được đổi giờ và đang chờ xác nhận.`
+  } else if (body.includes("Your appointment at") && body.includes("has been confirmed for")) {
+    const match = body.match(/Your appointment at (.+?) has been confirmed for (.+?)\.?$/)
+    if (match) {
+      translatedBody = `Lịch hẹn của bạn tại ${match[1]} đã được xác nhận vào lúc ${match[2]}`
+    } else {
+      translatedBody = body
+        .replace("Your appointment at ", "Lịch hẹn của bạn tại ")
+        .replace(" has been confirmed for ", " đã được xác nhận vào lúc ")
+    }
+  } else if (body.includes("Your appointment at") && body.includes("has been cancelled")) {
+    const clinicName = body.replace("Your appointment at ", "").replace(" has been cancelled.", "")
+    translatedBody = `Lịch hẹn của bạn tại ${clinicName} đã bị hủy.`
+  } else if (body.includes("Your package booking at") && body.includes("has been confirmed")) {
+    const clinicName = body.replace("Your package booking at ", "").replace(" has been confirmed.", "")
+    translatedBody = `Lịch hẹn gói khám của bạn tại ${clinicName} đã được xác nhận.`
+  } else if (body.includes("Your package booking at") && body.includes("has been cancelled")) {
+    const clinicName = body.replace("Your package booking at ", "").replace(" has been cancelled.", "")
+    translatedBody = `Lịch hẹn gói khám của bạn tại ${clinicName} đã bị hủy.`
+  } else if (body.includes("Ban co lich kham tai") && body.includes("luc")) {
+    const match = body.match(/Ban co lich kham tai (.+?) luc (.+?)\.?$/)
+    if (match) {
+      translatedBody = `Bạn có lịch khám tại ${match[1]} lúc ${match[2]}`
+    } else {
+      translatedBody = body
+        .replace("Ban co lich kham tai ", "Bạn có lịch khám tại ")
+        .replace(" luc ", " lúc ")
+    }
+  }
+
+  return { title: translatedTitle, body: translatedBody }
 }

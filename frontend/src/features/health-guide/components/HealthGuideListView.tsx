@@ -51,7 +51,7 @@ export function HealthGuideListView() {
       <Header />
 
       <main className="flex-1 py-12">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h1 className="mb-2 text-3xl font-bold">{t(ARTICLE_I18N_KEYS.title)}</h1>
             <p className="text-muted-foreground">{t(ARTICLE_I18N_KEYS.desc)}</p>

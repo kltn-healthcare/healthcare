@@ -1,7 +1,6 @@
 import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
-import { Award, Heart, Shield, Users } from "lucide-react"
+import { Award, Heart, Shield, Users, Phone, Mail, MapPin } from "lucide-react"
 import Image from "next/image"
 
 export default function AboutPage() {
@@ -10,19 +9,6 @@ export default function AboutPage() {
       <Header />
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="bg-gradient-to-br from-blue-50 via-white to-teal-50 py-8 md:py-12">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="mb-4 text-2xl font-bold leading-tight text-balance sm:text-3xl lg:text-4xl">Về HealthCare</h1>
-              <p className="text-base text-muted-foreground text-pretty sm:text-lg">
-                Chúng tôi cam kết mang đến dịch vụ đặt lịch khám phòng khám tiện lợi và chất lượng cao nhất cho cộng
-                đồng.
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* Mission Section */}
         <section className="py-8 md:py-12">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -119,7 +105,7 @@ export default function AboutPage() {
 
         {/* Stats Section */}
         <section className="py-16">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
                 <div className="mb-2 text-4xl font-bold text-primary">500+</div>
@@ -139,23 +125,30 @@ export default function AboutPage() {
 
         {/* Contact Section */}
         <section className="bg-muted/30 py-16">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mx-auto text-center">
               <h2 className="mb-4 text-3xl font-bold">Liên Hệ Với Chúng Tôi</h2>
               <p className="mb-6 text-muted-foreground">
                 Bạn có câu hỏi hoặc cần hỗ trợ? Đội ngũ của chúng tôi luôn sẵn sàng giúp đỡ.
               </p>
-              <div className="space-y-2 text-muted-foreground">
-                <p>Email: support@healthcare.vn</p>
-                <p>Hotline: 1900 xxxx</p>
-                <p>Giờ làm việc: T2-T7, 8:00 - 20:00</p>
+              <div className="space-y-4 text-muted-foreground flex flex-col items-center">
+                <p className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <span>Hotline: 0914446628</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <span>Email: leevanphu2905@gmail.com</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span>Địa chỉ: Hồ Chí Minh, Việt Nam</span>
+                </p>
               </div>
             </div>
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   )
 }

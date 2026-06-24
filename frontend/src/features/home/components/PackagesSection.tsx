@@ -19,7 +19,7 @@ import {
     CarouselItem,
 } from "@/shared/ui/carousel"
 
-export function PackagesSection() {
+export function PackagesSection({ hideViewAll = false }: { hideViewAll?: boolean } = {}) {
     const { t } = useTranslation("home")
     const { t: tp } = useTranslation("packages")
     const { language } = useLanguage()
@@ -42,13 +42,13 @@ export function PackagesSection() {
     }
 
     return (
-        <section id="packages" className="py-12 md:py-16 bg-[#f8fbff]">
+        <section id="packages" className="py-4 md:py-6 bg-[#f8fbff]">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <SectionHeader
                     title={t(HOME_I18N_KEYS.packages.title)}
                     subtitle={t(HOME_I18N_KEYS.packages.desc)}
-                    viewAllHref={ROUTES.PACKAGES}
-                    viewAllLabel={t(HOME_I18N_KEYS.packages.viewAll)}
+                    viewAllHref={hideViewAll ? undefined : ROUTES.PACKAGES}
+                    viewAllLabel={hideViewAll ? undefined : t(HOME_I18N_KEYS.packages.viewAll)}
                 />
 
                 {/* ── Cards Carousel ── */}
@@ -75,70 +75,70 @@ export function PackagesSection() {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                            <CardTitle className="text-base font-semibold text-slate-800 line-clamp-2 min-h-[2.75rem] leading-snug group-hover:text-primary transition-colors">
-                                                {pkg.name}
-                                            </CardTitle>
-                                            <p className="mt-1.5 text-xs text-slate-400 line-clamp-2 min-h-[2rem] leading-relaxed">
-                                                {pkg.shortDescription || pkg.description}
-                                            </p>
-                                        </CardHeader>
+                                                <CardTitle className="text-base font-semibold text-slate-800 line-clamp-2 min-h-[2.75rem] leading-snug group-hover:text-primary transition-colors">
+                                                    {pkg.name}
+                                                </CardTitle>
+                                                <p className="mt-1.5 text-xs text-slate-400 line-clamp-2 min-h-[2rem] leading-relaxed">
+                                                    {pkg.shortDescription || pkg.description}
+                                                </p>
+                                            </CardHeader>
 
-                                        {/* Content: clinic + price + features */}
-                                        <CardContent className="flex-1 px-5 pt-4 pb-0 space-y-4">
-                                            {/* Clinic name */}
-                                            {pkg.clinic?.name && (
-                                                <div className="text-xs font-medium text-primary/80 flex items-center gap-1.5">
-                                                    <span className="inline-block h-1 w-1 rounded-full bg-primary/60" />
-                                                    {pkg.clinic.name}
-                                                </div>
-                                            )}
-
-                                            {/* Divider */}
-                                            <div className="border-t border-dashed border-slate-100" />
-
-                                            {/* Price block — compact */}
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-2xl font-bold text-primary leading-none">
-                                                    {formatHomePrice(pkg.promotionalPrice || pkg.price, language)}
-                                                </span>
-                                                <span className="text-xs text-slate-400 font-normal">
-                                                    {tp(PACKAGE_I18N_KEYS.perPerson)}
-                                                </span>
-                                            </div>
-                                            {pkg.promotionalPrice ? (
-                                                <div className="text-xs text-slate-400 line-through -mt-2">
-                                                    {formatHomePrice(pkg.price, language)}
-                                                </div>
-                                            ) : null}
-
-                                            {/* Divider */}
-                                            <div className="border-t border-dashed border-slate-100" />
-
-                                            {/* Features list — compact */}
-                                            <ul className="space-y-2">
-                                                {pkg.features.slice(0, 4).map((feature, i) => (
-                                                    <li key={i} className="flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                                                            <Check className="h-2.5 w-2.5 stroke-[3]" />
-                                                        </span>
-                                                        <span className="text-xs text-slate-600 leading-snug line-clamp-1">{feature}</span>
-                                                    </li>
-                                                ))}
-                                                {pkg.features.length > 4 && (
-                                                    <li className="text-xs text-primary/70 font-medium pl-6">
-                                                        + {pkg.features.length - 4} {tp(PACKAGE_I18N_KEYS.othersCount)}
-                                                    </li>
+                                            {/* Content: clinic + price + features */}
+                                            <CardContent className="flex-1 px-5 pt-4 pb-0 space-y-4">
+                                                {/* Clinic name */}
+                                                {pkg.clinic?.name && (
+                                                    <div className="text-xs font-medium text-primary/80 flex items-center gap-1.5">
+                                                        <span className="inline-block h-1 w-1 rounded-full bg-primary/60" />
+                                                        {pkg.clinic.name}
+                                                    </div>
                                                 )}
-                                            </ul>
-                                        </CardContent>
 
-                                        {/* CTA — close to content */}
-                                        <CardFooter className="mt-auto px-5 pt-4 pb-5">
-                                            <Button className="h-10 w-full rounded-xl bg-primary hover:bg-primary/90 shadow-sm text-sm font-semibold transition-all active:scale-[0.98]">
-                                                {tp(PACKAGE_I18N_KEYS.bookNow)}
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
+                                                {/* Divider */}
+                                                <div className="border-t border-dashed border-slate-100" />
+
+                                                {/* Price block — compact */}
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-2xl font-bold text-primary leading-none">
+                                                        {formatHomePrice(pkg.promotionalPrice || pkg.price, language)}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 font-normal">
+                                                        {tp(PACKAGE_I18N_KEYS.perPerson)}
+                                                    </span>
+                                                </div>
+                                                {pkg.promotionalPrice ? (
+                                                    <div className="text-xs text-slate-400 line-through -mt-2">
+                                                        {formatHomePrice(pkg.price, language)}
+                                                    </div>
+                                                ) : null}
+
+                                                {/* Divider */}
+                                                <div className="border-t border-dashed border-slate-100" />
+
+                                                {/* Features list — compact */}
+                                                <ul className="space-y-2">
+                                                    {pkg.features.slice(0, 4).map((feature, i) => (
+                                                        <li key={i} className="flex items-start gap-2">
+                                                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                                                                <Check className="h-2.5 w-2.5 stroke-[3]" />
+                                                            </span>
+                                                            <span className="text-xs text-slate-600 leading-snug line-clamp-1">{feature}</span>
+                                                        </li>
+                                                    ))}
+                                                    {pkg.features.length > 4 && (
+                                                        <li className="text-xs text-primary/70 font-medium pl-6">
+                                                            + {pkg.features.length - 4} {tp(PACKAGE_I18N_KEYS.othersCount)}
+                                                        </li>
+                                                    )}
+                                                </ul>
+                                            </CardContent>
+
+                                            {/* CTA — close to content */}
+                                            <CardFooter className="mt-auto px-5 pt-4 pb-5">
+                                                <Button className="h-10 w-full rounded-xl bg-primary hover:bg-primary/90 shadow-sm text-sm font-semibold transition-all active:scale-[0.98]">
+                                                    {tp(PACKAGE_I18N_KEYS.bookNow)}
+                                                </Button>
+                                            </CardFooter>
+                                        </Card>
                                     </Link>
                                 </CarouselItem>
                             ))}

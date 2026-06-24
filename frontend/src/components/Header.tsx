@@ -32,7 +32,7 @@ export function Header() {
 
   const handleLogout = () => {
     auth.logout()
-    window.location.href = "/"
+    globalThis.location.href = "/"
   }
 
   useEffect(() => {
@@ -122,12 +122,6 @@ export function Header() {
                     </>
                   ) : (
                     <>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-bold leading-none">{commonText(COMMON_I18N_KEYS.userMenuCustomer, "Khách hàng")}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{commonText(COMMON_I18N_KEYS.userMenuGuestHint, "Vui lòng đăng nhập để sử dụng")}</p>
-                        </div>
-                      </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <Link href="/login?next=/account?tab=profile">
                         <DropdownMenuItem className="cursor-pointer">
@@ -161,11 +155,11 @@ export function Header() {
             </div>
           )}
 
-          <Link href="/booking">
-            <Button size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20 transition-all active:scale-95">
+          <Button size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20 transition-all active:scale-95 cursor-pointer" asChild>
+            <Link href="/booking">
               {commonText(COMMON_I18N_KEYS.bookAppointment, "Đặt lịch khám")}
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
     </header>

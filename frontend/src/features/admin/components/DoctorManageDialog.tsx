@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from "@/shared/ui/select"
 import { ImageUpload } from "@/components"
+import { Eye, EyeOff } from "lucide-react"
 import type { AdminClinic, AdminDoctor } from "../api/admin.api"
 import { ADMIN_TEXT } from "@/app/admin/admin.constants"
 
@@ -61,6 +62,7 @@ export function DoctorManageDialog({
     const [doctorEmail, setDoctorEmail] = useState("")
     const [doctorPhone, setDoctorPhone] = useState("")
     const [doctorPassword, setDoctorPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
     const [doctorEditClinicId, setDoctorEditClinicId] = useState("")
     const [doctorEditSpecialtyId, setDoctorEditSpecialtyId] = useState("")
     const [doctorEditExperience, setDoctorEditExperience] = useState("0")
@@ -86,6 +88,7 @@ export function DoctorManageDialog({
             setDoctorEmail("")
             setDoctorPhone("")
             setDoctorPassword("")
+            setShowPassword(false)
             setDoctorEditClinicId("")
             setDoctorEditSpecialtyId("")
             setDoctorEditExperience("0")
@@ -171,7 +174,21 @@ export function DoctorManageDialog({
                             {!doctor ? (
                                 <div className="space-y-2">
                                     <Label>{systemText.doctorDialog.labels.password}</Label>
-                                    <Input value={doctorPassword} onChange={(event) => setDoctorPassword(event.target.value)} type="password" />
+                                    <div className="relative">
+                                        <Input
+                                            value={doctorPassword}
+                                            onChange={(event) => setDoctorPassword(event.target.value)}
+                                            type={showPassword ? "text" : "password"}
+                                            className="pr-10"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                        >
+                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : null}
                         </div>

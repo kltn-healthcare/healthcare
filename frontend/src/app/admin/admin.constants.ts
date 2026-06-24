@@ -92,7 +92,7 @@ export const ADMIN_TEXT = {
         },
         scheduleCard: {
             title: "Thiết lập lịch khám theo ngày trong tuần",
-            description: "Bạn có thể bật/tắt từng ngày, điều chỉnh giờ bắt đầu - kết thúc và thời lượng mỗi slot.",
+            description: "",
             slotDurationLabel: "Thời lượng mỗi slot (phút)",
             headers: {
                 day: "Ngày",
