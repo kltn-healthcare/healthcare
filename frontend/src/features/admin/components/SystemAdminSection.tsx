@@ -7,6 +7,8 @@ import {
     Newspaper,
     Stethoscope,
     Users,
+    Eye,
+    EyeOff,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -96,6 +98,7 @@ export function SystemAdminSection() {
     const [clinicAdminEmail, setClinicAdminEmail] = useState("")
     const [clinicAdminPhone, setClinicAdminPhone] = useState("")
     const [clinicAdminPassword, setClinicAdminPassword] = useState("")
+    const [showClinicAdminPassword, setShowClinicAdminPassword] = useState(false)
     const [clinicAdminClinicId, setClinicAdminClinicId] = useState("")
 
     // Active dialog and entities
@@ -147,6 +150,7 @@ export function SystemAdminSection() {
             setClinicAdminEmail("")
             setClinicAdminPhone("")
             setClinicAdminPassword("")
+            setShowClinicAdminPassword(false)
             setClinicAdminClinicId("")
         },
     })
@@ -389,7 +393,22 @@ export function SystemAdminSection() {
                             <Input value={clinicAdminName} onChange={(event) => setClinicAdminName(event.target.value)} placeholder={systemText.users.placeholders.name} />
                             <Input value={clinicAdminEmail} onChange={(event) => setClinicAdminEmail(event.target.value)} placeholder={systemText.users.placeholders.email} />
                             <Input value={clinicAdminPhone} onChange={(event) => setClinicAdminPhone(event.target.value)} placeholder={systemText.users.placeholders.phone} />
-                            <Input value={clinicAdminPassword} onChange={(event) => setClinicAdminPassword(event.target.value)} placeholder={systemText.users.placeholders.password} type="password" />
+                            <div className="relative">
+                                <Input
+                                    value={clinicAdminPassword}
+                                    onChange={(event) => setClinicAdminPassword(event.target.value)}
+                                    placeholder={systemText.users.placeholders.password}
+                                    type={showClinicAdminPassword ? "text" : "password"}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowClinicAdminPassword(!showClinicAdminPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                                >
+                                    {showClinicAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
                             <Select value={clinicAdminClinicId} onValueChange={setClinicAdminClinicId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder={systemText.users.selectClinicPlaceholder} />

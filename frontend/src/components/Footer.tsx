@@ -14,7 +14,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-muted/30">
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -52,34 +52,13 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 font-semibold">{tc(COMMON_I18N_KEYS.aboutUs)}</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="mb-4 font-semibold">{tc(COMMON_I18N_KEYS.contact)}</h3>
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link href={ROUTES.ABOUT} className="text-muted-foreground hover:text-primary">
+                <Link href={ROUTES.ABOUT} className="text-muted-foreground hover:text-primary font-medium block mb-2">
                   {tn(NAV_I18N_KEYS.about)}
                 </Link>
               </li>
-              <li>
-                <Link href={ROUTES.ACCOUNT} className="text-muted-foreground hover:text-primary">
-                  {tc(COMMON_I18N_KEYS.account)}
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-muted-foreground hover:text-primary">
-                  {tc(COMMON_I18N_KEYS.privacyPolicy)}
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-muted-foreground hover:text-primary">
-                  {tc(COMMON_I18N_KEYS.terms)}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="mb-4 font-semibold">{tc(COMMON_I18N_KEYS.contact)}</h3>
-            <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="h-4 w-4" />
                 <span>0914446628</span>
@@ -94,10 +73,6 @@ export function Footer() {
               </li>
             </ul>
           </div>
-        </div>
-
-        <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {tc(COMMON_I18N_KEYS.copyright)}</p>
         </div>
       </div>
     </footer>

@@ -180,8 +180,8 @@ export default function DoctorDetailPage() {
             </div>
 
             <div className="space-y-6">
-              <Card className="sticky top-24 border-primary/20 shadow-md overflow-hidden">
-                <CardHeader className="bg-primary/5 pb-4">
+              <Card className="sticky top-24 border-primary/20 shadow-md overflow-hidden py-0">
+                <CardHeader className="bg-primary/5 pt-5 pb-4">
                   <CardTitle className="flex items-center text-lg">
                     <Calendar className="mr-2 h-5 w-5 text-primary" />
                     Đặt lịch khám
