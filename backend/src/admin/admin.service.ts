@@ -545,7 +545,7 @@ export class AdminService {
       },
     });
 
-    let userData = null;
+    let userData: any = null;
     if (doctor.userId) {
       try {
         const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
@@ -634,7 +634,7 @@ export class AdminService {
       },
     });
 
-    let userData = null;
+    let userData: any = null;
     if (doctor.userId) {
       try {
         const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';

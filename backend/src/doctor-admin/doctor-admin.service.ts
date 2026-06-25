@@ -281,7 +281,7 @@ export class DoctorAdminService {
       });
     }
 
-    let userData = null;
+    let userData: any = null;
     try {
       const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
