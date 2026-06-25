@@ -171,7 +171,7 @@ export class AdminService {
 
     if (dto.role === UserRole.CLINIC_ADMIN && dto.clinicId && !(this.prisma as any).clinicAdmin) {
       try {
-        const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+        const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
         const res = await fetch(`${adminUrl}/v1/admin/internal/clinic-admins`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -441,7 +441,7 @@ export class AdminService {
 
     if (userIds.length > 0) {
       try {
-        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/resolve-batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -490,7 +490,7 @@ export class AdminService {
 
     if (!userId && email && dto.password) {
       try {
-        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/admin/users`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -548,7 +548,7 @@ export class AdminService {
     let userData: any = null;
     if (doctor.userId) {
       try {
-        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
         if (res.ok) {
           userData = await res.json();
@@ -637,7 +637,7 @@ export class AdminService {
     let userData: any = null;
     if (doctor.userId) {
       try {
-        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
         if (res.ok) {
           userData = await res.json();

@@ -260,7 +260,7 @@ export class RemindersService {
     doctorIds?: string[];
   }) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/resolve-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -284,7 +284,7 @@ export class RemindersService {
     actionUrl?: string;
   }) {
     try {
-      const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/notifications/internal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

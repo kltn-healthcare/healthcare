@@ -107,24 +107,35 @@ export class DoctorsService {
 
   private async getReviewStats(doctorId: string) {
     try {
-      return await this.prisma.review.aggregate({
-        where: { doctorId },
-        _avg: { rating: true },
-        _count: { rating: true },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2021'
-      ) {
-        return {
-          _avg: { rating: null },
-          _count: { rating: 0 },
-        };
+      if (this.prisma && (this.prisma as any).review) {
+        return await (this.prisma as any).review.aggregate({
+          where: { doctorId },
+          _avg: { rating: true },
+          _count: { rating: true },
+        });
       }
 
-      throw error;
+      // If we are in the decoupled Admin microservice, fetch aggregate stats from the Backend/Appointment microservice
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const res = await fetch(`${backendUrl}/v1/reviews/doctor/${doctorId}/stats`);
+      if (res.ok) {
+        const stats = await res.json();
+        return {
+          _avg: { rating: stats.averageRating },
+          _count: { rating: stats.reviewCount },
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching doctor review stats from backend service:', error);
     }
+
+    return {
+      _avg: { rating: null },
+      _count: { rating: 0 },
+    };
   }
 
   async getAvailability(doctorId: string, dto: QueryDoctorAvailabilityDto) {
@@ -219,19 +230,38 @@ export class DoctorsService {
       }),
     );
 
-    const booked = await this.prisma.booking.findMany({
-      where: {
-        doctorId,
-        bookingDate: date,
-        status: {
-          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-        },
-      },
-      select: {
-        bookingTime: true,
-        status: true,
-      },
-    });
+    let booked: Array<{ bookingTime: string; status: any }> = [];
+    try {
+      if (this.prisma && (this.prisma as any).booking) {
+        booked = await (this.prisma as any).booking.findMany({
+          where: {
+            doctorId,
+            bookingDate: date,
+            status: {
+              in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+            },
+          },
+          select: {
+            bookingTime: true,
+            status: true,
+          },
+        });
+      } else {
+        // If we are in the decoupled Admin microservice, fetch booked slots from the Backend/Appointment microservice
+        let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+        if (backendUrl.includes('healthcare-backend')) {
+          backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+        }
+        const res = await fetch(
+          `${backendUrl}/v1/bookings/internal/doctor/${doctorId}/booked-slots?date=${dto.date}`,
+        );
+        if (res.ok) {
+          booked = await res.json();
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching booked slots from backend service:', error);
+    }
 
     const bookedSlots = Array.from(
       new Set(booked.map((row) => row.bookingTime)),

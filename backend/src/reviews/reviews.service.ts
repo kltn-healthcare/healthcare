@@ -178,7 +178,7 @@ export class ReviewsService {
     reviewCount: number,
   ) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/clinics/${clinicId}/rating`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -194,7 +194,7 @@ export class ReviewsService {
 
   private async fetchUsersBatch(userIds: string[]) {
     try {
-      const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/resolve-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,7 +213,7 @@ export class ReviewsService {
     doctorIds?: string[];
   }) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/resolve-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -255,4 +255,17 @@ export class ReviewsService {
       };
     });
   }
+
+  async getDoctorStats(doctorId: string) {
+    const aggregate = await this.prisma.review.aggregate({
+      where: { doctorId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+    return {
+      averageRating: aggregate._avg.rating ?? 0,
+      reviewCount: aggregate._count.rating,
+    };
+  }
 }
+

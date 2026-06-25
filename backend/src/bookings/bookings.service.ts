@@ -507,7 +507,7 @@ export class BookingsService {
 
   private async fetchUserInternal(userId: string) {
     try {
-      const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
       if (!res.ok) return null;
       return await res.json();
@@ -519,7 +519,7 @@ export class BookingsService {
 
   private async fetchClinicInternal(clinicId: string) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/clinics/${clinicId}`);
       if (!res.ok) return null;
       return await res.json();
@@ -539,7 +539,7 @@ export class BookingsService {
     bookingTime: string;
   }) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/validate-slot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -570,7 +570,7 @@ export class BookingsService {
     packageIds?: string[];
   }) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/resolve-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -594,7 +594,7 @@ export class BookingsService {
     actionUrl?: string;
   }) {
     try {
-      const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/notifications/internal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -943,7 +943,7 @@ export class BookingsService {
 
   private async fetchDoctorByUserId(userId: string) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/doctors/by-user/${userId}`);
       if (!res.ok) {
         throw new NotFoundException('Doctor profile not found');
@@ -958,7 +958,7 @@ export class BookingsService {
 
   private async fetchClinicAdminByUserId(userId: string) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/clinic-admins/by-user/${userId}`);
       if (!res.ok) {
         throw new NotFoundException('Clinic admin profile not found');
@@ -973,7 +973,7 @@ export class BookingsService {
 
   private async fetchHealthPackageInternal(packageId: string) {
     try {
-      const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/health-packages/${packageId}`);
       if (!res.ok) return null;
       return await res.json();
@@ -1030,4 +1030,47 @@ export class BookingsService {
       timeZone: 'Asia/Ho_Chi_Minh',
     }).format(date);
   }
+
+  async getBookedSlotsInternal(doctorId: string, dateStr: string) {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date');
+    }
+    const booked = await this.prisma.booking.findMany({
+      where: {
+        doctorId,
+        bookingDate: date,
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+        },
+      },
+      select: {
+        bookingTime: true,
+        status: true,
+      },
+    });
+    return booked;
+  }
+
+  async getPackageBookedSlotsInternal(packageId: string, dateStr: string) {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date');
+    }
+    const bookings = await this.prisma.booking.groupBy({
+      by: ['bookingTime'],
+      where: {
+        packageId,
+        bookingDate: date,
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      },
+      _count: { bookingTime: true },
+    });
+    return bookings.map((row) => ({
+      bookingTime: row.bookingTime,
+      count: row._count.bookingTime,
+    }));
+  }
 }
+
+

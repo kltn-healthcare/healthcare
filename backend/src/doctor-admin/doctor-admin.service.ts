@@ -38,6 +38,22 @@ export class DoctorAdminService {
   ) {}
 
   async myBookings(userId: string, query: QueryDoctorBookingsDto) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const q = new URLSearchParams();
+      q.set('userId', userId);
+      if (query.status) q.set('status', query.status);
+      if (query.date) q.set('date', query.date);
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/doctor-bookings?${q.toString()}`);
+      if (!res.ok) {
+        throw new BadRequestException('Could not fetch doctor bookings');
+      }
+      return await res.json();
+    }
+
     const doctor = await this.getDoctorByUserId(userId);
 
     const where: Prisma.BookingWhereInput = {
@@ -85,6 +101,23 @@ export class DoctorAdminService {
     bookingId: string,
     dto: UpdateDoctorBookingStatusDto,
   ) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/doctor-bookings/${bookingId}/status?userId=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dto),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new BadRequestException(err.message || 'Could not update booking status');
+      }
+      return await res.json();
+    }
+
     const doctor = await this.getDoctorByUserId(userId);
 
     const booking = await this.prisma.booking.findUnique({
@@ -283,7 +316,7 @@ export class DoctorAdminService {
 
     let userData: any = null;
     try {
-      const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
       if (res.ok) {
         userData = await res.json();
@@ -329,7 +362,7 @@ export class DoctorAdminService {
     // Update User if any field provided
     if (dto.name || dto.avatar || dto.phone) {
       try {
-        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
