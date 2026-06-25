@@ -63,7 +63,10 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listUsers(query: QueryAdminUsersDto) {
-    const items = await this.prisma.user.findMany({
+    if (!(this.prisma as any).user) {
+      throw new BadRequestException('User database service is not available in this context');
+    }
+    const items = await (this.prisma as any).user.findMany({
       where: query.role ? { role: query.role } : undefined,
       orderBy: { createdAt: 'desc' },
       take: 500,
@@ -97,6 +100,9 @@ export class AdminService {
   }
 
   async createUser(dto: CreateAdminUserDto) {
+    if (!(this.prisma as any).user) {
+      throw new BadRequestException('User database service is not available in this context');
+    }
     if (dto.role !== UserRole.DOCTOR && dto.role !== UserRole.CLINIC_ADMIN) {
       throw new BadRequestException({
         code: 'ADMIN_USER_CREATE_ROLE_NOT_ALLOWED',
@@ -113,7 +119,7 @@ export class AdminService {
 
     const email = dto.email.trim().toLowerCase();
 
-    const existing = await this.prisma.user.findUnique({
+    const existing = await (this.prisma as any).user.findUnique({
       where: { email },
       select: { id: true },
     });
@@ -131,8 +137,8 @@ export class AdminService {
       await this.assertClinicExists(dto.clinicId);
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await (tx as any).user.create({
         data: {
           name: dto.name.trim(),
           email,
@@ -151,21 +157,51 @@ export class AdminService {
         },
       });
 
-      if (dto.role === UserRole.CLINIC_ADMIN && dto.clinicId) {
-        await tx.clinicAdmin.create({
+      if (dto.role === UserRole.CLINIC_ADMIN && dto.clinicId && (tx as any).clinicAdmin) {
+        await (tx as any).clinicAdmin.create({
           data: {
-            userId: user.id,
+            userId: createdUser.id,
             clinicId: dto.clinicId,
           },
         });
       }
 
-      return user;
+      return createdUser;
     });
+
+    if (dto.role === UserRole.CLINIC_ADMIN && dto.clinicId && !(this.prisma as any).clinicAdmin) {
+      try {
+        const adminUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:3002';
+        const res = await fetch(`${adminUrl}/v1/admin/internal/clinic-admins`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            clinicId: dto.clinicId,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.message || 'Failed to create clinic admin mapping in admin service');
+        }
+      } catch (err) {
+        console.error('Failed to create clinic admin mapping:', err);
+        await (this.prisma as any).user.delete({ where: { id: user.id } });
+        throw new BadRequestException({
+          code: 'CLINIC_ADMIN_CREATION_FAILED',
+          message: 'Failed to create clinic admin mapping: ' + err.message,
+        });
+      }
+    }
+
+    return user;
   }
 
   async updateUser(id: string, dto: UpdateAdminUserDto) {
-    const user = await this.prisma.user.findUnique({
+    if (!(this.prisma as any).user) {
+      throw new BadRequestException('User database service is not available in this context');
+    }
+    const user = await (this.prisma as any).user.findUnique({
       where: { id },
       select: { id: true },
     });
@@ -199,7 +235,7 @@ export class AdminService {
       updateData.passwordHash = await bcrypt.hash(dto.password, 10);
     }
 
-    return this.prisma.user.update({
+    return (this.prisma as any).user.update({
       where: { id },
       data: updateData,
       select: {
@@ -214,7 +250,10 @@ export class AdminService {
   }
 
   async deleteUser(id: string) {
-    await this.prisma.user.delete({ where: { id } });
+    if (!(this.prisma as any).user) {
+      throw new BadRequestException('User database service is not available in this context');
+    }
+    await (this.prisma as any).user.delete({ where: { id } });
     return { id };
   }
 
@@ -378,11 +417,15 @@ export class AdminService {
   }
 
   async listDoctors() {
-    const items = await this.prisma.doctor.findMany({
+    if (!(this.prisma as any).doctor) {
+      throw new BadRequestException('Doctor database service is not available in this context');
+    }
+    const items = await (this.prisma as any).doctor.findMany({
       orderBy: { createdAt: 'desc' },
       take: 500,
       select: {
         id: true,
+        userId: true,
         name: true,
         experience: true,
         avatar: true,
@@ -390,14 +433,49 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
 
-    return { items };
+    const userIds = items.map((item: any) => item.userId).filter(Boolean);
+    let userMap: Record<string, any> = {};
+
+    if (userIds.length > 0) {
+      try {
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const res = await fetch(`${identityUrl}/v1/users/internal/resolve-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds }),
+        });
+        if (res.ok) {
+          userMap = await res.json();
+        }
+      } catch (err) {
+        console.error('Failed to resolve doctor users:', err);
+      }
+    }
+
+    const itemsWithUser = items.map((item: any) => {
+      const { userId, ...rest } = item;
+      return {
+        ...rest,
+        userId,
+        user: item.userId && userMap[item.userId] ? {
+          id: userMap[item.userId].id,
+          name: userMap[item.userId].name,
+          email: userMap[item.userId].email,
+          phone: userMap[item.userId].phone,
+        } : null,
+      };
+    });
+
+    return { items: itemsWithUser };
   }
 
   async createDoctor(dto: CreateDoctorAdminDto) {
+    if (!(this.prisma as any).doctor) {
+      throw new BadRequestException('Doctor database service is not available in this context');
+    }
     await this.assertClinicHasSpecialty(dto.clinicId, dto.specialtyId);
 
     const email = dto.email?.trim().toLowerCase();
@@ -408,50 +486,55 @@ export class AdminService {
       });
     }
 
-    const doctor = await this.prisma.$transaction(async (tx) => {
-      let userId = dto.userId;
+    let userId = dto.userId;
 
-      if (!userId && email && dto.password) {
-        const existing = await tx.user.findUnique({
-          where: { email },
-          select: { id: true },
+    if (!userId && email && dto.password) {
+      try {
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const res = await fetch(`${identityUrl}/v1/admin/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: dto.name,
+            email,
+            phone: dto.phone,
+            password: dto.password,
+            role: UserRole.DOCTOR,
+          }),
         });
-
-        if (existing) {
-          throw new ConflictException({
-            code: 'EMAIL_ALREADY_EXISTS',
-            message: 'Email already exists',
+        if (res.ok) {
+          const user = await res.json();
+          userId = user.id;
+        } else {
+          const errBody = await res.json().catch(() => ({}));
+          throw new BadRequestException({
+            code: errBody.code || 'DOCTOR_USER_CREATION_FAILED',
+            message: errBody.message || 'Failed to create user account for doctor',
           });
         }
-
-        const passwordHash = await bcrypt.hash(dto.password, 10);
-        const user = await tx.user.create({
-          data: {
-            name: dto.name.trim(),
-            email,
-            phone: dto.phone?.trim(),
-            role: UserRole.DOCTOR,
-            passwordHash,
-            emailVerified: true,
-          },
-          select: { id: true },
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        throw new BadRequestException({
+          code: 'DOCTOR_USER_CREATION_FAILED',
+          message: 'Failed to create user account for doctor: ' + (err as any).message,
         });
-        userId = user.id;
       }
+    }
 
-      return tx.doctor.create({
-        data: {
-          clinicId: dto.clinicId,
-          specialtyId: dto.specialtyId,
-          userId,
-          name: dto.name.trim(),
-          experience: dto.experience ?? 0,
-          avatar: dto.avatar,
-          bio: dto.bio,
-          isAvailable: dto.isAvailable ?? true,
-        },
+    const doctor = await (this.prisma as any).doctor.create({
+      data: {
+        clinicId: dto.clinicId,
+        specialtyId: dto.specialtyId,
+        userId,
+        name: dto.name.trim(),
+        experience: dto.experience ?? 0,
+        avatar: dto.avatar,
+        bio: dto.bio,
+        isAvailable: dto.isAvailable ?? true,
+      },
       select: {
         id: true,
+        userId: true,
         name: true,
         experience: true,
         avatar: true,
@@ -459,15 +542,37 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-          user: { select: { id: true, name: true, email: true, phone: true } },
       },
-      });
     });
 
-    return doctor;
+    let userData: any = null;
+    if (doctor.userId) {
+      try {
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
+        if (res.ok) {
+          userData = await res.json();
+        }
+      } catch (err) {
+        console.error('Failed to fetch doctor user detail:', err);
+      }
+    }
+
+    return {
+      ...doctor,
+      user: userData ? {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+      } : null,
+    };
   }
 
   async updateDoctor(id: string, dto: UpdateDoctorAdminDto) {
+    if (!(this.prisma as any).doctor) {
+      throw new BadRequestException('Doctor database service is not available in this context');
+    }
     const data: Record<string, unknown> = {};
 
     if (dto.clinicId !== undefined) {
@@ -496,7 +601,7 @@ export class AdminService {
     }
 
     if (dto.clinicId !== undefined || dto.specialtyId !== undefined) {
-      const current = await this.prisma.doctor.findUnique({
+      const current = await (this.prisma as any).doctor.findUnique({
         where: { id },
         select: { clinicId: true, specialtyId: true },
       });
@@ -513,11 +618,12 @@ export class AdminService {
       await this.assertClinicHasSpecialty(nextClinicId, nextSpecialtyId);
     }
 
-    const doctor = await this.prisma.doctor.update({
+    const doctor = await (this.prisma as any).doctor.update({
       where: { id },
       data,
       select: {
         id: true,
+        userId: true,
         name: true,
         experience: true,
         avatar: true,
@@ -525,15 +631,38 @@ export class AdminService {
         isAvailable: true,
         clinic: { select: { id: true, name: true } },
         specialty: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
 
-    return doctor;
+    let userData: any = null;
+    if (doctor.userId) {
+      try {
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
+        const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
+        if (res.ok) {
+          userData = await res.json();
+        }
+      } catch (err) {
+        console.error('Failed to fetch doctor user detail:', err);
+      }
+    }
+
+    return {
+      ...doctor,
+      user: userData ? {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+      } : null,
+    };
   }
 
   async deleteDoctor(id: string) {
-    await this.prisma.doctor.delete({ where: { id } });
+    if (!(this.prisma as any).doctor) {
+      throw new BadRequestException('Doctor database service is not available in this context');
+    }
+    await (this.prisma as any).doctor.delete({ where: { id } });
     return { id };
   }
 

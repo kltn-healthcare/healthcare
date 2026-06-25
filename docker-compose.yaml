@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
 
   redis:
     image: redis:7-alpine
@@ -17,17 +18,17 @@ services:
     ports:
       - "6379:6379"
 
-  auth-service:
+  identity-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        APP_NAME: auth
-    container_name: healthcare-auth
+        APP_NAME: identity
+    container_name: healthcare-identity
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_identity?schema=public
       - REDIS_URL=redis://redis:6379
       - AUTH_PORT=3001
       - JWT_SECRET=dev-secret-change-me
@@ -49,7 +50,7 @@ services:
     ports:
       - "3002:3002"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_admin?schema=public
       - REDIS_URL=redis://redis:6379
       - ADMIN_PORT=3002
       - JWT_SECRET=dev-secret-change-me
@@ -57,17 +58,17 @@ services:
       - db
       - redis
 
-  backend-service:
+  appointment-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        APP_NAME: backend
-    container_name: healthcare-backend
+        APP_NAME: appointment
+    container_name: healthcare-appointment
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_appointment?schema=public
       - REDIS_URL=redis://redis:6379
       - PORT=8080
       - CORS_ORIGIN=http://localhost:3000
@@ -85,15 +86,15 @@ services:
       - "3000:3000"
     environment:
       # Server-side runtime vars — used by next.config.mjs rewrites (NOT build-time)
-      - BACKEND_URL=http://backend-service:8080
-      - AUTH_URL=http://auth-service:3001
+      - BACKEND_URL=http://appointment-service:8080
+      - AUTH_URL=http://identity-service:3001
       # Client-side vars — used by browser JS (baked in at build time, point to host)
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
       - NEXT_PUBLIC_AUTH_BASE_URL=http://localhost:3001
       - NEXT_PUBLIC_APP_NAME=HealthCare
     depends_on:
-      - backend-service
-      - auth-service
+      - appointment-service
+      - identity-service
 
 volumes:
   pgdata:

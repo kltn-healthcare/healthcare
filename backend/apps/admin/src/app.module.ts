@@ -2,19 +2,26 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
-// Local src/ modules (tokens must match what admin/doctor-admin services inject)
-import { PrismaModule } from '../../../src/prisma/prisma.module';
-import { RedisModule } from '../../../src/common/redis/redis.module';
-import { MailModule } from '../../../src/common/mail/mail.module';
-import { JwtAuthGuard } from '../../../src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../../src/auth/guards/roles.guard';
+import { PrismaModule } from './prisma/prisma.module';
+import {
+  RedisModule,
+  MailModule,
+  JwtAuthGuard,
+  RolesGuard,
+  AuthCommonModule,
+} from '@app/common';
 
-// Admin-specific modules from original src
+// Business modules owned by Admin database
+import { ClinicsModule } from '../../../src/clinics/clinics.module';
+import { DoctorsModule } from '../../../src/doctors/doctors.module';
+import { SpecialtiesModule } from '../../../src/specialties/specialties.module';
+import { ArticlesModule } from '../../../src/articles/articles.module';
+import { PackagesModule } from '../../../src/packages/packages.module';
 import { AdminModule as CoreAdminModule } from '../../../src/admin/admin.module';
 import { DoctorAdminModule } from '../../../src/doctor-admin/doctor-admin.module';
-import { AuthModule } from '../../../src/auth/auth.module';
-import { DynamoAppointmentsModule } from '../../../src/aws/dynamo-appointments.module';
-import { NotificationsModule } from '../../../src/notifications/notifications.module';
+import { ClinicAdminModule } from '../../../src/clinic-admin/clinic-admin.module';
+import { UploadModule } from '../../../src/upload/upload.module';
+import { HealthModule } from '../../../src/health/health.module';
 
 @Module({
   imports: [
@@ -22,11 +29,17 @@ import { NotificationsModule } from '../../../src/notifications/notifications.mo
     PrismaModule,
     RedisModule,
     MailModule,
+    AuthCommonModule,
+    HealthModule,
+    ClinicsModule,
+    DoctorsModule,
+    SpecialtiesModule,
+    ArticlesModule,
+    PackagesModule,
     CoreAdminModule,
     DoctorAdminModule,
-    AuthModule,
-    DynamoAppointmentsModule,
-    NotificationsModule,
+    ClinicAdminModule,
+    UploadModule,
   ],
   providers: [
     {
