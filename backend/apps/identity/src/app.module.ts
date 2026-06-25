@@ -5,7 +5,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule, MailModule, JwtAuthGuard, RolesGuard } from '@app/common';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { AdminModule } from '../../../src/admin/admin.module';
 
 @Module({
   imports: [
@@ -15,7 +14,6 @@ import { AdminModule } from '../../../src/admin/admin.module';
     MailModule,
     AuthModule,
     UsersModule,
-    AdminModule,
   ],
   providers: [
     {
