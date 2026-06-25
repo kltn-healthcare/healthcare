@@ -182,9 +182,9 @@ pipeline {
               // Keep the same folder mapping as production.
               serviceFolderMap: [
                  'frontend': 'frontend',
-                 'auth': 'auth-service',
-                 'backend': 'backend-service',
-                 'admin': 'admin-service'
+                 'auth':     'identity-service',
+                 'backend':  'appointment-service',
+                 'admin':    'admin-service'
               ],
               
               manifestRepoUrl: env.MANIFEST_REPO_URL,

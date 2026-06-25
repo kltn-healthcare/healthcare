@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Clinic {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?  @db.Text
+  address       String   @db.Text
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(255)
+  website       String?  @db.Text
+  rating        Decimal  @default(0.0) @db.Decimal(2, 1)
+  reviewCount   Int      @default(0) @map("review_count")
+  image         String?  @db.Text
+  isOpen        Boolean  @default(true) @map("is_open")
+  openingHours  String?  @map("opening_hours") @db.Text
+  latitude      Decimal? @db.Decimal(10, 8)
+  longitude     Decimal? @db.Decimal(11, 8)
+  bankInfo      String?  @map("bank_info") @db.Text
+  depositAmount Int      @default(100000) @map("deposit_amount")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  doctors            Doctor[]
+  clinicAdmins       ClinicAdmin[]
+  healthPackages     HealthPackage[]
+  specialties        ClinicSpecialty[]
+  workingHours       ClinicWorkingHour[]
+  specialtySchedules ClinicSpecialtySchedule[]
+
+  @@index([isOpen, rating])
+  @@index([createdAt])
+  @@map("clinics")
+}
+
+model ClinicAdmin {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id") // ID trỏ sang Identity DB
+  clinicId  String   @map("clinic_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("clinic_admins")
+}
+
+model ClinicWorkingHour {
+  id        String   @id @default(uuid())
+  clinicId  String   @map("clinic_id")
+  dayOfWeek Int      @map("day_of_week") @db.SmallInt
+  isOpen    Boolean  @default(true) @map("is_open")
+  startTime String   @map("start_time") @db.VarChar(5)
+  endTime   String   @map("end_time") @db.VarChar(5)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, dayOfWeek])
+  @@index([clinicId, isOpen])
+  @@map("clinic_working_hours")
+}
+
+model Specialty {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  doctors            Doctor[]
+  clinics            ClinicSpecialty[]
+  specialtySchedules ClinicSpecialtySchedule[]
+  healthPackages     HealthPackage[]
+
+  @@map("specialties")
+}
+
+model ClinicSpecialty {
+  clinicId    String   @map("clinic_id")
+  specialtyId String   @map("specialty_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  clinic    Clinic                    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  specialty Specialty                 @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+  schedules ClinicSpecialtySchedule[]
+
+  @@id([clinicId, specialtyId])
+  @@index([specialtyId])
+  @@map("clinic_specialties")
+}
+
+model ClinicSpecialtySchedule {
+  id                  String   @id @default(uuid())
+  clinicId            String   @map("clinic_id")
+  specialtyId         String   @map("specialty_id")
+  dayOfWeek           Int      @map("day_of_week") @db.SmallInt
+  isActive            Boolean  @default(true) @map("is_active")
+  startTime           String   @map("start_time") @db.VarChar(5)
+  endTime             String   @map("end_time") @db.VarChar(5)
+  slotDurationMinutes Int      @default(30) @map("slot_duration_minutes")
+  capacity            Int      @default(1)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  clinic          Clinic          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  specialty       Specialty       @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+  clinicSpecialty ClinicSpecialty @relation(fields: [clinicId, specialtyId], references: [clinicId, specialtyId], onDelete: Cascade)
+
+  @@index([clinicId, specialtyId, dayOfWeek, isActive])
+  @@map("clinic_specialty_schedules")
+}
+
+model Doctor {
+  id          String  @id @default(uuid())
+  userId      String? @unique @map("user_id") // ID trỏ sang Identity DB
+  clinicId    String  @map("clinic_id")
+  specialtyId String  @map("specialty_id")
+
+  name           String
+  qualifications Json?
+  experience     Int     @default(0)
+  avatar         String? @db.Text
+  bio            String? @db.Text
+  isAvailable    Boolean @default(true) @map("is_available")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  clinic    Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, specialtyId])
+  @@map("doctors")
+}
+
+model HealthPackage {
+  id               String   @id @default(uuid())
+  name             String
+  shortDescription String?  @map("short_description") @db.Text
+  description      String   @db.Text
+  price            Decimal  @db.Decimal(12, 2)
+  promotionalPrice Decimal? @map("promotional_price") @db.Decimal(12, 2)
+  currency         String   @default("VND")
+  category         String   @default("basic")
+
+  targetGender     String? @map("target_gender")
+  targetAgeRange   String? @map("target_age_range")
+  preparationNotes String? @map("preparation_notes") @db.Text
+
+  isPopular Boolean  @default(false) @map("is_popular")
+  isActive  Boolean  @default(true) @map("is_active")
+  features  String[]
+  imageUrl  String?  @map("image_url") @db.Text
+
+  clinicId    String?    @map("clinic_id")
+  clinic      Clinic?    @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  specialtyId String?    @map("specialty_id")
+  specialty   Specialty? @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+
+  availabilities PackageAvailability[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([category, isActive])
+  @@index([clinicId, isActive])
+  @@index([specialtyId, isActive])
+  @@map("health_packages")
+}
+
+model PackageAvailability {
+  id                  String   @id @default(uuid())
+  packageId           String   @map("package_id")
+  dayOfWeek           Int      @map("day_of_week") @db.SmallInt
+  isActive            Boolean  @default(true) @map("is_active")
+  startTime           String   @map("start_time") @db.VarChar(5)
+  endTime             String   @map("end_time") @db.VarChar(5)
+  slotDurationMinutes Int      @default(30) @map("slot_duration_minutes")
+  capacity            Int      @default(1)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  healthPackage HealthPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, dayOfWeek])
+  @@index([packageId, isActive])
+  @@map("package_availabilities")
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  description String   @db.Text
+  image       String?  @db.Text
+  category    String   @default("Cẩm nang")
+  readTime    String   @default("5 phút") @map("read_time")
+  publishedAt DateTime @default(now()) @map("published_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([publishedAt])
+  @@index([category])
+  @@map("articles")
+}

@@ -138,8 +138,8 @@ pipeline {
               imageTag:         env.DEPLOY_TAG,
               serviceFolderMap: [
                 'frontend': 'frontend',
-                'auth':     'auth-service',
-                'backend':  'backend-service',
+                'auth':     'identity-service',
+                'backend':  'appointment-service',
                 'admin':    'admin-service'
               ],
               manifestRepoUrl:    env.MANIFEST_REPO_URL,
@@ -170,8 +170,8 @@ pipeline {
               manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
               serviceFolderMap:   [
                 'frontend': 'frontend',
-                'auth':     'auth-service',
-                'backend':  'backend-service',
+                'auth':     'identity-service',
+                'backend':  'appointment-service',
                 'admin':    'admin-service'
               ],
               token: TOKEN
