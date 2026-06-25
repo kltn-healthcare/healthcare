@@ -26,5 +26,10 @@ COPY --from=builder /app/apps/identity/prisma ./apps/identity/prisma
 COPY --from=builder /app/apps/admin/prisma ./apps/admin/prisma
 COPY --from=builder /app/apps/appointment/prisma ./apps/appointment/prisma
 
+# Copy các client đã generate để phục vụ chạy seed ở runtime
+COPY --from=builder /app/apps/identity/src/generated/client ./apps/identity/src/generated/client
+COPY --from=builder /app/apps/admin/src/generated/client ./apps/admin/src/generated/client
+COPY --from=builder /app/apps/appointment/src/generated/client ./apps/appointment/src/generated/client
+
 EXPOSE 8080 3001 3002
 CMD ["node", "dist/main"]
