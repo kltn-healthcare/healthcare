@@ -9,7 +9,7 @@ COPY . .
 FROM base AS builder
 ARG APP_NAME
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm prisma:generate
+RUN pnpm prisma:generate:all
 RUN pnpm nest build ${APP_NAME}
 
 FROM node:20-alpine AS runner
