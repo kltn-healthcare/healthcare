@@ -10,7 +10,7 @@
   "monorepo": true,
   "root": "apps/appointment",
   "projects": {
-    "appointment": {
+    "backend": {
       "type": "application",
       "root": "apps/appointment",
       "entryFile": "main",
@@ -19,7 +19,7 @@
         "tsConfigPath": "apps/appointment/tsconfig.app.json"
       }
     },
-    "identity": {
+    "auth": {
       "type": "application",
       "root": "apps/identity",
       "entryFile": "main",
