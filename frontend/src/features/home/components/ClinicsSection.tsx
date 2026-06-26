@@ -65,8 +65,7 @@ export function ClinicsSection() {
                     <CarouselContent className="-ml-4">
                         {clinics.length > 0 ? clinics.map((clinic) => (
                             <CarouselItem key={clinic.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                                <Link href={ROUTES.CLINIC_DETAIL(clinic.id)}>
-                                    <Card className="flex h-full flex-col p-0 gap-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-slate-100 group">
+                                    <Card className="flex h-full flex-col p-0 gap-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-slate-100 group relative cursor-pointer">
                                         <div className="relative aspect-[2/1] w-full overflow-hidden bg-muted flex-none">
                                             <Image
                                                 src={clinic.image || "/placeholder-clinic.jpg"}
@@ -78,23 +77,25 @@ export function ClinicsSection() {
                                         </div>
                                         <CardHeader className="flex-none pt-4 pb-2 px-6">
                                             <div className="mb-2 flex items-start justify-between gap-2">
-                                                <CardTitle className="line-clamp-1 text-base sm:text-lg group-hover:text-primary transition-colors">{clinic.name}</CardTitle>
+                                                <Link href={ROUTES.CLINIC_DETAIL(clinic.id)} className="after:absolute after:inset-0 after:z-0">
+                                                    <CardTitle className="line-clamp-1 text-base sm:text-lg group-hover:text-primary transition-colors relative z-10">{clinic.name}</CardTitle>
+                                                </Link>
                                                 <Badge
                                                     variant="secondary"
-                                                    className={clinic.isOpen ? "shrink-0 bg-success/10 text-success" : "shrink-0 bg-muted text-muted-foreground"}
+                                                    className={clinic.isOpen ? "shrink-0 bg-success/10 text-success relative z-10" : "shrink-0 bg-muted text-muted-foreground relative z-10"}
                                                 >
                                                     <span className="mr-1">●</span> {clinic.isOpen ? tc(CLINIC_I18N_KEYS.statusOpen) : tc(CLINIC_I18N_KEYS.statusClosed)}
                                                 </Badge>
                                             </div>
                                             {(Number((clinic as any).numReviews || 0) > 0 && Number((clinic as any).rating || 0) > 0) ? (
-                                                <div className="flex items-center gap-1 text-sm">
+                                                <div className="flex items-center gap-1 text-sm relative z-10">
                                                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                                                     <span className="font-semibold">{(clinic as any).rating}</span>
                                                     <span className="text-muted-foreground">({(clinic as any).numReviews} {tc(CLINIC_I18N_KEYS.reviews)})</span>
                                                 </div>
                                             ) : null}
                                         </CardHeader>
-                                        <CardContent className="flex-1 space-y-2.5 pt-0 px-6">
+                                        <CardContent className="flex-1 space-y-2.5 pt-0 px-6 relative z-10">
                                             <div className="flex items-start gap-2 text-sm">
                                                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" />
                                                 <span className="line-clamp-2 text-muted-foreground">{clinic.address}</span>
@@ -104,11 +105,14 @@ export function ClinicsSection() {
                                                 <span className="text-muted-foreground">{clinic.openingHours}</span>
                                             </div>
                                         </CardContent>
-                                        <CardFooter className="flex-none pt-2 pb-6 px-6">
-                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95">{tc(CLINIC_I18N_KEYS.bookNow)}</Button>
+                                        <CardFooter className="flex-none pt-2 pb-6 px-6 relative z-10">
+                                            <Button className="h-11 w-full bg-primary hover:bg-primary/90 shadow-md transition-all active:scale-95 cursor-pointer" asChild>
+                                                <Link href={`/booking?clinicId=${clinic.id}`}>
+                                                    {tc(CLINIC_I18N_KEYS.bookNow)}
+                                                </Link>
+                                            </Button>
                                         </CardFooter>
                                     </Card>
-                                </Link>
                             </CarouselItem>
                         )) : (
                             <p className="mt-4 text-sm text-center text-muted-foreground w-full col-span-full py-8">

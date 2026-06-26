@@ -5,11 +5,11 @@
   "scripts": {
     "db:up": "docker-compose -f docker-compose.yml up -d",
     "db:down": "docker-compose -f docker-compose.yml down",
-    "dev:auth": "cd backend && pnpm nest start auth --watch",
-    "dev:backend": "cd backend && pnpm nest start backend --watch",
+    "dev:identity": "cd backend && pnpm nest start identity --watch",
+    "dev:appointment": "cd backend && pnpm nest start appointment --watch",
     "dev:admin": "cd backend && pnpm nest start admin --watch",
     "dev:frontend": "cd frontend && pnpm dev",
-    "dev": "pnpm db:up && concurrently -n \"Auth,API,Admin,Web\" -c \"magenta,blue,cyan,green\" \"pnpm dev:auth\" \"pnpm dev:backend\" \"pnpm dev:admin\" \"pnpm dev:frontend\""
+    "dev": "pnpm db:up && concurrently -n \"Identity,Appointment,Admin,Web\" -c \"magenta,blue,cyan,green\" \"pnpm dev:identity\" \"pnpm dev:appointment\" \"pnpm dev:admin\" \"pnpm dev:frontend\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

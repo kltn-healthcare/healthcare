@@ -87,7 +87,7 @@ export function ImageUpload({
         size={size}
         onClick={handleButtonClick}
         disabled={isUploading}
-        className="gap-2 transition-all duration-200 active:scale-95 text-xs font-medium"
+        className="gap-2 transition-all duration-200 active:scale-95 text-xs font-medium cursor-pointer"
       >
         {isUploading ? (
           <>

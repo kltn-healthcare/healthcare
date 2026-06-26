@@ -4,12 +4,19 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
 import { NotificationsService } from './notifications.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Notifications')
 @ApiBearerAuth('JWT')
 @Controller({ path: 'notifications', version: '1' })
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
+
+  @Public()
+  @Post('internal')
+  createInternal(@Body() dto: any) {
+    return this.notificationsService.createNotification(dto);
+  }
 
   @Post('device-tokens')
   registerDeviceToken(

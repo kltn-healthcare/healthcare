@@ -38,6 +38,22 @@ export class DoctorAdminService {
   ) {}
 
   async myBookings(userId: string, query: QueryDoctorBookingsDto) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const q = new URLSearchParams();
+      q.set('userId', userId);
+      if (query.status) q.set('status', query.status);
+      if (query.date) q.set('date', query.date);
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/doctor-bookings?${q.toString()}`);
+      if (!res.ok) {
+        throw new BadRequestException('Could not fetch doctor bookings');
+      }
+      return await res.json();
+    }
+
     const doctor = await this.getDoctorByUserId(userId);
 
     const where: Prisma.BookingWhereInput = {
@@ -85,6 +101,23 @@ export class DoctorAdminService {
     bookingId: string,
     dto: UpdateDoctorBookingStatusDto,
   ) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/doctor-bookings/${bookingId}/status?userId=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dto),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new BadRequestException(err.message || 'Could not update booking status');
+      }
+      return await res.json();
+    }
+
     const doctor = await this.getDoctorByUserId(userId);
 
     const booking = await this.prisma.booking.findUnique({
@@ -271,14 +304,6 @@ export class DoctorAdminService {
             name: true,
           },
         },
-        user: {
-          select: {
-            email: true,
-            phone: true,
-            avatar: true,
-            name: true,
-          },
-        },
       },
     });
 
@@ -289,7 +314,26 @@ export class DoctorAdminService {
       });
     }
 
-    return doctor;
+    let userData: any = null;
+    try {
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
+      const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
+      if (res.ok) {
+        userData = await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to fetch doctor user profile details:', err);
+    }
+
+    return {
+      ...doctor,
+      user: userData ? {
+        email: userData.email,
+        phone: userData.phone,
+        avatar: userData.avatar,
+        name: userData.name,
+      } : null,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateDoctorProfileDto) {
@@ -304,31 +348,42 @@ export class DoctorAdminService {
       });
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      // Update Doctor
-      await tx.doctor.update({
-        where: { id: doctor.id },
-        data: {
-          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-          ...(dto.avatar !== undefined ? { avatar: dto.avatar.trim() } : {}),
-          ...(dto.bio !== undefined ? { bio: dto.bio.trim() } : {}),
-          ...(dto.experience !== undefined ? { experience: dto.experience } : {}),
-        },
-      });
+    // Update Doctor
+    await this.prisma.doctor.update({
+      where: { id: doctor.id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.avatar !== undefined ? { avatar: dto.avatar.trim() } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio.trim() } : {}),
+        ...(dto.experience !== undefined ? { experience: dto.experience } : {}),
+      },
+    });
 
-      // Update User if any field provided
-      if (dto.name || dto.avatar || dto.phone) {
-        const userUpdateData: Prisma.UserUpdateInput = {};
-        if (dto.name !== undefined) userUpdateData.name = dto.name.trim();
-        if (dto.avatar !== undefined) userUpdateData.avatar = dto.avatar.trim();
-        if (dto.phone !== undefined) userUpdateData.phone = dto.phone.trim();
-
-        await tx.user.update({
-          where: { id: userId },
-          data: userUpdateData,
+    // Update User if any field provided
+    if (dto.name || dto.avatar || dto.phone) {
+      try {
+        const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
+        const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: dto.name,
+            avatar: dto.avatar,
+            phone: dto.phone,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.message || 'Failed to update user details in identity service');
+        }
+      } catch (err) {
+        console.error('Failed to update doctor user details internally:', err);
+        throw new BadRequestException({
+          code: 'DOCTOR_USER_UPDATE_FAILED',
+          message: 'Failed to update account details: ' + (err as any).message,
         });
       }
-    });
+    }
 
     return this.getProfile(userId);
   }

@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   BookingStatus,
@@ -10,8 +12,8 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DynamoAppointmentsService } from '../aws/dynamo-appointments.service';
 import { ERROR_CODES } from '../common/constants/error-codes';
-import { NotificationsService } from '../notifications/notifications.service';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
@@ -20,14 +22,11 @@ import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 export class BookingsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService,
+    private readonly dynamoAppointmentsService: DynamoAppointmentsService,
   ) {}
 
   async create(userId: string, dto: CreateBookingDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, isActive: true },
-    });
+    const user = await this.fetchUserInternal(userId);
     if (!user || !user.isActive) {
       throw new UnauthorizedException({
         code: ERROR_CODES.USER_NOT_FOUND,
@@ -40,91 +39,6 @@ export class BookingsService {
       (dto.packageId
         ? BookingType.HEALTH_PACKAGE
         : BookingType.DOCTOR_CONSULTATION);
-    const clinic = await this.prisma.clinic.findUnique({
-      where: { id: dto.clinicId },
-      select: { id: true, isOpen: true },
-    });
-    if (!clinic) {
-      throw new BadRequestException({
-        code: ERROR_CODES.INVALID_CLINIC,
-        message: 'Invalid clinicId',
-      });
-    }
-
-    if (!clinic.isOpen) {
-      throw new BadRequestException({
-        code: ERROR_CODES.CLINIC_CLOSED,
-        message: 'Selected clinic is currently closed',
-      });
-    }
-
-    let specialtyId = dto.specialtyId;
-
-    if (bookingType === BookingType.HEALTH_PACKAGE) {
-      if (!dto.packageId) {
-        throw new BadRequestException({
-          code: ERROR_CODES.PACKAGE_NOT_FOUND,
-          message: 'packageId is required for health package bookings',
-        });
-      }
-
-      const healthPackage = await this.prisma.healthPackage.findUnique({
-        where: { id: dto.packageId },
-        select: { id: true, clinicId: true, isActive: true, specialtyId: true },
-      });
-
-      if (
-        !healthPackage ||
-        !healthPackage.isActive ||
-        healthPackage.clinicId !== dto.clinicId
-      ) {
-        throw new BadRequestException({
-          code: ERROR_CODES.PACKAGE_NOT_FOUND,
-          message: 'Invalid packageId for this clinic',
-        });
-      }
-
-      specialtyId = healthPackage.specialtyId ?? specialtyId;
-
-      if (!specialtyId) {
-        throw new BadRequestException({
-          code: 'PACKAGE_SPECIALTY_REQUIRED',
-          message: 'Selected package is not linked to a specialty',
-        });
-      }
-
-      if (dto.doctorId) {
-        throw new BadRequestException({
-          code: 'PACKAGE_BOOKING_DOCTOR_NOT_ALLOWED',
-          message: 'Health package booking must not include doctorId',
-        });
-      }
-    }
-
-    if (bookingType === BookingType.DOCTOR_CONSULTATION) {
-      if (!dto.doctorId) {
-        throw new BadRequestException({
-          code: ERROR_CODES.INVALID_DOCTOR,
-          message: 'doctorId is required for doctor consultation bookings',
-        });
-      }
-
-      const doctor = await this.prisma.doctor.findUnique({
-        where: { id: dto.doctorId },
-        select: { id: true, clinicId: true, specialtyId: true },
-      });
-      if (
-        !doctor ||
-        doctor?.clinicId !== dto.clinicId ||
-        (specialtyId && doctor.specialtyId !== specialtyId)
-      ) {
-        throw new BadRequestException({
-          code: ERROR_CODES.INVALID_DOCTOR,
-          message: 'Invalid doctorId for this clinic',
-        });
-      }
-      specialtyId = doctor.specialtyId;
-    }
 
     const bookingDate = new Date(dto.bookingDate);
     if (Number.isNaN(bookingDate.getTime())) {
@@ -136,21 +50,57 @@ export class BookingsService {
 
     this.assertNotPastBookingDateTime(bookingDate, dto.bookingTime);
 
-    // Slot is considered locked when another patient already has a pending/confirmed booking.
+    // Call Admin Service to validate slot schedule & resolve names
+    const slotValidation = await this.validateSlotInternal({
+      bookingType,
+      clinicId: dto.clinicId,
+      doctorId: dto.doctorId,
+      packageId: dto.packageId,
+      specialtyId: dto.specialtyId,
+      bookingDate,
+      bookingTime: dto.bookingTime,
+    });
+
+    const specialtyId = slotValidation.specialtyId;
+
+    // Check duplicate/overlap locally in Booking database
     if (bookingType === BookingType.DOCTOR_CONSULTATION && dto.doctorId) {
-      await this.ensureDoctorSlotAvailable(
-        dto.doctorId,
-        bookingDate,
-        dto.bookingTime,
-      );
+      const existingBooking = await this.prisma.booking.findFirst({
+        where: {
+          doctorId: dto.doctorId,
+          bookingDate,
+          bookingTime: dto.bookingTime,
+          status: {
+            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingBooking) {
+        throw new BadRequestException({
+          code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
+          message: 'This booking slot is not available',
+        });
+      }
     }
 
     if (bookingType === BookingType.HEALTH_PACKAGE && dto.packageId) {
-      await this.ensurePackageSlotAvailable(
-        dto.packageId,
-        bookingDate,
-        dto.bookingTime,
-      );
+      const bookedCount = await this.prisma.booking.count({
+        where: {
+          packageId: dto.packageId,
+          bookingDate,
+          bookingTime: dto.bookingTime,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+        },
+      });
+
+      if (bookedCount >= slotValidation.capacity) {
+        throw new BadRequestException({
+          code: 'PACKAGE_SLOT_UNAVAILABLE',
+          message: 'Selected package slot is full',
+        });
+      }
     }
 
     const patientDob = dto.patientDob ? new Date(dto.patientDob) : undefined;
@@ -190,23 +140,32 @@ export class BookingsService {
         status: true,
         bookingDate: true,
         bookingTime: true,
-        clinic: { select: { id: true, name: true } },
-        doctor: { select: { id: true, name: true } },
-        specialty: { select: { id: true, name: true } },
-        healthPackage: { select: { id: true, name: true, price: true } },
+        clinicId: true,
+        doctorId: true,
+        specialtyId: true,
+        packageId: true,
         createdAt: true,
       },
     });
 
-    await this.notificationsService.createNotification({
+    // Compose response format matching original (API Composition)
+    const composedBooking = {
+      ...booking,
+      clinic: { id: booking.clinicId, name: slotValidation.clinicName },
+      doctor: booking.doctorId ? { id: booking.doctorId, name: slotValidation.doctorName } : null,
+      specialty: booking.specialtyId ? { id: booking.specialtyId, name: slotValidation.specialtyName } : null,
+      healthPackage: booking.packageId ? { id: booking.packageId, name: slotValidation.packageName, price: slotValidation.packagePrice } : null,
+    };
+
+    await this.createNotificationInternal({
       userId,
       type: NotificationType.BOOKING_CREATED,
       title: 'Booking request received',
-      body: `Your appointment request at ${booking.clinic.name} is waiting for confirmation.`,
+      body: `Your appointment request at ${slotValidation.clinicName} is waiting for confirmation.`,
       data: this.bookingNotificationData(booking.id),
     });
 
-    return booking;
+    return composedBooking;
   }
 
   async myBookings(userId: string) {
@@ -221,14 +180,53 @@ export class BookingsService {
         bookingTime: true,
         paymentReceiptUrl: true,
         patientName: true,
-        clinic: { select: { id: true, name: true, address: true } },
-        doctor: { select: { id: true, name: true } },
-        specialty: { select: { id: true, name: true } },
-        healthPackage: { select: { id: true, name: true, price: true } },
+        clinicId: true,
+        doctorId: true,
+        specialtyId: true,
+        packageId: true,
         createdAt: true,
       },
     });
-    return { items };
+
+    if (items.length === 0) {
+      return { items: [] };
+    }
+
+    // API Composition: Batch resolve names
+    const clinicIds = Array.from(new Set(items.map(i => i.clinicId)));
+    const doctorIds = Array.from(new Set(items.map(i => i.doctorId).filter(Boolean))) as string[];
+    const specialtyIds = Array.from(new Set(items.map(i => i.specialtyId).filter(Boolean))) as string[];
+    const packageIds = Array.from(new Set(items.map(i => i.packageId).filter(Boolean))) as string[];
+
+    const resolved = await this.resolveBatchInternal({
+      clinicIds,
+      doctorIds,
+      specialtyIds,
+      packageIds,
+    });
+
+    const composedItems = items.map(item => {
+      const clinic = resolved?.clinics?.[item.clinicId] || { id: item.clinicId, name: 'Clinic', address: '' };
+      const doctor = item.doctorId && resolved?.doctors?.[item.doctorId] ? resolved.doctors[item.doctorId] : null;
+      const specialty = item.specialtyId && resolved?.specialties?.[item.specialtyId] ? resolved.specialties[item.specialtyId] : null;
+      const healthPackage = item.packageId && resolved?.packages?.[item.packageId] ? resolved.packages[item.packageId] : null;
+
+      return {
+        id: item.id,
+        status: item.status,
+        bookingDate: item.bookingDate,
+        bookingTime: item.bookingTime,
+        paymentReceiptUrl: item.paymentReceiptUrl,
+        patientName: item.patientName,
+        clinic,
+        doctor,
+        specialty,
+        healthPackage,
+        createdAt: item.createdAt,
+      };
+    });
+
+    return { items: composedItems };
   }
 
   async getMyBookingById(userId: string, bookingId: string) {
@@ -251,10 +249,10 @@ export class BookingsService {
         notes: true,
         cancellationReason: true,
         cancelledAt: true,
-        clinic: { select: { id: true, name: true, address: true } },
-        doctor: { select: { id: true, name: true } },
-        specialty: { select: { id: true, name: true } },
-        healthPackage: { select: { id: true, name: true, price: true } },
+        clinicId: true,
+        doctorId: true,
+        specialtyId: true,
+        packageId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -267,7 +265,40 @@ export class BookingsService {
       });
     }
 
-    return booking;
+    // API Composition: Resolve details
+    const resolved = await this.resolveBatchInternal({
+      clinicIds: [booking.clinicId],
+      doctorIds: booking.doctorId ? [booking.doctorId] : [],
+      specialtyIds: booking.specialtyId ? [booking.specialtyId] : [],
+      packageIds: booking.packageId ? [booking.packageId] : [],
+    });
+
+    const clinic = resolved?.clinics?.[booking.clinicId] || { id: booking.clinicId, name: 'Clinic', address: '' };
+    const doctor = booking.doctorId && resolved?.doctors?.[booking.doctorId] ? resolved.doctors[booking.doctorId] : null;
+    const specialty = booking.specialtyId && resolved?.specialties?.[booking.specialtyId] ? resolved.specialties[booking.specialtyId] : null;
+    const healthPackage = booking.packageId && resolved?.packages?.[booking.packageId] ? resolved.packages[booking.packageId] : null;
+
+    return {
+      id: booking.id,
+      status: booking.status,
+      bookingDate: booking.bookingDate,
+      bookingTime: booking.bookingTime,
+      paymentReceiptUrl: booking.paymentReceiptUrl,
+      patientName: booking.patientName,
+      patientEmail: booking.patientEmail,
+      patientPhone: booking.patientPhone,
+      patientDob: booking.patientDob,
+      patientGender: booking.patientGender,
+      notes: booking.notes,
+      cancellationReason: booking.cancellationReason,
+      cancelledAt: booking.cancelledAt,
+      clinic,
+      doctor,
+      specialty,
+      healthPackage,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    };
   }
 
   async cancelByPatient(
@@ -286,7 +317,7 @@ export class BookingsService {
         status: true,
         bookingDate: true,
         bookingTime: true,
-        clinic: { select: { name: true } },
+        clinicId: true,
       },
     });
 
@@ -325,11 +356,14 @@ export class BookingsService {
       },
     });
 
-    await this.notificationsService.createNotification({
+    const clinic = await this.fetchClinicInternal(booking.clinicId);
+    const clinicName = clinic?.name || 'Clinic';
+
+    await this.createNotificationInternal({
       userId: booking.userId,
       type: NotificationType.BOOKING_CANCELLED,
       title: 'Booking cancelled',
-      body: `Your appointment at ${booking.clinic.name} has been cancelled.`,
+      body: `Your appointment at ${clinicName} has been cancelled.`,
       data: this.bookingNotificationData(booking.id),
     });
 
@@ -351,9 +385,12 @@ export class BookingsService {
         userId: true,
         status: true,
         doctorId: true,
+        clinicId: true,
+        specialtyId: true,
+        packageId: true,
+        bookingType: true,
         bookingDate: true,
         bookingTime: true,
-        clinic: { select: { name: true } },
       },
     });
 
@@ -386,13 +423,57 @@ export class BookingsService {
 
     this.assertNotPastBookingDateTime(nextBookingDate, dto.bookingTime);
 
-    if (booking.doctorId) {
-      await this.ensureDoctorSlotAvailable(
-        booking.doctorId,
-        nextBookingDate,
-        dto.bookingTime,
-        booking.id,
-      );
+    // Call Admin Service to validate availability of new slot
+    const slotValidation = await this.validateSlotInternal({
+      bookingType: booking.bookingType,
+      clinicId: booking.clinicId,
+      doctorId: booking.doctorId || undefined,
+      packageId: booking.packageId || undefined,
+      specialtyId: booking.specialtyId || undefined,
+      bookingDate: nextBookingDate,
+      bookingTime: dto.bookingTime,
+    });
+
+    // Check duplicate/overlap locally
+    if (booking.bookingType === BookingType.DOCTOR_CONSULTATION && booking.doctorId) {
+      const existingBooking = await this.prisma.booking.findFirst({
+        where: {
+          doctorId: booking.doctorId,
+          bookingDate: nextBookingDate,
+          bookingTime: dto.bookingTime,
+          status: {
+            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+          },
+          NOT: { id: booking.id },
+        },
+        select: { id: true },
+      });
+
+      if (existingBooking) {
+        throw new BadRequestException({
+          code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
+          message: 'This booking slot is not available',
+        });
+      }
+    }
+
+    if (booking.bookingType === BookingType.HEALTH_PACKAGE && booking.packageId) {
+      const bookedCount = await this.prisma.booking.count({
+        where: {
+          packageId: booking.packageId,
+          bookingDate: nextBookingDate,
+          bookingTime: dto.bookingTime,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          NOT: { id: booking.id },
+        },
+      });
+
+      if (bookedCount >= slotValidation.capacity) {
+        throw new BadRequestException({
+          code: 'PACKAGE_SLOT_UNAVAILABLE',
+          message: 'Selected package slot is full',
+        });
+      }
     }
 
     const updated = await this.prisma.booking.update({
@@ -413,220 +494,117 @@ export class BookingsService {
       },
     });
 
-    await this.notificationsService.createNotification({
+    await this.createNotificationInternal({
       userId: booking.userId,
       type: NotificationType.BOOKING_CREATED,
       title: 'Booking rescheduled',
-      body: `Your appointment at ${booking.clinic.name} was rescheduled and is waiting for confirmation.`,
+      body: `Your appointment at ${slotValidation.clinicName} was rescheduled and is waiting for confirmation.`,
       data: this.bookingNotificationData(booking.id),
     });
 
     return updated;
   }
 
-  private async ensureDoctorSlotAvailable(
-    doctorId: string,
-    bookingDate: Date,
-    bookingTime: string,
-    excludeBookingId?: string,
-  ) {
-    const dayOfWeek = bookingDate.getUTCDay();
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { id: doctorId },
-      select: {
-        id: true,
-        clinicId: true,
-        specialtyId: true,
-        qualifications: true,
-      },
-    });
-    const settings = doctor
-      ? this.extractDoctorAdminSettings(doctor.qualifications)
-      : {};
-    const workingHours = (settings.workingHours ?? []).filter(
-      (row) => row.dayOfWeek === dayOfWeek,
-    );
-    const specialtySchedules = doctor
-      ? await this.prisma.clinicSpecialtySchedule.findMany({
-          where: {
-            clinicId: doctor.clinicId,
-            specialtyId: doctor.specialtyId,
-            dayOfWeek,
-            isActive: true,
-          },
-          orderBy: { startTime: 'asc' },
-        })
-      : [];
-
-    if (!doctor || !workingHours.length || !specialtySchedules.length) {
-      throw new BadRequestException({
-        code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
-        message: 'Doctor is not available on this date',
-      });
+  private async fetchUserInternal(userId: string) {
+    try {
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
+      const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching user from identity service:', error);
+      return null;
     }
+  }
 
-    const slots = workingHours.flatMap((workingHour) =>
-      specialtySchedules.flatMap((schedule) => {
-        const start = Math.max(
-          this.timeToMinutes(workingHour.startTime),
-          this.timeToMinutes(schedule.startTime),
-        );
-        const end = Math.min(
-          this.timeToMinutes(workingHour.endTime),
-          this.timeToMinutes(schedule.endTime),
-        );
-        return this.buildTimeSlots(
-          this.minutesToTime(start),
-          this.minutesToTime(end),
-          schedule.slotDurationMinutes,
-        );
-      }),
-    );
-
-    if (!slots.includes(bookingTime)) {
-      throw new BadRequestException({
-        code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
-        message: 'This booking slot is outside doctor schedule',
-      });
+  private async fetchClinicInternal(clinicId: string) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/clinics/${clinicId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching clinic from admin service:', error);
+      return null;
     }
+  }
 
-    const existingBooking = await this.prisma.booking.findFirst({
-      where: {
-        doctorId,
-        bookingDate,
-        bookingTime,
-        status: {
-          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-        },
-        ...(excludeBookingId ? { NOT: { id: excludeBookingId } } : {}),
-      },
-      select: { id: true },
-    });
-
-    if (existingBooking) {
+  private async validateSlotInternal(body: {
+    bookingType: string;
+    clinicId: string;
+    doctorId?: string;
+    packageId?: string;
+    specialtyId?: string;
+    bookingDate: Date;
+    bookingTime: string;
+  }) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/validate-slot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...body,
+          bookingDate: body.bookingDate.toISOString().split('T')[0],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new BadRequestException(err);
+      }
+      return await res.json();
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      console.error('Error validating slot from admin service:', error);
       throw new BadRequestException({
-        code: ERROR_CODES.BOOKING_SLOT_UNAVAILABLE,
-        message: 'This booking slot is not available',
+        code: 'VALIDATION_FAILED',
+        message: 'Could not validate availability slot due to communication error',
       });
     }
   }
 
-  private extractDoctorAdminSettings(qualifications: Prisma.JsonValue | null): {
-    workingHours?: Array<{
-      dayOfWeek: number;
-      startTime: string;
-      endTime: string;
-    }>;
-  } {
-    if (
-      !qualifications ||
-      typeof qualifications !== 'object' ||
-      Array.isArray(qualifications)
-    ) {
-      return {};
+  private async resolveBatchInternal(body: {
+    clinicIds?: string[];
+    doctorIds?: string[];
+    specialtyIds?: string[];
+    packageIds?: string[];
+  }) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/resolve-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error batch resolving from admin service:', error);
+      return null;
     }
-
-    const root = qualifications as Record<string, unknown>;
-    const settings = root.adminSettings;
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
-      return {};
-    }
-
-    return settings as {
-      workingHours?: Array<{
-        dayOfWeek: number;
-        startTime: string;
-        endTime: string;
-      }>;
-    };
   }
 
-  private async ensurePackageSlotAvailable(
-    packageId: string,
-    bookingDate: Date,
-    bookingTime: string,
-  ) {
-    const dayOfWeek = bookingDate.getUTCDay();
-    const healthPackage = await this.prisma.healthPackage.findUnique({
-      where: { id: packageId },
-      select: {
-        id: true,
-        clinicId: true,
-        specialtyId: true,
-        clinic: {
-          select: {
-            workingHours: {
-              where: { dayOfWeek, isOpen: true },
-              take: 1,
-            },
-          },
-        },
-        availabilities: {
-          where: { dayOfWeek, isActive: true },
-          take: 1,
-        },
-      },
-    });
-
-    const availability = healthPackage?.availabilities[0];
-    const clinicHour = healthPackage?.clinic?.workingHours[0];
-    const specialtySchedules =
-      healthPackage?.clinicId && healthPackage.specialtyId
-        ? await this.prisma.clinicSpecialtySchedule.findMany({
-            where: {
-              clinicId: healthPackage.clinicId,
-              specialtyId: healthPackage.specialtyId,
-              dayOfWeek,
-              isActive: true,
-            },
-            orderBy: { startTime: 'asc' },
-          })
-        : [];
-    const source = availability ?? specialtySchedules[0] ?? clinicHour;
-
-    if (!source) {
-      throw new BadRequestException({
-        code: 'PACKAGE_SLOT_UNAVAILABLE',
-        message: 'Selected package is not available on this date',
+  private async createNotificationInternal(body: {
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    data?: any;
+    push?: boolean;
+    actionUrl?: string;
+  }) {
+    try {
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
+      const res = await fetch(`${identityUrl}/v1/notifications/internal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-    }
-
-    const slotDurationMinutes =
-      'slotDurationMinutes' in source ? source.slotDurationMinutes : 30;
-    const capacity = 'capacity' in source ? source.capacity : 1;
-    const slots = availability
-      ? this.buildTimeSlots(source.startTime, source.endTime, slotDurationMinutes)
-      : specialtySchedules.length
-        ? specialtySchedules.flatMap((schedule) =>
-            this.buildTimeSlots(
-              schedule.startTime,
-              schedule.endTime,
-              schedule.slotDurationMinutes,
-            ),
-          )
-        : this.buildTimeSlots(source.startTime, source.endTime, slotDurationMinutes);
-
-    if (!slots.includes(bookingTime)) {
-      throw new BadRequestException({
-        code: 'PACKAGE_SLOT_UNAVAILABLE',
-        message: 'Selected package slot is outside working hours',
-      });
-    }
-
-    const bookedCount = await this.prisma.booking.count({
-      where: {
-        packageId,
-        bookingDate,
-        bookingTime,
-        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
-      },
-    });
-
-    if (bookedCount >= capacity) {
-      throw new BadRequestException({
-        code: 'PACKAGE_SLOT_UNAVAILABLE',
-        message: 'Selected package slot is full',
-      });
+      if (!res.ok) {
+        console.error('Failed to create notification', await res.text());
+      }
+    } catch (error) {
+      console.error('Error sending notification to identity service:', error);
     }
   }
 
@@ -660,47 +638,439 @@ export class BookingsService {
     }
   }
 
-  private buildTimeSlots(
-    startTime: string,
-    endTime: string,
-    slotMinutes: number,
-  ) {
-    const start = this.timeToMinutes(startTime);
-    const end = this.timeToMinutes(endTime);
-
-    if (end <= start) {
-      return [];
-    }
-
-    const slots: string[] = [];
-    for (
-      let cursor = start;
-      cursor + slotMinutes <= end;
-      cursor += slotMinutes
-    ) {
-      slots.push(this.minutesToTime(cursor));
-    }
-
-    return slots;
-  }
-
-  private timeToMinutes(value: string) {
-    const [hourRaw, minuteRaw] = value.split(':');
-    return Number(hourRaw) * 60 + Number(minuteRaw);
-  }
-
-  private minutesToTime(totalMinutes: number): string {
-    const hour = Math.floor(totalMinutes / 60)
-      .toString()
-      .padStart(2, '0');
-    const minute = (totalMinutes % 60).toString().padStart(2, '0');
-    return `${hour}:${minute}`;
-  }
-
   private bookingNotificationData(bookingId: string): Prisma.InputJsonObject {
     return {
       bookingId,
       actionUrl: `/account?tab=appointments&bookingId=${bookingId}`,
     };
   }
+
+  // ==========================================
+  // Doctor Admin Booking Management (Moved to Appointment Service)
+  // ==========================================
+
+  async doctorGetBookings(userId: string, query: any) {
+    const doctor = await this.fetchDoctorByUserId(userId);
+
+    const where: Prisma.BookingWhereInput = {
+      doctorId: doctor.id,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    if (query.date) {
+      const from = new Date(query.date);
+      if (Number.isNaN(from.getTime())) {
+        throw new BadRequestException({
+          code: 'INVALID_DATE',
+          message: 'Invalid date',
+        });
+      }
+      const to = new Date(from);
+      to.setDate(to.getDate() + 1);
+      where.bookingDate = { gte: from, lt: to };
+    }
+
+    const items = await this.prisma.booking.findMany({
+      where,
+      orderBy: [{ bookingDate: 'asc' }, { bookingTime: 'asc' }],
+      take: 200,
+    });
+
+    if (items.length === 0) return { items: [] };
+
+    // Resolve clinics via batch resolve
+    const clinicIds = Array.from(new Set(items.map(i => i.clinicId)));
+    const resolved = await this.resolveBatchInternal({ clinicIds });
+
+    const composedItems = items.map(item => {
+      const clinic = resolved?.clinics?.[item.clinicId] || { id: item.clinicId, name: 'Clinic', address: '' };
+      return {
+        id: item.id,
+        status: item.status,
+        bookingDate: item.bookingDate,
+        bookingTime: item.bookingTime,
+        patientName: item.patientName,
+        patientEmail: item.patientEmail,
+        patientPhone: item.patientPhone,
+        notes: item.notes,
+        paymentReceiptUrl: item.paymentReceiptUrl,
+        clinic,
+        createdAt: item.createdAt,
+      };
+    });
+
+    return { items: composedItems };
+  }
+
+  async doctorUpdateBookingStatus(
+    userId: string,
+    bookingId: string,
+    dto: any,
+  ) {
+    const doctor = await this.fetchDoctorByUserId(userId);
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking || booking.doctorId !== doctor.id) {
+      throw new NotFoundException({
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    const allowedStatuses: BookingStatus[] = [
+      BookingStatus.CONFIRMED,
+      BookingStatus.COMPLETED,
+      BookingStatus.CANCELLED,
+    ];
+
+    if (!allowedStatuses.includes(dto.status)) {
+      throw new BadRequestException({
+        code: 'INVALID_BOOKING_STATUS',
+        message: 'Invalid booking status',
+      });
+    }
+
+    const transitionMap: Record<BookingStatus, BookingStatus[]> = {
+      [BookingStatus.PENDING]: [
+        BookingStatus.CONFIRMED,
+        BookingStatus.CANCELLED,
+      ],
+      [BookingStatus.CONFIRMED]: [
+        BookingStatus.COMPLETED,
+        BookingStatus.CANCELLED,
+      ],
+      [BookingStatus.COMPLETED]: [],
+      [BookingStatus.CANCELLED]: [],
+    };
+
+    if (!transitionMap[booking.status].includes(dto.status)) {
+      throw new BadRequestException({
+        code: 'BOOKING_STATUS_TRANSITION_NOT_ALLOWED',
+        message: `Cannot change booking status from ${booking.status} to ${dto.status}`,
+      });
+    }
+
+    if (
+      dto.status === BookingStatus.CANCELLED &&
+      this.isBookingDateTimePast(booking.bookingDate, booking.bookingTime)
+    ) {
+      throw new BadRequestException({
+        code: 'BOOKING_IN_THE_PAST',
+        message: 'Past bookings cannot be cancelled',
+      });
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: dto.status,
+        cancellationReason:
+          dto.status === BookingStatus.CANCELLED
+            ? (dto.cancellationReason ?? null)
+            : null,
+        cancelledAt: dto.status === BookingStatus.CANCELLED ? new Date() : null,
+      },
+      select: {
+        id: true,
+        status: true,
+        cancellationReason: true,
+        cancelledAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Send notifications & sync Dynamo
+    const clinic = await this.fetchClinicInternal(booking.clinicId);
+    const resolvedBooking = {
+      ...booking,
+      clinic: clinic || { name: 'Clinic' },
+      doctor: { name: doctor.name },
+    };
+
+    await this.notifyBookingStatusChanged(resolvedBooking, dto.status);
+    await this.dynamoAppointmentsService.syncBookingStatus(booking.id, dto.status);
+
+    return updated;
+  }
+
+  // ==========================================
+  // Clinic Admin Booking Management (Moved to Appointment Service)
+  // ==========================================
+
+  async clinicGetBookings(userId: string, query: any) {
+    const admin = await this.fetchClinicAdminByUserId(userId);
+    const where: Prisma.BookingWhereInput = {
+      clinicId: admin.clinicId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    if (query.date) {
+      const from = new Date(query.date);
+      if (Number.isNaN(from.getTime())) {
+        throw new BadRequestException({
+          code: 'INVALID_DATE',
+          message: 'Invalid date',
+        });
+      }
+      where.bookingDate = from;
+    }
+
+    const items = await this.prisma.booking.findMany({
+      where,
+      orderBy: [{ bookingDate: 'asc' }, { bookingTime: 'asc' }],
+      take: 200,
+    });
+
+    if (items.length === 0) return { items: [] };
+
+    // Resolve entities via batch resolve
+    const doctorIds = Array.from(new Set(items.map(i => i.doctorId).filter(Boolean))) as string[];
+    const specialtyIds = Array.from(new Set(items.map(i => i.specialtyId).filter(Boolean))) as string[];
+    const packageIds = Array.from(new Set(items.map(i => i.packageId).filter(Boolean))) as string[];
+
+    const resolved = await this.resolveBatchInternal({ doctorIds, specialtyIds, packageIds });
+
+    const composedItems = items.map(item => {
+      const doctor = item.doctorId && resolved?.doctors?.[item.doctorId] ? resolved.doctors[item.doctorId] : null;
+      const specialty = item.specialtyId && resolved?.specialties?.[item.specialtyId] ? resolved.specialties[item.specialtyId] : null;
+      const healthPackage = item.packageId && resolved?.packages?.[item.packageId] ? resolved.packages[item.packageId] : null;
+
+      return {
+        id: item.id,
+        status: item.status,
+        bookingDate: item.bookingDate,
+        bookingTime: item.bookingTime,
+        patientName: item.patientName,
+        patientEmail: item.patientEmail,
+        patientPhone: item.patientPhone,
+        notes: item.notes,
+        bookingType: item.bookingType,
+        paymentReceiptUrl: item.paymentReceiptUrl,
+        healthPackage,
+        doctor,
+        specialty,
+        createdAt: item.createdAt,
+      };
+    });
+
+    return { items: composedItems };
+  }
+
+  async clinicUpdateBookingStatus(
+    userId: string,
+    bookingId: string,
+    dto: any,
+  ) {
+    const admin = await this.fetchClinicAdminByUserId(userId);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking || booking.clinicId !== admin.clinicId) {
+      throw new NotFoundException({
+        code: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    if (booking.bookingType === BookingType.DOCTOR_CONSULTATION) {
+      throw new ForbiddenException({
+        code: 'DOCTOR_BOOKING_NOT_ALLOWED',
+        message: 'Clinic admins cannot manage doctor consultation bookings directly.',
+      });
+    }
+
+    const transitionMap: Record<BookingStatus, BookingStatus[]> = {
+      [BookingStatus.PENDING]: [
+        BookingStatus.CONFIRMED,
+        BookingStatus.CANCELLED,
+      ],
+      [BookingStatus.CONFIRMED]: [
+        BookingStatus.COMPLETED,
+        BookingStatus.CANCELLED,
+      ],
+      [BookingStatus.COMPLETED]: [],
+      [BookingStatus.CANCELLED]: [],
+    };
+
+    if (!transitionMap[booking.status].includes(dto.status)) {
+      throw new BadRequestException({
+        code: 'BOOKING_STATUS_TRANSITION_NOT_ALLOWED',
+        message: `Cannot change booking status from ${booking.status} to ${dto.status}`,
+      });
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: dto.status,
+        cancellationReason:
+          dto.status === BookingStatus.CANCELLED
+            ? (dto.cancellationReason ?? null)
+            : null,
+        cancelledAt: dto.status === BookingStatus.CANCELLED ? new Date() : null,
+      },
+      select: {
+        id: true,
+        status: true,
+        cancellationReason: true,
+        cancelledAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const clinic = await this.fetchClinicInternal(booking.clinicId);
+    const healthPackage = booking.packageId ? await this.fetchHealthPackageInternal(booking.packageId) : null;
+
+    const resolvedBooking = {
+      ...booking,
+      clinic: clinic || { name: 'Clinic' },
+      healthPackage: healthPackage || undefined,
+    };
+
+    await this.notifyBookingStatusChanged(resolvedBooking, dto.status);
+    await this.dynamoAppointmentsService.syncBookingStatus(booking.id, dto.status);
+
+    return updated;
+  }
+
+  // ==========================================
+  // Internal Helpers for HTTP API Composition
+  // ==========================================
+
+  private async fetchDoctorByUserId(userId: string) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/doctors/by-user/${userId}`);
+      if (!res.ok) {
+        throw new NotFoundException('Doctor profile not found');
+      }
+      return await res.json();
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      console.error('Error fetching doctor by userId:', error);
+      throw new BadRequestException('Could not fetch doctor profile');
+    }
+  }
+
+  private async fetchClinicAdminByUserId(userId: string) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/clinic-admins/by-user/${userId}`);
+      if (!res.ok) {
+        throw new NotFoundException('Clinic admin profile not found');
+      }
+      return await res.json();
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      console.error('Error fetching clinic admin by userId:', error);
+      throw new BadRequestException('Could not fetch clinic admin profile');
+    }
+  }
+
+  private async fetchHealthPackageInternal(packageId: string) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/health-packages/${packageId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching package details:', error);
+      return null;
+    }
+  }
+
+  private isBookingDateTimePast(bookingDate: Date, bookingTime: string) {
+    const [hoursRaw, minutesRaw] = bookingTime.split(':');
+    const bookingDateTime = new Date(bookingDate);
+    bookingDateTime.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0);
+    return bookingDateTime.getTime() < Date.now();
+  }
+
+  private async notifyBookingStatusChanged(booking: any, status: BookingStatus) {
+    const appointmentAt = this.formatAppointmentLabel(
+      booking.bookingDate,
+      booking.bookingTime,
+    );
+
+    if (status === BookingStatus.CONFIRMED) {
+      await this.createNotificationInternal({
+        userId: booking.userId,
+        type: NotificationType.BOOKING_CONFIRMED,
+        title: 'Lich hen da duoc xac nhan',
+        body: `Lich hen cua ban tai ${booking.clinic.name} da duoc xac nhan vao ${appointmentAt}.`,
+        data: this.bookingNotificationData(booking.id),
+        push: true,
+        actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
+      });
+    } else if (status === BookingStatus.CANCELLED) {
+      await this.createNotificationInternal({
+        userId: booking.userId,
+        type: NotificationType.BOOKING_CANCELLED,
+        title: 'Lich hen da bi huy',
+        body: `Lich hen cua ban tai ${booking.clinic.name} da bi huy.`,
+        data: this.bookingNotificationData(booking.id),
+        push: true,
+        actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
+      });
+    }
+  }
+
+  private formatAppointmentLabel(bookingDate: Date, bookingTime: string) {
+    const [hoursRaw, minutesRaw] = bookingTime.split(':');
+    const date = new Date(bookingDate);
+    date.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0);
+
+    return new Intl.DateTimeFormat('vi-VN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(date);
+  }
+
+  async getBookedSlotsInternal(doctorId: string, dateStr: string) {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date');
+    }
+    const booked = await this.prisma.booking.findMany({
+      where: {
+        doctorId,
+        bookingDate: date,
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+        },
+      },
+      select: {
+        bookingTime: true,
+        status: true,
+      },
+    });
+    return booked;
+  }
+
+  async getPackageBookedSlotsInternal(packageId: string, dateStr: string) {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date');
+    }
+    const bookings = await this.prisma.booking.groupBy({
+      by: ['bookingTime'],
+      where: {
+        packageId,
+        bookingDate: date,
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      },
+      _count: { bookingTime: true },
+    });
+    return bookings.map((row) => ({
+      bookingTime: row.bookingTime,
+      count: row._count.bookingTime,
+    }));
+  }
 }
+
+

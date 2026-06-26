@@ -41,4 +41,11 @@ export class ReviewsController {
   ) {
     return this.reviewsService.listByClinic(clinicId, query);
   }
+
+  @Public()
+  @Get('doctor/:doctorId/stats')
+  getDoctorStats(@Param('doctorId') doctorId: string) {
+    return this.reviewsService.getDoctorStats(doctorId);
+  }
 }
+

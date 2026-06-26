@@ -275,6 +275,22 @@ export class ClinicAdminService {
   }
 
   async bookings(userId: string, query: QueryClinicAdminBookingsDto) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const q = new URLSearchParams();
+      q.set('userId', userId);
+      if (query.status) q.set('status', query.status);
+      if (query.date) q.set('date', query.date);
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/clinic-bookings?${q.toString()}`);
+      if (!res.ok) {
+        throw new BadRequestException('Could not fetch clinic bookings');
+      }
+      return await res.json();
+    }
+
     const admin = await this.getClinicAdmin(userId);
     const where: Prisma.BookingWhereInput = {
       clinicId: admin.clinicId,
@@ -322,6 +338,23 @@ export class ClinicAdminService {
     bookingId: string,
     dto: UpdateClinicBookingStatusDto,
   ) {
+    if (!(this.prisma as any).booking) {
+      let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+      if (backendUrl.includes('healthcare-backend')) {
+        backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+      }
+      const res = await fetch(`${backendUrl}/v1/bookings/internal/clinic-bookings/${bookingId}/status?userId=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dto),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new BadRequestException(err.message || 'Could not update booking status');
+      }
+      return await res.json();
+    }
+
     const admin = await this.getClinicAdmin(userId);
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },

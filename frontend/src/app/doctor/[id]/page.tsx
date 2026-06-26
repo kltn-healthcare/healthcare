@@ -43,9 +43,11 @@ export default function DoctorDetailPage() {
         <Header />
         <main className="flex flex-1 flex-col items-center justify-center">
           <p className="mb-4 text-xl font-bold">Không tìm thấy bác sĩ</p>
-          <Link href="/doctors">
-            <Button>Quay về danh sách</Button>
-          </Link>
+          <Button className="cursor-pointer" asChild>
+            <Link href="/doctors">
+              Quay về danh sách
+            </Link>
+          </Button>
         </main>
       </div>
     )
@@ -57,57 +59,58 @@ export default function DoctorDetailPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <main className="flex-1 bg-muted/20 py-8">
-        <div className="container mx-auto max-w-5xl px-4">
-          <div className="mb-6 flex items-center text-sm text-muted-foreground">
-            <Link href="/" className="transition-colors hover:text-primary">Trang chủ</Link>
-            <ChevronRight className="mx-1 h-4 w-4" />
-            <Link href={`/clinic/${doctor.clinic?.id}`} className="transition-colors hover:text-primary">{doctor.clinic?.name || "Phòng khám"}</Link>
-            <ChevronRight className="mx-1 h-4 w-4" />
-            <span className="font-medium text-foreground">{doctor.name}</span>
-          </div>
+      <main className="flex-1 bg-muted/20">
+        {/* Blue Header Banner spanning the entire width */}
+        <div className="bg-primary/10 py-8 md:py-10 border-b border-primary/10">
+          <div className="container mx-auto max-w-5xl px-4">
+            <div className="mb-6 flex items-center text-sm text-muted-foreground">
+              <Link href="/" className="transition-colors hover:text-primary">Trang chủ</Link>
+              <ChevronRight className="mx-1 h-4 w-4" />
+              <Link href={`/clinic/${doctor.clinic?.id}`} className="transition-colors hover:text-primary">{doctor.clinic?.name || "Phòng khám"}</Link>
+              <ChevronRight className="mx-1 h-4 w-4" />
+              <span className="font-medium text-foreground">{doctor.name}</span>
+            </div>
 
+            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:text-left">
+              <div className="h-32 w-32 shrink-0 overflow-hidden rounded-full border-4 border-white bg-background shadow-md">
+                <img
+                  src={doctor.avatar || "/modern-clinic-.jpg"}
+                  alt={doctor.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="flex-1 pt-2">
+                <div className="flex flex-col items-center justify-between gap-3 sm:flex-row sm:items-center">
+                  <h1 className="text-2xl font-bold sm:text-3xl text-slate-900">{doctor.name}</h1>
+                  <Badge variant={doctor.isAvailable ? "default" : "secondary"} className={doctor.isAvailable ? "bg-success hover:bg-success/90" : ""}>
+                    {doctor.isAvailable ? "Đang nhận bệnh" : "Tạm ngưng"}
+                  </Badge>
+                </div>
+
+                <p className="mt-2 flex items-center justify-center sm:justify-start font-medium text-primary">
+                  <Brain className="mr-1.5 h-4 w-4" /> Chuyên khoa {doctor.specialty?.name}
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center">
+                    <Stethoscope className="mr-1.5 h-4 w-4" /> {doctor.experience} năm kinh nghiệm
+                  </span>
+                  {(Number((doctor as any).reviewCount || 0) > 0 && Number((doctor as any).rating || 0) > 0) ? (
+                    <span className="flex items-center">
+                      <Star className="mr-1 h-4 w-4 fill-yellow-500 text-yellow-500" />
+                      <span className="mx-1 font-semibold text-foreground">{(doctor as any).rating}</span>
+                      ({(doctor as any).reviewCount} đánh giá)
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto max-w-5xl px-4 py-8">
           <div className="grid gap-6 md:grid-cols-3">
             <div className="space-y-6 md:col-span-2">
-              <Card className="overflow-hidden border-0 shadow-md">
-                <div className="h-32 bg-primary/10" />
-                <CardContent className="relative p-6 pt-0">
-                  <div className="flex flex-col items-start gap-6 sm:flex-row">
-                    <div className="-mt-16 h-32 w-32 shrink-0 overflow-hidden rounded-full border-4 border-background bg-background shadow-sm">
-                      <img
-                        src={doctor.avatar || "/modern-clinic-.jpg"}
-                        alt={doctor.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 pt-2 sm:pt-4">
-                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                        <h1 className="text-2xl font-bold sm:text-3xl">{doctor.name}</h1>
-                        <Badge variant={doctor.isAvailable ? "default" : "secondary"} className={doctor.isAvailable ? "bg-success hover:bg-success/90" : ""}>
-                          {doctor.isAvailable ? "Đang nhận bệnh" : "Tạm ngưng"}
-                        </Badge>
-                      </div>
-
-                      <p className="mt-1 flex items-center font-medium text-primary">
-                        <Brain className="mr-1.5 h-4 w-4" /> Chuyên khoa {doctor.specialty?.name}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <Stethoscope className="mr-1.5 h-4 w-4" /> {doctor.experience} năm kinh nghiệm
-                        </span>
-                        {(Number((doctor as any).reviewCount || 0) > 0 && Number((doctor as any).rating || 0) > 0) ? (
-                          <span className="flex items-center">
-                            <Star className="mr-1 h-4 w-4 fill-yellow-500 text-yellow-500" />
-                            <span className="mx-1 font-semibold text-foreground">{(doctor as any).rating}</span>
-                            ({(doctor as any).reviewCount} đánh giá)
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
               <Card>
                 <CardHeader>
@@ -177,8 +180,8 @@ export default function DoctorDetailPage() {
             </div>
 
             <div className="space-y-6">
-              <Card className="sticky top-24 border-primary/20 shadow-md">
-                <CardHeader className="bg-primary/5 pb-4">
+              <Card className="sticky top-24 border-primary/20 shadow-md overflow-hidden py-0">
+                <CardHeader className="bg-primary/5 pt-5 pb-4">
                   <CardTitle className="flex items-center text-lg">
                     <Calendar className="mr-2 h-5 w-5 text-primary" />
                     Đặt lịch khám
@@ -195,9 +198,11 @@ export default function DoctorDetailPage() {
                     </div>
                   </div>
 
-                  <Link href={`/booking?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`}>
-                    <Button className="h-12 w-full bg-primary text-base">Đặt lịch ngay</Button>
-                  </Link>
+                  <Button className="h-12 w-full bg-primary text-base cursor-pointer" asChild>
+                    <Link href={`/booking?doctorId=${doctor.id}&clinicId=${doctor.clinic?.id || ""}&specialtyId=${doctor.specialty?.id || ""}`}>
+                      Đặt lịch ngay
+                    </Link>
+                  </Button>
                   <p className="mt-3 text-center text-xs text-muted-foreground">
                     Miễn phí đặt lịch. Thanh toán tại cơ sở.
                   </p>

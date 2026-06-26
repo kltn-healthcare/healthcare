@@ -23,12 +23,56 @@ const nextConfig = {
         destination: `${authUrl}/v1/auth/:path*`,
       },
       {
+        source: '/api/v1/notifications/:path*',
+        destination: `${authUrl}/v1/notifications/:path*`,
+      },
+      {
+        source: '/api/v1/admin/users/:path*',
+        destination: `${authUrl}/v1/admin/users/:path*`,
+      },
+      {
+        source: '/api/v1/doctor-admin/bookings/:path*',
+        destination: `${backendUrl}/v1/doctor-admin/bookings/:path*`,
+      },
+      {
+        source: '/api/v1/clinic-admin/bookings/:path*',
+        destination: `${backendUrl}/v1/clinic-admin/bookings/:path*`,
+      },
+      {
         source: '/api/v1/admin/:path*',
         destination: `${adminUrl}/v1/admin/:path*`,
       },
       {
         source: '/api/v1/doctor-admin/:path*',
         destination: `${adminUrl}/v1/doctor-admin/:path*`,
+      },
+      {
+        source: '/api/v1/clinic-admin/:path*',
+        destination: `${adminUrl}/v1/clinic-admin/:path*`,
+      },
+      {
+        source: '/api/v1/users/:path*',
+        destination: `${authUrl}/v1/users/:path*`,
+      },
+      {
+        source: '/api/v1/specialties/:path*',
+        destination: `${adminUrl}/v1/specialties/:path*`,
+      },
+      {
+        source: '/api/v1/clinics/:path*',
+        destination: `${adminUrl}/v1/clinics/:path*`,
+      },
+      {
+        source: '/api/v1/doctors/:path*',
+        destination: `${adminUrl}/v1/doctors/:path*`,
+      },
+      {
+        source: '/api/v1/packages/:path*',
+        destination: `${adminUrl}/v1/packages/:path*`,
+      },
+      {
+        source: '/api/v1/articles/:path*',
+        destination: `${adminUrl}/v1/articles/:path*`,
       },
       {
         source: '/api/:path*',

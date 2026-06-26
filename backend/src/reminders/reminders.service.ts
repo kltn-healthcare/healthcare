@@ -7,10 +7,10 @@ import {
   Prisma,
   ReminderChannel,
   ReminderStatus,
+  ReminderType,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../common/mail/mail.service';
-import { NotificationsService } from '../notifications/notifications.service';
 
 type ReminderBooking = {
   id: string;
@@ -19,8 +19,10 @@ type ReminderBooking = {
   patientEmail: string;
   bookingDate: Date;
   bookingTime: string;
-  clinic: { name: string; address: string };
-  doctor: { name: string } | null;
+  clinicId: string;
+  doctorId: string | null;
+  clinic?: { name: string; address: string };
+  doctor?: { name: string } | null;
 };
 
 @Injectable()
@@ -30,7 +32,6 @@ export class RemindersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
-    private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -94,17 +95,45 @@ export class RemindersService {
         patientEmail: true,
         bookingDate: true,
         bookingTime: true,
-        clinic: { select: { name: true, address: true } },
-        doctor: { select: { name: true } },
+        clinicId: true,
+        doctorId: true,
       },
     });
 
-    return items.filter((item) => {
+    const activeItems = items.filter((item) => {
       const appointmentAt = this.toAppointmentDateTime(
         item.bookingDate,
         item.bookingTime,
       );
       return appointmentAt.getTime() >= now.getTime() && appointmentAt.getTime() <= until.getTime();
+    });
+
+    if (activeItems.length === 0) {
+      return [];
+    }
+
+    // Resolve clinic and doctor names via batch endpoint
+    const clinicIds = Array.from(new Set(activeItems.map((i) => i.clinicId)));
+    const doctorIds = Array.from(
+      new Set(activeItems.map((i) => i.doctorId).filter(Boolean)),
+    ) as string[];
+
+    const resolved = await this.resolveBatchInternal({ clinicIds, doctorIds });
+
+    return activeItems.map((item) => {
+      const clinic = resolved?.clinics?.[item.clinicId] || {
+        name: 'Clinic',
+        address: '',
+      };
+      const doctor =
+        item.doctorId && resolved?.doctors?.[item.doctorId]
+          ? resolved.doctors[item.doctorId]
+          : null;
+      return {
+        ...item,
+        clinic,
+        doctor,
+      };
     });
   }
 
@@ -118,16 +147,16 @@ export class RemindersService {
     );
     const appointmentLabel = this.formatAppointmentLabel(appointmentAt);
     const title = 'Nhac lich kham sap toi';
-    const body = `Ban co lich kham tai ${booking.clinic.name} luc ${appointmentLabel}.`;
+    const clinicName = booking.clinic?.name || 'Clinic';
+    const body = `Ban co lich kham tai ${clinicName} luc ${appointmentLabel}.`;
     const data: Prisma.InputJsonObject = {
       bookingId: booking.id,
       appointmentAt: appointmentAt.toISOString(),
-      clinicName: booking.clinic.name,
+      clinicName,
     };
 
-    // SMTP Email sending is skipped here because it is handled externally by AWS Lambda + DynamoDB
     try {
-      await this.notificationsService.createNotification({
+      await this.createNotificationInternal({
         userId: booking.userId,
         type: NotificationType.BOOKING_REMINDER,
         title,
@@ -136,12 +165,12 @@ export class RemindersService {
         push: true,
         actionUrl: `/account?tab=appointments&bookingId=${booking.id}`,
       });
-      await this.notificationsService.markReminderSent(
+      await this.markReminderSent(
         booking.id,
         ReminderChannel.IN_WEB,
         scheduledFor,
       );
-      await this.notificationsService.markReminderSent(
+      await this.markReminderSent(
         booking.id,
         ReminderChannel.WEB_PUSH,
         scheduledFor,
@@ -150,12 +179,124 @@ export class RemindersService {
       this.logger.warn(
         `Failed to create notification for booking ${booking.id}: ${error instanceof Error ? error.message : String(error)}`,
       );
-      await this.notificationsService.markReminderFailed(
+      await this.markReminderFailed(
         booking.id,
         ReminderChannel.IN_WEB,
         scheduledFor,
         error,
       );
+    }
+  }
+
+  private async markReminderSent(
+    bookingId: string,
+    channel: ReminderChannel,
+    scheduledFor: Date,
+  ) {
+    return this.prisma.bookingReminderLog.upsert({
+      where: {
+        bookingId_channel_reminderType: {
+          bookingId,
+          channel,
+          reminderType: ReminderType.BEFORE_APPOINTMENT,
+        },
+      },
+      create: {
+        bookingId,
+        channel,
+        scheduledFor,
+        status: ReminderStatus.SENT,
+        sentAt: new Date(),
+        attemptCount: 1,
+      },
+      update: {
+        status: ReminderStatus.SENT,
+        sentAt: new Date(),
+        scheduledFor,
+        attemptCount: { increment: 1 },
+        error: null,
+      },
+    });
+  }
+
+  private async markReminderFailed(
+    bookingId: string,
+    channel: ReminderChannel,
+    scheduledFor: Date,
+    error: unknown,
+  ) {
+    const message = error instanceof Error ? error.message : String(error);
+    this.logger.warn(
+      `Reminder ${channel} failed for booking ${bookingId}: ${message}`,
+    );
+
+    return this.prisma.bookingReminderLog.upsert({
+      where: {
+        bookingId_channel_reminderType: {
+          bookingId,
+          channel,
+          reminderType: ReminderType.BEFORE_APPOINTMENT,
+        },
+      },
+      create: {
+        bookingId,
+        channel,
+        scheduledFor,
+        status: ReminderStatus.FAILED,
+        attemptCount: 1,
+        error: message,
+      },
+      update: {
+        status: ReminderStatus.FAILED,
+        scheduledFor,
+        attemptCount: { increment: 1 },
+        error: message,
+      },
+    });
+  }
+
+  private async resolveBatchInternal(body: {
+    clinicIds?: string[];
+    doctorIds?: string[];
+  }) {
+    try {
+      const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
+      const res = await fetch(`${adminUrl}/v1/admin/internal/resolve-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error batch resolving from admin service:', error);
+      return null;
+    }
+  }
+
+  private async createNotificationInternal(body: {
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    data?: any;
+    push?: boolean;
+    actionUrl?: string;
+  }) {
+    try {
+      const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
+      const res = await fetch(`${identityUrl}/v1/notifications/internal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        console.error('Failed to create notification', await res.text());
+        throw new Error('Failed to create internal notification');
+      }
+    } catch (error) {
+      console.error('Error sending notification to identity service:', error);
+      throw error;
     }
   }
 

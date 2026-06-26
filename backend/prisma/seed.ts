@@ -1,4 +1,6 @@
-import { BookingStatus, BookingType, Gender, PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient as IdentityClient, UserRole } from '../apps/identity/src/generated/client';
+import { PrismaClient as AdminClient } from '../apps/admin/src/generated/client';
+import { PrismaClient as AppointmentClient } from '../apps/appointment/src/generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
@@ -131,7 +133,7 @@ function packageAvailability(slotDurationMinutes: number, capacity = 3) {
 }
 
 async function upsertUser(
-  prisma: PrismaClient,
+  prisma: IdentityClient,
   input: {
     email: string;
     role: UserRole;
@@ -163,35 +165,39 @@ async function upsertUser(
 }
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not defined');
+  const identityUrl = process.env.DATABASE_URL_IDENTITY;
+  const adminUrl = process.env.DATABASE_URL_ADMIN;
+  const appointmentUrl = process.env.DATABASE_URL_APPOINTMENT;
+
+  if (!identityUrl || !adminUrl || !appointmentUrl) {
+    throw new Error('DATABASE_URL_IDENTITY, DATABASE_URL_ADMIN, and DATABASE_URL_APPOINTMENT must be defined');
   }
 
-  const adapter = new PrismaPg({ connectionString });
-  const prisma = new PrismaClient({ adapter });
+  const identityPrisma = new IdentityClient({ adapter: new PrismaPg({ connectionString: identityUrl }) });
+  const adminPrisma = new AdminClient({ adapter: new PrismaPg({ connectionString: adminUrl }) });
+  const appointmentPrisma = new AppointmentClient({ adapter: new PrismaPg({ connectionString: appointmentUrl }) });
 
   try {
-    // 1. Setup Admin
-    await upsertUser(prisma, {
+    // 1. Setup Admin & Patient in Identity DB
+    await upsertUser(identityPrisma, {
       email: 'admin@gmail.com',
       role: UserRole.ADMIN,
       name: 'Quản trị hệ thống',
       phone: '0900000000',
     });
 
-    const patient = await upsertUser(prisma, {
+    const patient = await upsertUser(identityPrisma, {
       email: 'patient@gmail.com',
       role: UserRole.PATIENT,
       name: 'Bệnh nhân Demo',
       phone: '0900000999',
     });
 
-    // 2. Insert Specialties
+    // 2. Insert Specialties in Admin DB
     const specialties = new Map<string, string>();
     const allSpecialties = ['Nội khoa', 'Nhi khoa', 'Tai Mũi Họng', 'Răng Hàm Mặt', 'Da liễu', 'Mắt'];
     for (const name of allSpecialties) {
-      const specialty = await prisma.specialty.upsert({
+      const specialty = await adminPrisma.specialty.upsert({
         where: { name },
         update: {},
         create: { name },
@@ -204,14 +210,14 @@ async function main() {
     let packageImageIdx = 0;
 
     for (const clinicData of clinicsData) {
-      // Upsert Clinic Admin User
-      const clinicAdminUser = await upsertUser(prisma, {
+      // Upsert Clinic Admin User in Identity DB
+      const clinicAdminUser = await upsertUser(identityPrisma, {
         email: clinicData.email,
         role: UserRole.CLINIC_ADMIN,
         name: `Admin ${clinicData.name}`,
       });
 
-      let clinic = await prisma.clinic.findFirst({ where: { email: clinicData.email } });
+      let clinic = await adminPrisma.clinic.findFirst({ where: { email: clinicData.email } });
       
       const clinicPayload = {
           name: clinicData.name,
@@ -228,12 +234,12 @@ async function main() {
       };
 
       if (clinic) {
-        clinic = await prisma.clinic.update({
+        clinic = await adminPrisma.clinic.update({
           where: { id: clinic.id },
           data: clinicPayload,
         });
       } else {
-        clinic = await prisma.clinic.create({
+        clinic = await adminPrisma.clinic.create({
           data: {
             ...clinicPayload,
             workingHours: {
@@ -243,8 +249,8 @@ async function main() {
         });
       }
 
-      // Create ClinicAdmin
-      await prisma.clinicAdmin.upsert({
+      // Create ClinicAdmin in Admin DB
+      await adminPrisma.clinicAdmin.upsert({
         where: { userId: clinicAdminUser.id },
         update: { clinicId: clinic.id },
         create: {
@@ -257,7 +263,7 @@ async function main() {
       for (const specName of clinicData.specialties) {
         const specId = specialties.get(specName);
         if (specId) {
-          const clinicSpec = await prisma.clinicSpecialty.upsert({
+          await adminPrisma.clinicSpecialty.upsert({
             where: {
               clinicId_specialtyId: {
                 clinicId: clinic.id,
@@ -277,13 +283,13 @@ async function main() {
           // Find doctor for this specialty
           const docData = clinicData.doctors.find(d => d.spec === specName);
           if (docData) {
-            const docUser = await upsertUser(prisma, {
+            const docUser = await upsertUser(identityPrisma, {
               email: docData.email,
               role: UserRole.DOCTOR,
               name: docData.name,
             });
 
-            const doctor = await prisma.doctor.upsert({
+            const doctor = await adminPrisma.doctor.upsert({
               where: { userId: docUser.id },
               update: {},
               create: {
@@ -299,48 +305,50 @@ async function main() {
             });
             doctorImageIdx++;
 
-            // Create fake bookings for Sunday, May 31, 2026
+            // Create fake bookings for Sunday, May 31, 2026 in Appointment DB
             const bookingDate = new Date('2026-05-31T00:00:00.000Z');
             
-            await prisma.booking.create({
+            await appointmentPrisma.booking.create({
               data: {
                 userId: patient.id,
                 clinicId: clinic.id,
                 doctorId: doctor.id,
-                specialtyId: clinicSpec.id,
-                bookingType: BookingType.DOCTOR_CONSULTATION,
+                bookingNumber: `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                type: 'DOCTOR',
                 patientName: 'Nguyễn Văn A',
                 patientEmail: patient.email,
                 patientPhone: '0911222333',
-                patientGender: Gender.MALE,
-                bookingDate,
-                bookingTime: '08:30',
-                status: BookingStatus.CONFIRMED,
+                patientGender: 'MALE',
+                scheduledDate: bookingDate,
+                timeSlot: '08:30',
+                status: 'CONFIRMED',
+                reason: 'Khám sức khỏe định kỳ',
               }
             });
 
-            await prisma.booking.create({
+            await appointmentPrisma.booking.create({
               data: {
                 userId: patient.id,
                 clinicId: clinic.id,
                 doctorId: doctor.id,
-                specialtyId: clinicSpec.id,
-                bookingType: BookingType.DOCTOR_CONSULTATION,
+                bookingNumber: `BK-${Date.now()}-${Math.floor(Math.random() * 1001)}`,
+                type: 'DOCTOR',
                 patientName: 'Trần Thị B',
                 patientEmail: patient.email,
                 patientPhone: '0944555666',
-                patientGender: Gender.FEMALE,
-                bookingDate,
-                bookingTime: '14:30',
-                status: BookingStatus.PENDING,
+                patientGender: 'FEMALE',
+                scheduledDate: bookingDate,
+                timeSlot: '14:30',
+                status: 'PENDING',
+                reason: 'Tư vấn dinh dưỡng',
               }
             });
           }
         }
       }
 
-      // Insert Health Package
-      let pkg = await prisma.healthPackage.findFirst({ where: { name: clinicData.packageName } });
+      // Insert Health Package in Admin DB
+      let pkg = await adminPrisma.healthPackage.findFirst({ where: { name: clinicData.packageName } });
       const pkgPayload = {
           clinicId: clinic.id,
           name: clinicData.packageName,
@@ -355,12 +363,12 @@ async function main() {
       };
 
       if (pkg) {
-        pkg = await prisma.healthPackage.update({
+        pkg = await adminPrisma.healthPackage.update({
           where: { id: pkg.id },
           data: pkgPayload,
         });
       } else {
-        pkg = await prisma.healthPackage.create({
+        pkg = await adminPrisma.healthPackage.create({
           data: {
             ...pkgPayload,
             availabilities: {
@@ -372,10 +380,10 @@ async function main() {
       packageImageIdx++;
     }
 
-    // 4. Insert Articles
-    const existingArticles = await prisma.article.count();
+    // 4. Insert Articles in Admin DB
+    const existingArticles = await adminPrisma.article.count();
     if (existingArticles === 0) {
-      await prisma.article.createMany({
+      await adminPrisma.article.createMany({
         data: [
           {
             title: '5 dấu hiệu cảnh báo bạn cần đi khám bác sĩ ngay',
@@ -414,7 +422,9 @@ async function main() {
     console.error('Error seeding data:', error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    await identityPrisma.$disconnect();
+    await adminPrisma.$disconnect();
+    await appointmentPrisma.$disconnect();
   }
 }
 

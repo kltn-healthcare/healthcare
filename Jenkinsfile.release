@@ -137,10 +137,10 @@ pipeline {
               changedServices:  env.CHANGED_SERVICES,
               imageTag:         env.DEPLOY_TAG,
               serviceFolderMap: [
-                'frontend': 'frontend',
-                'auth':     'auth-service',
-                'backend':  'backend-service',
-                'admin':    'admin-service'
+                'frontend':    'frontend',
+                'identity':    'identity-service',
+                'appointment': 'appointment-service',
+                'admin':       'admin-service'
               ],
               manifestRepoUrl:    env.MANIFEST_REPO_URL,
               manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
@@ -169,10 +169,10 @@ pipeline {
               manifestRepoUrl:    env.MANIFEST_REPO_URL,
               manifestRepoBranch: env.MANIFEST_REPO_BRANCH,
               serviceFolderMap:   [
-                'frontend': 'frontend',
-                'auth':     'auth-service',
-                'backend':  'backend-service',
-                'admin':    'admin-service'
+                'frontend':    'frontend',
+                'identity':    'identity-service',
+                'appointment': 'appointment-service',
+                'admin':       'admin-service'
               ],
               token: TOKEN
             )

@@ -170,18 +170,40 @@ export class PackagesService {
           )
         : this.buildTimeSlots(source.startTime, source.endTime, slotDurationMinutes);
 
-    const bookings = await this.prisma.booking.groupBy({
-      by: ['bookingTime'],
-      where: {
-        packageId,
-        bookingDate: date,
-        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
-      },
-      _count: { bookingTime: true },
-    });
-    const bookedByTime = new Map(
-      bookings.map((row) => [row.bookingTime, row._count.bookingTime]),
-    );
+    const bookedByTime = new Map<string, number>();
+    try {
+      if (this.prisma && (this.prisma as any).booking) {
+        const bookings = await (this.prisma as any).booking.groupBy({
+          by: ['bookingTime'],
+          where: {
+            packageId,
+            bookingDate: date,
+            status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          },
+          _count: { bookingTime: true },
+        });
+        for (const row of bookings) {
+          bookedByTime.set(row.bookingTime, row._count.bookingTime);
+        }
+      } else {
+        // If we are in the decoupled Admin microservice, fetch booked slots from the Backend/Appointment microservice
+        let backendUrl = process.env.APPOINTMENT_SERVICE_URL || process.env.BACKEND_URL || 'http://localhost:8080';
+        if (backendUrl.includes('healthcare-backend')) {
+          backendUrl = backendUrl.replace('healthcare-backend', 'healthcare-appointment');
+        }
+        const res = await fetch(
+          `${backendUrl}/v1/bookings/internal/package/${packageId}/booked-slots?date=${dateValue}`,
+        );
+        if (res.ok) {
+          const bookingsData = await res.json();
+          for (const row of bookingsData) {
+            bookedByTime.set(row.bookingTime, row.count);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching package booked slots from backend service:', error);
+    }
     const now = Date.now();
     const slotDetails = slots.map((slot) => {
       const slotDateTime = new Date(date);
