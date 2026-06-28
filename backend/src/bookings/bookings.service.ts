@@ -505,12 +505,19 @@ export class BookingsService {
     return updated;
   }
 
+  private unpack<T>(body: any): T {
+    if (body && typeof body === 'object' && 'statusCode' in body && 'data' in body) {
+      return body.data as T;
+    }
+    return body as T;
+  }
+
   private async fetchUserInternal(userId: string) {
     try {
       const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error fetching user from identity service:', error);
       return null;
@@ -522,7 +529,7 @@ export class BookingsService {
       const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/clinics/${clinicId}`);
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error fetching clinic from admin service:', error);
       return null;
@@ -550,9 +557,9 @@ export class BookingsService {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new BadRequestException(err);
+        throw new BadRequestException(this.unpack(err));
       }
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       console.error('Error validating slot from admin service:', error);
@@ -577,7 +584,7 @@ export class BookingsService {
         body: JSON.stringify(body),
       });
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error batch resolving from admin service:', error);
       return null;
@@ -948,7 +955,7 @@ export class BookingsService {
       if (!res.ok) {
         throw new NotFoundException('Doctor profile not found');
       }
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       console.error('Error fetching doctor by userId:', error);
@@ -963,7 +970,7 @@ export class BookingsService {
       if (!res.ok) {
         throw new NotFoundException('Clinic admin profile not found');
       }
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       console.error('Error fetching clinic admin by userId:', error);
@@ -976,7 +983,7 @@ export class BookingsService {
       const adminUrl = process.env.ADMIN_SERVICE_URL || process.env.ADMIN_URL || 'http://localhost:3002';
       const res = await fetch(`${adminUrl}/v1/admin/internal/health-packages/${packageId}`);
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error fetching package details:', error);
       return null;

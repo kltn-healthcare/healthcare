@@ -122,7 +122,8 @@ export class DoctorsService {
       }
       const res = await fetch(`${backendUrl}/v1/reviews/doctor/${doctorId}/stats`);
       if (res.ok) {
-        const stats = await res.json();
+        const body = await res.json();
+        const stats = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
         return {
           _avg: { rating: stats.averageRating },
           _count: { rating: stats.reviewCount },

@@ -448,7 +448,8 @@ export class AdminService {
           body: JSON.stringify({ userIds }),
         });
         if (res.ok) {
-          userMap = await res.json();
+          const body = await res.json();
+          userMap = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
         }
       } catch (err) {
         console.error('Failed to resolve doctor users:', err);
@@ -503,7 +504,8 @@ export class AdminService {
           }),
         });
         if (res.ok) {
-          const user = await res.json();
+          const body = await res.json();
+          const user = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
           userId = user.id;
         } else {
           const errBody = await res.json().catch(() => ({}));
@@ -551,7 +553,8 @@ export class AdminService {
         const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
         if (res.ok) {
-          userData = await res.json();
+          const body = await res.json();
+          userData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
         }
       } catch (err) {
         console.error('Failed to fetch doctor user detail:', err);
@@ -640,7 +643,8 @@ export class AdminService {
         const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
         const res = await fetch(`${identityUrl}/v1/users/internal/${doctor.userId}`);
         if (res.ok) {
-          userData = await res.json();
+          const body = await res.json();
+          userData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
         }
       } catch (err) {
         console.error('Failed to fetch doctor user detail:', err);

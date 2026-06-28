@@ -192,6 +192,13 @@ export class ReviewsService {
     }
   }
 
+  private unpack<T>(body: any): T {
+    if (body && typeof body === 'object' && 'statusCode' in body && 'data' in body) {
+      return body.data as T;
+    }
+    return body as T;
+  }
+
   private async fetchUsersBatch(userIds: string[]) {
     try {
       const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
@@ -201,7 +208,7 @@ export class ReviewsService {
         body: JSON.stringify({ userIds }),
       });
       if (!res.ok) return {};
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error batch fetching users:', error);
       return {};
@@ -220,7 +227,7 @@ export class ReviewsService {
         body: JSON.stringify(body),
       });
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error batch fetching admin details:', error);
       return null;
