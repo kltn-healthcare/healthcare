@@ -256,7 +256,10 @@ export class DoctorsService {
           `${backendUrl}/v1/bookings/internal/doctor/${doctorId}/booked-slots?date=${dto.date}`,
         );
         if (res.ok) {
-          booked = await res.json();
+          const body = await res.json();
+          booked = (body && typeof body === 'object' && 'data' in body && Array.isArray((body as any).data))
+            ? (body as any).data
+            : (Array.isArray(body) ? body : []);
         }
       }
     } catch (error) {
