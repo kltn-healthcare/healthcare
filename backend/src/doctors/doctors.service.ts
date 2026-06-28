@@ -122,7 +122,8 @@ export class DoctorsService {
       }
       const res = await fetch(`${backendUrl}/v1/reviews/doctor/${doctorId}/stats`);
       if (res.ok) {
-        const stats = await res.json();
+        const body = await res.json();
+        const stats = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
         return {
           _avg: { rating: stats.averageRating },
           _count: { rating: stats.reviewCount },
@@ -256,7 +257,10 @@ export class DoctorsService {
           `${backendUrl}/v1/bookings/internal/doctor/${doctorId}/booked-slots?date=${dto.date}`,
         );
         if (res.ok) {
-          booked = await res.json();
+          const body = await res.json();
+          booked = (body && typeof body === 'object' && 'data' in body && Array.isArray((body as any).data))
+            ? (body as any).data
+            : (Array.isArray(body) ? body : []);
         }
       }
     } catch (error) {

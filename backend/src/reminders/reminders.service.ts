@@ -255,6 +255,13 @@ export class RemindersService {
     });
   }
 
+  private unpack(body: any): any {
+    if (body && typeof body === 'object' && 'statusCode' in body && 'data' in body) {
+      return body.data;
+    }
+    return body;
+  }
+
   private async resolveBatchInternal(body: {
     clinicIds?: string[];
     doctorIds?: string[];
@@ -267,7 +274,7 @@ export class RemindersService {
         body: JSON.stringify(body),
       });
       if (!res.ok) return null;
-      return await res.json();
+      return this.unpack(await res.json());
     } catch (error) {
       console.error('Error batch resolving from admin service:', error);
       return null;

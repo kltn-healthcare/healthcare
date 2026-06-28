@@ -8,8 +8,8 @@ datasource db {
 }
 
 enum BookingType {
-  DOCTOR
-  PACKAGE
+  DOCTOR_CONSULTATION
+  HEALTH_PACKAGE
 }
 
 enum BookingStatus {
@@ -17,13 +17,6 @@ enum BookingStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
-  NO_SHOW
-}
-
-enum PaymentStatus {
-  UNPAID
-  PAID
-  REFUNDED
 }
 
 enum Gender {
@@ -32,64 +25,82 @@ enum Gender {
   OTHER
 }
 
+enum ReminderChannel {
+  EMAIL
+  IN_WEB
+  WEB_PUSH
+}
+
+enum ReminderType {
+  BEFORE_APPOINTMENT
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model Booking {
   id                 String        @id @default(uuid())
-  bookingNumber      String        @unique @map("booking_number")
-  userId             String        @map("user_id") // ID trỏ sang Identity DB
-  doctorId           String?       @map("doctor_id") // ID trỏ sang Clinic DB
-  clinicId           String        @map("clinic_id") // ID trỏ sang Clinic DB
-  type               BookingType
-  scheduledDate      DateTime      @map("scheduled_date") @db.Date
-  timeSlot           String        @map("time_slot") @db.VarChar(5)
+  userId             String        @map("user_id")
+  clinicId           String        @map("clinic_id")
+  doctorId           String?       @map("doctor_id")
+  specialtyId        String?       @map("specialty_id")
+  bookingType        BookingType   @default(DOCTOR_CONSULTATION) @map("booking_type")
+
   patientName        String        @map("patient_name")
-  patientPhone       String        @map("patient_phone")
   patientEmail       String        @map("patient_email")
-  patientGender      Gender?       @map("patient_gender")
+  patientPhone       String        @map("patient_phone")
   patientDob         DateTime?     @map("patient_dob") @db.Date
-  reason             String        @db.Text
-  symptoms           String?       @db.Text
-  status             BookingStatus @default(PENDING)
-  paymentStatus      PaymentStatus @default(UNPAID) @map("payment_status")
-  paymentId          String?       @map("payment_id")
-  paymentAmount      Decimal?      @map("payment_amount") @db.Decimal(12, 2)
-  paymentUrl         String?       @map("payment_url") @db.Text
-  checkoutSessionId  String?       @map("checkout_session_id")
-  paymentMethod      String?       @map("payment_method") @db.VarChar(50)
-  paymentInfo        Json?         @map("payment_info")
-  canceledBy         String?       @map("canceled_by") @db.VarChar(50)
-  cancelReason       String?       @map("cancel_reason") @db.Text
+  patientGender      Gender?       @map("patient_gender")
   notes              String?       @db.Text
-  clinicNotes        String?       @map("clinic_notes") @db.Text
+
+  bookingDate        DateTime      @map("booking_date") @db.Date
+  bookingTime        String        @map("booking_time") @db.VarChar(10)
+  status             BookingStatus @default(PENDING)
+
+  paymentReceiptUrl  String?       @map("payment_receipt_url") @db.Text
+
+  cancellationReason String?       @map("cancellation_reason") @db.Text
+  cancelledAt        DateTime?     @map("cancelled_at") @db.Timestamptz
+
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  packageId          String?       @map("package_id")
 
   reminderLogs       BookingReminderLog[]
   review             Review?
 
   @@map("bookings")
-  @@index([userId])
-  @@index([doctorId])
-  @@index([clinicId])
+  @@index([userId, createdAt])
+  @@index([clinicId, bookingDate])
+  @@index([clinicId, specialtyId, bookingDate])
+  @@index([packageId, bookingDate])
   @@index([status])
-  @@index([scheduledDate])
-  @@index([bookingNumber])
-  @@index([createdAt])
+  @@index([status, bookingDate])
 }
 
 model BookingReminderLog {
-  id           String   @id @default(uuid())
-  bookingId    String   @map("booking_id")
-  reminderType String   @map("reminder_type")
-  sentAt       DateTime @default(now()) @map("sent_at") @db.Timestamptz
-  status       String
-  error        String?
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id           String          @id @default(uuid())
+  bookingId    String          @map("booking_id")
+  channel      ReminderChannel
+  reminderType ReminderType    @default(BEFORE_APPOINTMENT) @map("reminder_type")
+  scheduledFor DateTime        @map("scheduled_for") @db.Timestamptz
+  status       ReminderStatus  @default(PENDING)
+  sentAt       DateTime?       @map("sent_at") @db.Timestamptz
+  attemptCount Int             @default(0) @map("attempt_count")
+  error        String?         @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz
 
-  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking      Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@map("booking_reminder_logs")
-  @@index([bookingId])
-  @@index([sentAt])
+  @@unique([bookingId, channel, reminderType])
+  @@index([status, scheduledFor])
 }
 
 model Review {

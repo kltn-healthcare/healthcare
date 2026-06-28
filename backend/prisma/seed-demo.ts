@@ -1,6 +1,6 @@
 import { PrismaClient as IdentityClient, UserRole } from '../apps/identity/src/generated/client';
 import { PrismaClient as AdminClient } from '../apps/admin/src/generated/client';
-import { PrismaClient as AppointmentClient, BookingType, BookingStatus, Gender, PaymentStatus } from '../apps/appointment/src/generated/client';
+import { PrismaClient as AppointmentClient, BookingType, BookingStatus, Gender } from '../apps/appointment/src/generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
@@ -620,13 +620,12 @@ async function main() {
     // Seed Doctor Consultation Bookings
     const booking1 = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-1`,
         userId: patientAn.id,
         clinicId: clinicTamDucId,
         doctorId: doctorMinhAnh,
-        type: BookingType.DOCTOR,
-        scheduledDate: booking1Date,
-        timeSlot: '08:30',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: booking1Date,
+        bookingTime: '08:30',
         patientName: patientAn.name,
         patientEmail: patientAn.email,
         patientPhone: patientAn.phone || '',
@@ -634,19 +633,17 @@ async function main() {
         patientDob: new Date('1996-04-12'),
         reason: 'Tái khám kiểm tra men gan.',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
       },
     });
 
     await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-2`,
         userId: patientBinh.id,
         clinicId: clinicTamDucId,
         doctorId: doctorHoangPhuc,
-        type: BookingType.DOCTOR,
-        scheduledDate: booking2Date,
-        timeSlot: '14:00',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: booking2Date,
+        bookingTime: '14:00',
         patientName: patientBinh.name,
         patientEmail: patientBinh.email,
         patientPhone: patientBinh.phone || '',
@@ -654,19 +651,17 @@ async function main() {
         patientDob: new Date('1999-08-21'),
         reason: 'Khám hồi hộp tim và khó thở nhẹ khi gắng sức.',
         status: BookingStatus.PENDING,
-        paymentStatus: PaymentStatus.UNPAID,
       },
     });
 
     const completedBooking = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-3`,
         userId: patientChau.id,
         clinicId: clinicAnhDuongId,
         doctorId: doctorKhanhLinh,
-        type: BookingType.DOCTOR,
-        scheduledDate: booking3Date,
-        timeSlot: '09:15',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: booking3Date,
+        bookingTime: '09:15',
         patientName: patientChau.name,
         patientEmail: patientChau.email,
         patientPhone: patientChau.phone || '',
@@ -674,19 +669,17 @@ async function main() {
         patientDob: new Date('1988-11-05'),
         reason: 'Tái khám sau điều trị viêm phụ khoa.',
         status: BookingStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
       },
     });
 
     await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-4`,
         userId: patientAn.id,
         clinicId: clinicSaiGonCareId,
         doctorId: doctorDucThanh,
-        type: BookingType.DOCTOR,
-        scheduledDate: booking4Date,
-        timeSlot: '10:30',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: booking4Date,
+        bookingTime: '10:30',
         patientName: patientAn.name,
         patientEmail: patientAn.email,
         patientPhone: patientAn.phone || '',
@@ -694,21 +687,19 @@ async function main() {
         patientDob: new Date('1996-04-12'),
         reason: 'Khám đau lưng do ngồi lâu.',
         status: BookingStatus.CANCELLED,
-        canceledBy: 'patient',
-        cancelReason: 'Khách thay đổi lịch công tác đột xuất',
-        paymentStatus: PaymentStatus.UNPAID,
+        cancellationReason: 'Khách thay đổi lịch công tác đột xuất',
+        cancelledAt: new Date(),
       },
     });
 
     // Seed Package Bookings
     await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-5`,
         userId: patientBinh.id,
         clinicId: clinicTamDucId,
-        type: BookingType.PACKAGE,
-        scheduledDate: booking5Date,
-        timeSlot: '08:00',
+        bookingType: BookingType.HEALTH_PACKAGE,
+        bookingDate: booking5Date,
+        bookingTime: '08:00',
         patientName: patientBinh.name,
         patientEmail: patientBinh.email,
         patientPhone: patientBinh.phone || '',
@@ -716,19 +707,18 @@ async function main() {
         patientDob: new Date('1999-08-21'),
         reason: 'Khám sức khỏe định kỳ công ty quý II.',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PAID,
         notes: `Đăng ký gói khám: Gói khám sức khỏe tổng quát doanh nghiệp Tâm Đức (ID: ${pkgTongQuatId})`,
+        packageId: pkgTongQuatId,
       },
     });
 
     await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-6`,
         userId: patientChau.id,
         clinicId: clinicAnhDuongId,
-        type: BookingType.PACKAGE,
-        scheduledDate: booking6Date,
-        timeSlot: '15:00',
+        bookingType: BookingType.HEALTH_PACKAGE,
+        bookingDate: booking6Date,
+        bookingTime: '15:00',
         patientName: patientChau.name,
         patientEmail: patientChau.email,
         patientPhone: patientChau.phone || '',
@@ -736,8 +726,8 @@ async function main() {
         patientDob: new Date('1988-11-05'),
         reason: 'Đăng ký gói phụ khoa định kỳ.',
         status: BookingStatus.PENDING,
-        paymentStatus: PaymentStatus.UNPAID,
         notes: `Đăng ký gói khám: Gói khám phụ khoa định kỳ Ánh Dương (ID: ${pkgPhuKhoaId})`,
+        packageId: pkgPhuKhoaId,
       },
     });
 
@@ -756,13 +746,12 @@ async function main() {
     // Add completed doctor bookings & reviews for BS.CKII Lê Minh Anh (doctorMinhAnh)
     const bookingMinhAnh1 = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-7`,
         userId: patientAn.id,
         clinicId: clinicTamDucId,
         doctorId: doctorMinhAnh,
-        type: BookingType.DOCTOR,
-        scheduledDate: datePlusDays(-10),
-        timeSlot: '09:00',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: datePlusDays(-10),
+        bookingTime: '09:00',
         patientName: patientAn.name,
         patientEmail: patientAn.email,
         patientPhone: patientAn.phone || '',
@@ -770,7 +759,6 @@ async function main() {
         patientDob: new Date('1996-04-12'),
         reason: 'Kiểm tra sức khỏe tổng quát.',
         status: BookingStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
       },
     });
 
@@ -787,13 +775,12 @@ async function main() {
 
     const bookingMinhAnh2 = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-8`,
         userId: patientVy.id,
         clinicId: clinicTamDucId,
         doctorId: doctorMinhAnh,
-        type: BookingType.DOCTOR,
-        scheduledDate: datePlusDays(-8),
-        timeSlot: '10:00',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: datePlusDays(-8),
+        bookingTime: '10:00',
         patientName: patientVy.name,
         patientEmail: patientVy.email,
         patientPhone: patientVy.phone || '',
@@ -801,7 +788,6 @@ async function main() {
         patientDob: new Date('1995-07-29'),
         reason: 'Tư vấn giảm mỡ máu.',
         status: BookingStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
       },
     });
 
@@ -818,13 +804,12 @@ async function main() {
 
     const bookingMinhAnh3 = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-9`,
         userId: patientNam.id,
         clinicId: clinicTamDucId,
         doctorId: doctorMinhAnh,
-        type: BookingType.DOCTOR,
-        scheduledDate: datePlusDays(-5),
-        timeSlot: '15:30',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: datePlusDays(-5),
+        bookingTime: '15:30',
         patientName: patientNam.name,
         patientEmail: patientNam.email,
         patientPhone: patientNam.phone || '',
@@ -832,7 +817,6 @@ async function main() {
         patientDob: new Date('1985-05-18'),
         reason: 'Điều trị trào ngược dạ dày.',
         status: BookingStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
       },
     });
 
@@ -850,13 +834,12 @@ async function main() {
     // Add completed doctor bookings & reviews for BS Nguyễn Hoàng Phúc (doctorHoangPhuc)
     const bookingHoangPhuc1 = await appointmentPrisma.booking.create({
       data: {
-        bookingNumber: `BK-${Date.now()}-10`,
         userId: patientDuc.id,
         clinicId: clinicTamDucId,
         doctorId: doctorHoangPhuc,
-        type: BookingType.DOCTOR,
-        scheduledDate: datePlusDays(-4),
-        timeSlot: '14:30',
+        bookingType: BookingType.DOCTOR_CONSULTATION,
+        bookingDate: datePlusDays(-4),
+        bookingTime: '14:30',
         patientName: patientDuc.name,
         patientEmail: patientDuc.email,
         patientPhone: patientDuc.phone || '',
@@ -864,7 +847,6 @@ async function main() {
         patientDob: new Date('1992-03-15'),
         reason: 'Khám tim định kỳ.',
         status: BookingStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
       },
     });
 
@@ -883,9 +865,12 @@ async function main() {
     await appointmentPrisma.bookingReminderLog.create({
       data: {
         bookingId: booking1.id,
+        channel: 'EMAIL',
         reminderType: 'BEFORE_APPOINTMENT',
         status: 'SENT',
         sentAt: new Date(),
+        scheduledFor: new Date(),
+        attemptCount: 1,
       },
     });
 

@@ -195,7 +195,10 @@ export class PackagesService {
           `${backendUrl}/v1/bookings/internal/package/${packageId}/booked-slots?date=${dateValue}`,
         );
         if (res.ok) {
-          const bookingsData = await res.json();
+          const body = await res.json();
+          const bookingsData = (body && typeof body === 'object' && 'data' in body && Array.isArray((body as any).data))
+            ? (body as any).data
+            : (Array.isArray(body) ? body : []);
           for (const row of bookingsData) {
             bookedByTime.set(row.bookingTime, row.count);
           }

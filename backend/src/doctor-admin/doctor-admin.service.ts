@@ -319,7 +319,8 @@ export class DoctorAdminService {
       const identityUrl = process.env.IDENTITY_SERVICE_URL || process.env.AUTH_URL || 'http://localhost:3001';
       const res = await fetch(`${identityUrl}/v1/users/internal/${userId}`);
       if (res.ok) {
-        userData = await res.json();
+        const body = await res.json();
+        userData = (body && typeof body === 'object' && 'data' in body) ? body.data : body;
       }
     } catch (err) {
       console.error('Failed to fetch doctor user profile details:', err);
