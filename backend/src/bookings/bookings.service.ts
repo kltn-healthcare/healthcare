@@ -505,11 +505,11 @@ export class BookingsService {
     return updated;
   }
 
-  private unpack<T>(body: any): T {
+  private unpack(body: any): any {
     if (body && typeof body === 'object' && 'statusCode' in body && 'data' in body) {
-      return body.data as T;
+      return body.data;
     }
-    return body as T;
+    return body;
   }
 
   private async fetchUserInternal(userId: string) {
