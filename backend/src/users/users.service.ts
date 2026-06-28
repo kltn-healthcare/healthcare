@@ -17,6 +17,7 @@ export class UsersService {
         phone: true,
         avatar: true,
         role: true,
+        isActive: true,
       },
     });
     if (!user)
